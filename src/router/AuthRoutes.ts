@@ -1,6 +1,6 @@
 const AuthRoutes = {
   path: '/auth',
-  component: () => import('@/layouts/default/DefaultLayout.vue'),
+  component: () => import('@/layouts/blank/BlankLayout.vue'),
   meta: {
     requiresAuth: false
   },
