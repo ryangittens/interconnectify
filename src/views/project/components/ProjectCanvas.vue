@@ -5,10 +5,10 @@
       class="drawing-svg"
       xmlns="http://www.w3.org/2000/svg"
       :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
-      @mousedown="startPan"
+      @mousedown="startInteraction"
       @mousemove="handleMouseMove"
-      @mouseup="endPan"
-      @mouseleave="endPan"
+      @mouseup="endInteraction"
+      @mouseleave="endInteraction"
       @wheel="zoom"
       @click="handleSvgClick"
     >
@@ -34,7 +34,7 @@
       <g ref="linesContainer"></g>
     </svg>
   </div>
-  <h2 v-for="block in store.blocks">hello {{ isSelected(block) }}</h2>
+  <h2>{{ store.blocks.length }}</h2>
 </template>
 
 <script setup>
@@ -52,9 +52,14 @@ const { addBlock, selectBlock, moveBlock, deleteBlock, startDrawing, stopDrawing
 
 const viewBox = reactive({ x: 0, y: 0, width: 0, height: 0 }); // Initial viewBox
 let panStart = { x: 0, y: 0 };
+let dragStart = { x: 0, y: 0 };
+let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
+let dragging = false;
 const zoomLevel = ref(1);
-const zoomFactor = 0.1;
+const zoomFactor = 0.04;
+const minZoomLevel = 0.02;
+const maxZoomLevel = 1.5;
 
 const isSelected = (block) => {
   return store.selectedBlock && store.selectedBlock.id === block.id;
@@ -162,14 +167,32 @@ const handleMouseMove = (event) => {
     const coords = getSVGCoordinates(event);
     hoverPoint.value = coords; // Update the hover point to the current coordinates
     drawHoverLine(coords.x, coords.y, event.ctrlKey);
+  } else if (panning && !store.selectedBlock) {
+    pan(event);
+  } else if (dragging && store.selectedBlock) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - dragStart.x;
+    const dy = coords.y - dragStart.y;
+    moveBlock(store.selectedBlock, dx, dy);
+    dragStart = coords;
   }
 };
 
-const handleClick = (event) => {
-  if (!store.isDrawing || !hoverPoint.value) return;
-  // Add the last hover point to the current line
-  const { x, y } = hoverPoint.value;
-  addPoint({ x, y }, event.ctrlKey);
+const startInteraction = (event) => {
+  const coords = getSVGCoordinates(event);
+  if (store.selectedBlock) {
+    dragStart = coords;
+    initialBlockPosition = { ...store.selectedBlock };
+    dragging = true;
+  } else {
+    panStart = { x: event.clientX, y: event.clientY };
+    panning = true;
+  }
+};
+
+const endInteraction = () => {
+  panning = false;
+  dragging = false;
 };
 
 const handleBlockClick = (block) => {
@@ -181,7 +204,7 @@ const handleSvgClick = (event) => {
   if (!event.target.closest('rect')) {
     selectBlock(null);
   }
-  if (!store.isDrawing || !hoverPoint.value) return;
+  if (!store.isDrawing) return;
   // Add the last hover point to the current line
   const { x, y } = hoverPoint.value;
   addPoint({ x, y }, event.ctrlKey);
@@ -197,6 +220,27 @@ const handleKeyDown = (event) => {
     store.currentLine = [];
     store.stopDrawing(); // Stop drawing on Escape key press
     drawAllLines();
+  }
+};
+
+const startMove = (event) => {
+  if (store.selectedBlock) {
+    isDragging.value = true;
+    dragStart.value = { x: event.clientX, y: event.clientY };
+  }
+};
+
+const endMove = () => {
+  isDragging.value = false;
+};
+
+const deselectBlock = () => {
+  store.selectedBlock = null;
+};
+
+const deleteSelectedBlock = () => {
+  if (store.selectedBlock) {
+    deleteBlock(store.selectedBlock);
   }
 };
 
@@ -225,8 +269,11 @@ const zoom = (event) => {
   const { width, height } = svg.value.getBoundingClientRect();
 
   const zoomDirection = deltaY > 0 ? -1 : 1;
-  zoomLevel.value += zoomDirection * zoomFactor;
-  if (zoomLevel.value < 0.1) zoomLevel.value = 0.1;
+  const newZoomLevel = zoomLevel.value + zoomDirection * zoomFactor;
+  if (newZoomLevel < minZoomLevel || newZoomLevel > maxZoomLevel) {
+    return;
+  }
+  zoomLevel.value = newZoomLevel;
 
   const scale = zoomDirection * zoomFactor * zoomLevel.value;
   const newWidth = viewBox.width * (1 - scale);
@@ -281,27 +328,27 @@ const getClosestVContainer = () => {
 
 onMounted(() => {
   initSVG();
-  window.addEventListener('resize', resizeSVG);
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
-  svg.value.addEventListener('mousedown', startPan);
+  svg.value.addEventListener('mousedown', startInteraction);
   svg.value.addEventListener('mousemove', pan);
-  svg.value.addEventListener('mouseup', endPan);
-  svg.value.addEventListener('mouseleave', endPan);
+  svg.value.addEventListener('mouseup', endInteraction);
+  svg.value.addEventListener('mouseleave', endInteraction);
   svg.value.addEventListener('wheel', zoom);
-  svg.value.addEventListener('click', handleClick);
+  svg.value.addEventListener('click', handleSvgClick);
 });
 
 onBeforeUnmount(() => {
-  window.removeEventListener('resize', resizeSVG);
   window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('resize', resizeSVG);
   svg.value.removeEventListener('mousemove', handleMouseMove);
-  svg.value.removeEventListener('mousedown', startPan);
+  svg.value.removeEventListener('mousedown', startInteraction);
   svg.value.removeEventListener('mousemove', pan);
-  svg.value.removeEventListener('mouseup', endPan);
-  svg.value.removeEventListener('mouseleave', endPan);
+  svg.value.removeEventListener('mouseup', endInteraction);
+  svg.value.removeEventListener('mouseleave', endInteraction);
   svg.value.removeEventListener('wheel', zoom);
-  svg.value.removeEventListener('click', handleClick);
+  svg.value.removeEventListener('click', handleSvgClick);
 });
 
 watch(() => store.lineColor, drawAllLines);
@@ -315,7 +362,7 @@ watch(() => store.isDrawing, drawAllLines);
   width: 100%;
 }
 .drawing-svg {
-  border: 1px solid #000;
+  /* border: 1px solid #000; */
   position: absolute;
   top: -42px;
   height: calc(100vh -160px);

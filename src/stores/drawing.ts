@@ -64,6 +64,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
     startDrawing() {
       this.isDrawing = true;
+      this.activeTool = `${this.lineType}-${this.lineColor}`; // Set the active tool
     },
     stopDrawing() {
       if (this.currentLine.length > 0) {
