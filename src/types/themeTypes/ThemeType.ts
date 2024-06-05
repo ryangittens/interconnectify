@@ -31,5 +31,6 @@ export type ThemeTypes = {
     gray100?: string;
     primary200?: string;
     secondary200?: string;
+    ground?: string;
   };
 };
