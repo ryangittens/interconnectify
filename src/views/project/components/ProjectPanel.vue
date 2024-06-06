@@ -1,6 +1,15 @@
 <script setup lang="ts">
 // Icon Imports
-import { DeviceFloppyIcon, DownloadIcon, SquarePlusIcon, LineIcon, LineDashedIcon, XIcon } from 'vue-tabler-icons';
+import {
+  DeviceFloppyIcon,
+  DownloadIcon,
+  SquarePlusIcon,
+  LineIcon,
+  LineDashedIcon,
+  XIcon,
+  Category2Icon,
+  CircuitGroundIcon
+} from 'vue-tabler-icons';
 import { useSvgStore } from '@/stores/drawing';
 defineEmits(['openBlockDialog']);
 
@@ -14,13 +23,13 @@ const setSolidBlackLine = () => {
 
 const setSolidGreenLine = () => {
   store.setLineType('solid');
-  store.setLineColor('green');
+  store.setLineColor('#11dd01');
   store.startDrawing();
 };
 
 const setDashedLine = () => {
   store.setLineType('dashed');
-  store.setLineColor('black');
+  store.setLineColor('#636363');
   store.startDrawing();
 };
 
@@ -37,11 +46,18 @@ const { addBlock } = store;
 const addNewBlock = () => {
   const newBlock = {
     id: Date.now(),
-    x: 50,
-    y: 50,
-    width: 100,
-    height: 100,
-    color: '#f0f0f0'
+    x: 40,
+    y: 40,
+    width: 80,
+    height: 80,
+    color: '#f0f0f0',
+    //content: '<circle cx="50" cy="50" r="40" stroke="black" stroke-width="3" fill="red" />',
+    connectionPoints: [
+      { id: 'cp1', x: 40, y: 0 }, // Top-center
+      { id: 'cp2', x: 40, y: 80 }, // Bottom-center
+      { id: 'cp3', x: 0, y: 40 }, // Left-center
+      { id: 'cp4', x: 80, y: 40 } // Right-center
+    ]
   };
   addBlock(newBlock);
 };
@@ -75,10 +91,10 @@ const addNewBlock = () => {
       icon
       outlined
       rounded="sm"
-      :variant="isActive('solid-green') ? 'tonal' : 'flat'"
+      :variant="isActive('solid-#11dd01') ? 'tonal' : 'flat'"
       size="small"
     >
-      <LineIcon style="color: green" size="17" stroke-width="1.5" />
+      <CircuitGroundIcon style="color: green" size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setDashedLine"
@@ -87,7 +103,7 @@ const addNewBlock = () => {
       icon
       outlined
       rounded="sm"
-      :variant="isActive('dashed-black') ? 'tonal' : 'flat'"
+      :variant="isActive('dashed-#636363') ? 'tonal' : 'flat'"
       size="small"
     >
       <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />
@@ -105,7 +121,7 @@ const addNewBlock = () => {
       variant="flat"
       size="small"
     >
-      <SquarePlusIcon size="17" stroke-width="1.5" />
+      <Category2Icon size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn @click="addNewBlock" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <SquarePlusIcon size="17" stroke-width="1.5" />

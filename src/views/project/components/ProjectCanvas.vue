@@ -10,36 +10,51 @@
       @mouseup="endInteraction"
       @mouseleave="endInteraction"
       @wheel="zoom"
-      @click="handleSvgClick"
     >
+      <!-- Draw lines first -->
+      <g ref="linesContainer"></g>
+
       <!-- Draw blocks -->
       <g
         v-for="block in store.blocks"
         :key="block.id"
         :transform="`translate(${block.x}, ${block.y})`"
-        @click.stop="handleBlockClick(block)"
+        @mousedown.stop="handleBlockMouseDown(block, $event)"
       >
         <rect
+          v-if="!block.content"
           :x="0"
           :y="0"
           :width="block.width"
           :height="block.height"
           :fill="block.color"
-          :stroke="isSelected(block) ? 'red' : 'black'"
+          :stroke="isSelected(block) ? primary : 'black'"
           :stroke-width="isSelected(block) ? 2 : 1"
         />
-      </g>
+        <g v-else v-html="block.content"></g>
 
-      <!-- Draw lines -->
-      <g ref="linesContainer"></g>
+        <!-- Render connection points after lines and blocks -->
+        <circle
+          v-for="cp in block.connectionPoints"
+          :key="cp.id"
+          :cx="cp.x"
+          :cy="cp.y"
+          r="5"
+          :fill="secondary"
+          @click.stop="startWire(cp, block, $event)"
+        />
+      </g>
     </svg>
   </div>
   <h2>{{ store.blocks.length }}</h2>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, watch, computed } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useSvgStore } from '@/stores/drawing';
+
+const primary = ref('rgb(var(--v-theme-primary))');
+const secondary = ref('rgb(var(--v-theme-secondary))');
 
 const svg = ref(null);
 const linesContainer = ref(null);
@@ -56,10 +71,14 @@ let dragStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
 let dragging = false;
+let drawingWire = false;
+const wireStart = ref(null);
+const wireEnd = ref(null);
 const zoomLevel = ref(1);
 const zoomFactor = 0.04;
 const minZoomLevel = 0.02;
 const maxZoomLevel = 1.5;
+const gridSize = 20; // Define grid size
 
 const isSelected = (block) => {
   return store.selectedBlock && store.selectedBlock.id === block.id;
@@ -71,6 +90,13 @@ const createSVGElement = (tag, attrs) => {
     elem.setAttribute(attr, attrs[attr]);
   }
   return elem;
+};
+
+const snapToGrid = (x, y) => {
+  return {
+    x: Math.round(x / gridSize) * gridSize,
+    y: Math.round(y / gridSize) * gridSize
+  };
 };
 
 const drawAllLines = () => {
@@ -122,12 +148,13 @@ const drawHoverLine = (x, y, ctrlKey) => {
       }
     }
 
-    hoverPoint.value = { x, y }; // Store the hover point
+    const snappedPoint = snapToGrid(x, y);
+    hoverPoint.value = snappedPoint; // Store the hover point
 
     drawAllLines(); // Redraw all existing lines
     drawCurrentLine(); // Redraw the current line
 
-    const pathData = `M ${lastPoint.x} ${lastPoint.y} L ${x} ${y}`;
+    const pathData = `M ${lastPoint.x} ${lastPoint.y} L ${snappedPoint.x} ${snappedPoint.y}`;
 
     const path = createSVGElement('path', {
       d: pathData,
@@ -154,9 +181,11 @@ const addPoint = (point, ctrlKey) => {
         x = lastPoint.x;
       }
     }
-    store.currentLine.push({ x, y });
+    const snappedPoint = snapToGrid(x, y);
+    store.currentLine.push(snappedPoint);
   } else {
-    store.currentLine.push(point);
+    const snappedPoint = snapToGrid(point.x, point.y);
+    store.currentLine.push(snappedPoint);
   }
   drawAllLines();
   drawCurrentLine();
@@ -173,8 +202,8 @@ const handleMouseMove = (event) => {
     const coords = getSVGCoordinates(event);
     const dx = coords.x - dragStart.x;
     const dy = coords.y - dragStart.y;
-    moveBlock(store.selectedBlock, dx, dy);
-    dragStart = coords;
+    const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
+    moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
   }
 };
 
@@ -190,18 +219,19 @@ const startInteraction = (event) => {
   }
 };
 
-const endInteraction = () => {
+const endInteraction = (event) => {
   panning = false;
   dragging = false;
 };
 
-const handleBlockClick = (block) => {
+const handleBlockMouseDown = (block, event) => {
   selectBlock(block);
+  startInteraction(event);
 };
 
 const handleSvgClick = (event) => {
   // Deselect block if clicking outside any block
-  if (!event.target.closest('rect')) {
+  if (!event.target.closest('rect') && !event.target.closest('g')) {
     selectBlock(null);
   }
   if (!store.isDrawing) return;
@@ -212,14 +242,53 @@ const handleSvgClick = (event) => {
 
 const handleKeyDown = (event) => {
   if (event.key === 'Escape' && store.isDrawing) {
-    store.lines.push({
-      type: store.lineType,
-      color: store.lineColor,
-      points: [...store.currentLine]
-    });
-    store.currentLine = [];
-    store.stopDrawing(); // Stop drawing on Escape key press
-    drawAllLines();
+    endDrawing();
+  }
+};
+
+const endDrawing = () => {
+  store.lines.push({
+    type: store.lineType,
+    color: store.lineColor,
+    points: [...store.currentLine]
+  });
+  store.currentLine = [];
+  store.stopDrawing(); // Stop drawing on Escape key press
+  drawAllLines();
+};
+
+const startWire = (cp, block, event) => {
+  const cpX = block.x + cp.x;
+  const cpY = block.y + cp.y;
+  const point = {
+    x: cpX,
+    y: cpY
+  };
+  const snappedPoint = snapToGrid(point.x, point.y);
+  if (store.isDrawing) {
+    if (drawingWire) {
+      addPoint(snappedPoint, event.ctrlKey);
+      wireEnd.value = { block, cp };
+      finishWire();
+    } else {
+      addPoint(snappedPoint, event.ctrlKey);
+      wireStart.value = { block, cp };
+      drawingWire = true;
+    }
+  }
+};
+
+const finishWire = () => {
+  if (wireStart.value && wireEnd.value) {
+    const start = wireStart.value;
+    const end = wireEnd.value;
+
+    wireStart.value = null;
+    wireEnd.value = null;
+    drawingWire = false;
+
+    // Redraw all lines
+    endDrawing();
   }
 };
 
@@ -362,10 +431,9 @@ watch(() => store.isDrawing, drawAllLines);
   width: 100%;
 }
 .drawing-svg {
-  /* border: 1px solid #000; */
   position: absolute;
   top: -42px;
-  height: calc(100vh -160px);
+  height: calc(100vh - 160px);
 }
 .drawing-svg:active {
   cursor: grabbing;

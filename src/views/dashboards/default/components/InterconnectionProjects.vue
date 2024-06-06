@@ -4,7 +4,7 @@ import { ref, computed } from 'vue';
 // import icons
 import { ChevronUpIcon, ChevronDownIcon } from 'vue-tabler-icons';
 
-const revenues = ref([
+const projects = ref([
   {
     name: 'Bajaj Finery',
     price: 145.58,
@@ -43,12 +43,12 @@ const revenues = ref([
         <div class="mt-4">
           <perfect-scrollbar v-bind:style="{ height: '470px' }">
             <v-list lines="two" class="py-0">
-              <v-list-item v-for="(revenue, i) in revenues" :key="i" :value="revenue" color="secondary" rounded="sm">
+              <v-list-item v-for="(project, i) in projects" :key="i" :value="project" color="secondary" rounded="sm">
                 <template v-slot:append>
                   <div
                     class="bg-lightsuccess rounded-sm d-flex align-center justify-center ml-3"
                     style="width: 20px; height: 20px"
-                    v-if="revenue.price > 145"
+                    v-if="project.price > 145"
                   >
                     <ChevronUpIcon stroke-width="1.5" width="20" class="text-success" />
                   </div>
@@ -59,13 +59,13 @@ const revenues = ref([
                 <div class="d-inline-flex align-center justify-space-between w-100">
                   <div>
                     <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold">
-                      {{ revenue.name }}
+                      {{ project.name }}
                     </h6>
-                    <span v-if="revenue.price > 145" class="text-success text-subtitle-2">{{ revenue.profit }}% Profit</span>
-                    <span v-else class="text-error text-subtitle-2">{{ revenue.profit }}% Profit</span>
+                    <span v-if="project.price > 145" class="text-success text-subtitle-2">{{ project.profit }}% Profit</span>
+                    <span v-else class="text-error text-subtitle-2">{{ project.profit }}% Profit</span>
                   </div>
 
-                  <div class="ml-auto text-subtitle-1 text-medium-emphasis font-weight-bold">${{ revenue.price }}</div>
+                  <div class="ml-auto text-subtitle-1 text-medium-emphasis font-weight-bold">${{ project.price }}</div>
                 </div>
               </v-list-item>
             </v-list>
