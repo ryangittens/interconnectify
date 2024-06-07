@@ -48,8 +48,18 @@
         />
       </g>
     </svg>
+    <v-expansion-panels class="conductorSchedulePanel">
+      <v-expansion-panel title="Conductor Schedule">
+        <v-expansion-panel-text>
+          <perfect-scrollbar class="conductorScheduleTable">
+            <v-data-table-virtual :headers="conductorTableHeadings" :items="store.lines" item-value="name"></v-data-table-virtual>
+          </perfect-scrollbar>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
   </div>
-  <h2>{{ store.blocks.length }}</h2>
+  <!-- <h2>Blocks: {{ store.blocks.length }}</h2>
+  <h2>Lines: {{ store.lines.length }}</h2> -->
 </template>
 
 <script setup>
@@ -97,6 +107,19 @@ const zoomFactor = 0.04;
 const minZoomLevel = 0.02;
 const maxZoomLevel = 1.5;
 const gridSize = 20; // Define grid size
+
+const conductorTableHeadings = [
+  { title: 'RUN', align: 'start', key: 'name' },
+  { title: 'VOLTAGE', align: 'end', key: 'length' },
+  { title: 'CURRENT', align: 'end', key: 'speed' },
+  { title: 'VD', align: 'end', key: 'speed' },
+  { title: 'CCC', align: 'end', key: 'speed' },
+  { title: 'EGC', align: 'end', key: 'speed' },
+  { title: 'OCPD', align: 'end', key: 'speed' },
+  { title: 'SIZE', align: 'end', key: 'speed' },
+  { title: 'CONDUCTOR', align: 'end', key: 'speed' },
+  { title: 'OHMS', align: 'end', key: 'price' }
+];
 
 const isSelected = (block) => {
   return store.selectedBlock && store.selectedBlock.id === block.id;
@@ -208,7 +231,7 @@ const addPoint = (point, ctrlKey) => {
     const snappedPoint = snapToGrid(point.x, point.y);
     store.currentLine.push(snappedPoint);
   }
-  drawAllLines();
+  //drawAllLines();
   drawCurrentLine();
 };
 
@@ -482,6 +505,7 @@ watch(() => store.isDrawing, drawAllLines);
 .canvas-container {
   position: relative;
   width: 100%;
+  height: calc(100vh - 160px);
 }
 .drawing-svg {
   position: absolute;
@@ -490,5 +514,12 @@ watch(() => store.isDrawing, drawAllLines);
 }
 .drawing-svg:active {
   cursor: grabbing;
+}
+.conductorSchedulePanel {
+  position: absolute;
+  bottom: 0;
+}
+.conductorScheduleTable {
+  max-height: 200px;
 }
 </style>
