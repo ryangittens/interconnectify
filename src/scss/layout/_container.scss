@@ -24,6 +24,10 @@ html {
   border-radius: $border-radius-root;
   background: rgb(var(--v-theme-containerBg));
 }
+.maxWidth {
+  max-width: 1200px;
+  margin: 0 auto;
+}
 $sizes: (
   'display-1': 44px,
   'display-2': 40px,

@@ -11,7 +11,15 @@ import {
   CircuitGroundIcon
 } from 'vue-tabler-icons';
 import { useSvgStore } from '@/stores/drawing';
+import { ref } from 'vue';
+import { supabase } from '@/utils/supabaseClient';
+
 defineEmits(['openBlockDialog']);
+const props = defineProps(['project']);
+const project = props.project;
+const projectId = project.id;
+
+const error = ref(null);
 
 const store = useSvgStore();
 
@@ -33,8 +41,10 @@ const setDashedLine = () => {
   store.startDrawing();
 };
 
-const stopDrawing = () => {
-  store.stopDrawing();
+const deleteSelectedBlock = () => {
+  if (store.selectedBlock) {
+    store.deleteBlock(store.selectedBlock);
+  }
 };
 
 const isActive = (tool: string) => {
@@ -61,6 +71,26 @@ const addNewBlock = () => {
   };
   addBlock(newBlock);
 };
+
+const serializeState = () => {
+  return store.serializeState();
+};
+
+const saveDrawing = async () => {
+  try {
+    const drawing = serializeState();
+    const { data, error: updateError } = await supabase.from('projects').update({ drawing }).eq('id', projectId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    alert('Drawing updated successfully!');
+  } catch (err) {
+    error.value = err.message;
+    alert('Error saving!', err.message);
+  }
+};
 </script>
 
 <template>
@@ -68,7 +98,7 @@ const addNewBlock = () => {
     <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <DownloadIcon size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+    <v-btn @click="saveDrawing" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <DeviceFloppyIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
@@ -108,8 +138,17 @@ const addNewBlock = () => {
     >
       <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="stopDrawing" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <XIcon size="17" stroke-width="1.5" />
+    <v-btn
+      @click="deleteSelectedBlock"
+      class="text-secondary ml-2"
+      color="background"
+      icon
+      outlined
+      rounded="sm"
+      variant="flat"
+      size="small"
+    >
+      <XIcon size="17" color="red" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="$emit('openBlockDialog')"

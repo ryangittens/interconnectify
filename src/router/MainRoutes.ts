@@ -17,9 +17,14 @@ const MainRoutes = {
       component: () => import('@/views/dashboards/default/DefaultDashboard.vue')
     },
     {
-      name: 'New Project',
+      name: 'NewProject',
       path: '/project/new',
       component: () => import('@/views/project/NewProject.vue')
+    },
+    {
+      name: 'ProjectView',
+      path: '/project/:id',
+      component: () => import('@/views/project/ProjectView.vue')
     }
   ]
 };

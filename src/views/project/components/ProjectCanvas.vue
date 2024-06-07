@@ -53,8 +53,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, reactive, onMounted, onBeforeUnmount, watch, defineProps } from 'vue';
 import { useSvgStore } from '@/stores/drawing';
+
+const props = defineProps(['project']);
+const drawing = props.project?.drawing;
 
 const primary = ref('rgb(var(--v-theme-primary))');
 const secondary = ref('rgb(var(--v-theme-secondary))');
@@ -67,7 +70,18 @@ const isDrawing = ref(false);
 const hoverPoint = ref(null); // Store the hover point
 const store = useSvgStore();
 
-const { addBlock, selectBlock, moveBlock, deleteBlock, startDrawing, stopDrawing, addLinePoint, setLineType, setLineColor } = store;
+const {
+  deserializeState,
+  addBlock,
+  selectBlock,
+  moveBlock,
+  deleteBlock,
+  startDrawing,
+  stopDrawing,
+  addLinePoint,
+  setLineType,
+  setLineColor
+} = store;
 
 const viewBox = reactive({ x: 0, y: 0, width: 0, height: 0 }); // Initial viewBox
 let panStart = { x: 0, y: 0 };
@@ -241,8 +255,8 @@ const handleMouseMove = (event) => {
     pan(event);
   } else if (dragging && store.selectedBlock) {
     const coords = getSVGCoordinates(event);
-    const dx = (coords.x - dragStart.x) / zoomLevel.value;
-    const dy = (coords.y - dragStart.y) / zoomLevel.value;
+    const dx = coords.x - dragStart.x;
+    const dy = coords.y - dragStart.y;
     const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
     moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
   }
@@ -350,12 +364,6 @@ const deselectBlock = () => {
   store.selectedBlock = null;
 };
 
-const deleteSelectedBlock = () => {
-  if (store.selectedBlock) {
-    deleteBlock(store.selectedBlock);
-  }
-};
-
 const startPan = (event) => {
   panStart = { x: event.clientX, y: event.clientY };
   panning = true;
@@ -367,8 +375,8 @@ const pan = (event) => {
   const dy = event.clientY - panStart.y;
   panStart = { x: event.clientX, y: event.clientY };
 
-  viewBox.x -= dx / zoomLevel.value;
-  viewBox.y -= dy / zoomLevel.value;
+  viewBox.x -= dx;
+  viewBox.y -= dy;
 };
 
 const endPan = () => {
@@ -439,7 +447,9 @@ const getClosestVContainer = () => {
 };
 
 onMounted(() => {
+  deserializeState(drawing);
   initSVG();
+  drawAllLines();
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);

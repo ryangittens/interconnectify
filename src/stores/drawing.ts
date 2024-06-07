@@ -95,8 +95,8 @@ export const useSvgStore = defineStore('svgStore', {
     },
     deserializeState(serializedState: string) {
       const data = JSON.parse(serializedState);
-      this.blocks = data.blocks;
-      this.lines = data.lines;
+      this.blocks = data?.blocks || [];
+      this.lines = data?.lines || [];
     }
   }
 });
