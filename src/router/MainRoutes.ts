@@ -19,7 +19,7 @@ const MainRoutes = {
     {
       name: 'New Project',
       path: '/project/new',
-      component: () => import('@/views/project/ProjectView.vue')
+      component: () => import('@/views/project/NewProject.vue')
     }
   ]
 };

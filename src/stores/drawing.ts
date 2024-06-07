@@ -86,6 +86,17 @@ export const useSvgStore = defineStore('svgStore', {
     },
     setLineColor(color: string) {
       this.lineColor = color;
+    },
+    serializeState() {
+      return JSON.stringify({
+        blocks: this.blocks,
+        lines: this.lines
+      });
+    },
+    deserializeState(serializedState: string) {
+      const data = JSON.parse(serializedState);
+      this.blocks = data.blocks;
+      this.lines = data.lines;
     }
   }
 });

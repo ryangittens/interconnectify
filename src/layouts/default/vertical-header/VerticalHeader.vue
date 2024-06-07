@@ -61,9 +61,9 @@ function searchbox() {
     <!-- ---------------------------------------------- -->
     <!-- Search part -->
     <!-- ---------------------------------------------- -->
-    <v-sheet class="mx-3 v-col-3 v-col-xl-2 v-col-lg-4 d-none d-lg-block">
+    <!-- <v-sheet class="mx-3 v-col-3 v-col-xl-2 v-col-lg-4 d-none d-lg-block">
       <Searchbar />
-    </v-sheet>
+    </v-sheet> -->
 
     <!---/Search part -->
 

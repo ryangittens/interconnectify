@@ -2,32 +2,46 @@
 import { ref } from 'vue';
 import Google from '@/assets/images/auth/social-google.svg';
 import { useAuthStore } from '@/stores/auth';
-import { Form } from 'vee-validate';
+import { Form, useField, useForm } from 'vee-validate';
+import * as yup from 'yup';
 
-const checkbox = ref(false);
-const valid = ref(false);
+const authStore = useAuthStore();
 const show1 = ref(false);
-//const logform = ref();
-const password = ref('admin123');
-const username = ref('info@codedthemes.com');
-const passwordRules = ref([
-  (v: string) => !!v || 'Password is required',
-  (v: string) => (v && v.length <= 10) || 'Password must be less than 10 characters'
-]);
-const emailRules = ref([(v: string) => !!v || 'E-mail is required', (v: string) => /.+@.+\..+/.test(v) || 'E-mail must be valid']);
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-function validate(values: any, { setErrors }: any) {
-  const authStore = useAuthStore();
-  return authStore.login(username.value, password.value).catch((error) => setErrors({ apiError: error }));
-}
+const schema = yup.object({
+  email: yup.string().email('E-mail must be valid').required('E-mail is required'),
+  password: yup.string().required('Password is required').max(10, 'Password must be less than 10 characters')
+});
+
+const { handleSubmit, errors, isSubmitting } = useForm({
+  validationSchema: schema,
+  initialValues: {
+    email: '',
+    password: ''
+  }
+});
+
+const { value: email } = useField('email');
+const { value: password } = useField('password');
+
+const onSubmit = handleSubmit(async (values) => {
+  try {
+    await authStore.login(values.email, values.password);
+  } catch (error) {
+    if (error.message.includes('Invalid login credentials')) {
+      errors.apiError = 'User not found or incorrect password';
+    } else {
+      errors.apiError = error.message;
+    }
+  }
+});
 </script>
 
 <template>
   <v-btn block color="primary" variant="outlined" class="text-lightText googleBtn">
     <img :src="Google" alt="google" />
-    <span class="ml-2">Sign in with Google</span></v-btn
-  >
+    <span class="ml-2">Sign in with Google</span>
+  </v-btn>
   <v-row>
     <v-col class="d-flex align-center">
       <v-divider class="custom-devider" />
@@ -36,10 +50,9 @@ function validate(values: any, { setErrors }: any) {
     </v-col>
   </v-row>
   <h5 class="text-h5 text-center my-4 mb-8">Sign in with Email address</h5>
-  <Form @submit="validate" class="mt-7 loginForm" v-slot="{ errors, isSubmitting }">
+  <Form @submit="onSubmit" class="mt-7 loginForm">
     <v-text-field
-      v-model="username"
-      :rules="emailRules"
+      v-model="email"
       label="Email Address / Username"
       class="mt-4 mb-8"
       required
@@ -47,10 +60,10 @@ function validate(values: any, { setErrors }: any) {
       hide-details="auto"
       variant="outlined"
       color="primary"
+      :error-messages="errors.email"
     ></v-text-field>
     <v-text-field
       v-model="password"
-      :rules="passwordRules"
       label="Password"
       required
       density="comfortable"
@@ -61,25 +74,9 @@ function validate(values: any, { setErrors }: any) {
       :type="show1 ? 'text' : 'password'"
       @click:append="show1 = !show1"
       class="pwdInput"
+      :error-messages="errors.password"
     ></v-text-field>
-
-    <div class="d-sm-flex align-center mt-2 mb-7 mb-sm-0">
-      <v-checkbox
-        v-model="checkbox"
-        :rules="[(v: any) => !!v || 'You must agree to continue!']"
-        label="Remember me?"
-        required
-        color="primary"
-        class="ms-n2"
-        hide-details
-      ></v-checkbox>
-      <div class="ml-auto">
-        <a href="javascript:void(0)" class="text-primary text-decoration-none">Forgot password?</a>
-      </div>
-    </div>
-    <v-btn color="secondary" :loading="isSubmitting" block class="mt-2" variant="flat" size="large" :disabled="valid" type="submit">
-      Sign In</v-btn
-    >
+    <v-btn color="secondary" :loading="isSubmitting" block class="mt-2" variant="flat" size="large" type="submit"> Sign In </v-btn>
     <div v-if="errors.apiError" class="mt-2">
       <v-alert color="error">{{ errors.apiError }}</v-alert>
     </div>
@@ -89,6 +86,7 @@ function validate(values: any, { setErrors }: any) {
     <v-btn variant="plain" to="/auth/register" class="mt-2 text-capitalize mr-n2">Don't Have an account?</v-btn>
   </div>
 </template>
+
 <style lang="scss">
 .custom-devider {
   border-color: rgba(0, 0, 0, 0.08) !important;

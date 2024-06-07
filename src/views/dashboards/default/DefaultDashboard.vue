@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // imported components
-import InterconnectionProjects from './components/InterconnectionProjects.vue';
+import Projects from './components/Projects.vue';
 </script>
 
 <template>
   <v-row>
     <v-col cols="12" lg="12">
-      <InterconnectionProjects />
+      <Projects />
     </v-col>
   </v-row>
 </template>

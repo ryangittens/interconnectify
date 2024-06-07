@@ -14,6 +14,9 @@
       <!-- Draw lines first -->
       <g ref="linesContainer"></g>
 
+      <!-- Draw axes -->
+      <g ref="axesContainer"></g>
+
       <!-- Draw blocks -->
       <g
         v-for="block in store.blocks"
@@ -58,6 +61,7 @@ const secondary = ref('rgb(var(--v-theme-secondary))');
 
 const svg = ref(null);
 const linesContainer = ref(null);
+const axesContainer = ref(null);
 const canvasContainer = ref(null);
 const isDrawing = ref(false);
 const hoverPoint = ref(null); // Store the hover point
@@ -165,6 +169,9 @@ const drawHoverLine = (x, y, ctrlKey) => {
     });
 
     linesContainer.value.appendChild(path);
+
+    // Draw axes lines
+    drawAxes(snappedPoint);
   }
 };
 
@@ -191,6 +198,40 @@ const addPoint = (point, ctrlKey) => {
   drawCurrentLine();
 };
 
+const drawAxes = (snappedPoint) => {
+  axesContainer.value.innerHTML = ''; // Clear previous axes
+
+  const { x, y } = snappedPoint;
+  const { width, height } = viewBox;
+
+  const xAxis = createSVGElement('line', {
+    x1: x,
+    y1: 0,
+    x2: x,
+    y2: height,
+    stroke: 'rgba(255, 0, 0, 0.5)',
+    'stroke-width': 1,
+    'stroke-dasharray': '5,5'
+  });
+
+  const yAxis = createSVGElement('line', {
+    x1: 0,
+    y1: y,
+    x2: width,
+    y2: y,
+    stroke: 'rgba(255, 0, 0, 0.5)',
+    'stroke-width': 1,
+    'stroke-dasharray': '5,5'
+  });
+
+  axesContainer.value.appendChild(xAxis);
+  axesContainer.value.appendChild(yAxis);
+};
+
+const clearAxes = () => {
+  axesContainer.value.innerHTML = ''; // Clear axes lines
+};
+
 const handleMouseMove = (event) => {
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
@@ -200,8 +241,8 @@ const handleMouseMove = (event) => {
     pan(event);
   } else if (dragging && store.selectedBlock) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - dragStart.x;
-    const dy = coords.y - dragStart.y;
+    const dx = (coords.x - dragStart.x) / zoomLevel.value;
+    const dy = (coords.y - dragStart.y) / zoomLevel.value;
     const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
     moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
   }
@@ -244,6 +285,7 @@ const handleKeyDown = (event) => {
   if (event.key === 'Escape' && store.isDrawing) {
     endDrawing();
   }
+  selectBlock(null);
 };
 
 const endDrawing = () => {
@@ -255,6 +297,7 @@ const endDrawing = () => {
   store.currentLine = [];
   store.stopDrawing(); // Stop drawing on Escape key press
   drawAllLines();
+  clearAxes(); // Clear axes lines when drawing is finished
 };
 
 const startWire = (cp, block, event) => {

@@ -13,6 +13,7 @@
     "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.43.4",
     "@tiptap/starter-kit": "2.2.2",
     "@tiptap/vue-3": "2.2.2",
     "@tsconfig/node20": "^20.1.2",
