@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
 import { useAuthStore } from '@/stores/auth';
-import { ChevronRightIcon, ChevronLeftIcon } from 'vue-tabler-icons';
+import { ChevronRightIcon, ChevronLeftIcon, DotsIcon, PlusIcon } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
 
 const authStore = useAuthStore();
@@ -67,11 +67,13 @@ const goToProject = (projectId) => {
 <template>
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
-      <div class="d-flex align-center justify-between">
-        <h4 class="text-h4 mt-1">Projects</h4>
+      <div class="d-flex align-center justify-space-between">
+        <h4 class="text-h4">Projects</h4>
+      </div>
+      <div class="d-flex align-center justify-space-between mt-4">
         <v-text-field
           v-model="searchQuery"
-          class="ml-3"
+          class=""
           persistent-placeholder
           placeholder="Search Projects"
           color="primary"
@@ -82,6 +84,9 @@ const goToProject = (projectId) => {
             <SearchIcon stroke-width="1.5" size="17" class="text-lightText SearchIcon" />
           </template>
         </v-text-field>
+        <v-btn class="ml-4" color="primary" size="large" icon rounded="sm" variant="tonal">
+          <PlusIcon stroke-width="1.5" width="25" />
+        </v-btn>
       </div>
       <div class="mt-4">
         <perfect-scrollbar>
@@ -105,7 +110,7 @@ const goToProject = (projectId) => {
           </v-list>
         </perfect-scrollbar>
 
-        <div class="text-center mt-3">
+        <div class="text-center mt-2">
           <v-btn color="primary" variant="text">
             <template v-slot:append>
               <v-btn @click="currentPage > 1 && currentPage--" :disabled="currentPage === 1" color="primary" variant="text">

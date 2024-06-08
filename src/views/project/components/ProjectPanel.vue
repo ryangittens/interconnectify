@@ -19,6 +19,10 @@ import { supabase } from '@/utils/supabaseClient';
 import { useHistoryStore } from '@/stores/history';
 import { DeleteBlockCommand, DeleteLineCommand, AddBlockCommand } from '@/commands';
 
+import { useSnackbarStore } from '@/stores/snackbar';
+
+const snackbarStore = useSnackbarStore();
+
 const store = useSvgStore();
 const historyStore = useHistoryStore();
 
@@ -107,10 +111,10 @@ const saveDrawing = async () => {
       throw updateError;
     }
 
-    alert('Drawing updated successfully!');
+    snackbarStore.showSnackbar('Drawing Saved Successfully', 'success');
   } catch (err: any) {
     error.value = err.message;
-    alert('Error saving!');
+    snackbarStore.showSnackbar('Error Saving Drawing', 'error');
   }
 };
 </script>
