@@ -120,7 +120,6 @@ const pan = (event) => {
   store.viewBox.y -= dy / (store.zoomLevel * 10);
 };
 const zoom = (event) => {
-  console.log(store.zoomLevel);
   event.preventDefault();
 
   const { offsetX, offsetY, deltaY } = event;
