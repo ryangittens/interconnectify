@@ -105,7 +105,7 @@ let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
 const minZoomLevel = 0.04;
-const maxZoomLevel = 0.15;
+const maxZoomLevel = 0.25;
 const gridSize = 20;
 
 /* SETUP */
