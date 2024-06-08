@@ -1,41 +1,12 @@
+// src/stores/svgStore.js
 import { defineStore } from 'pinia';
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-interface Line {
-  type: 'solid' | 'dashed';
-  color: string;
-  points: any[];
-}
-
-interface Block {
-  id: number;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  color: string;
-}
-
-interface SvgStoreState {
-  blocks: any[];
-  lines: any[];
-  selectedBlock: {} | null;
-  isDrawing: boolean;
-  lineType: 'solid' | 'dashed';
-  lineColor: string;
-  currentLine: any[];
-  activeTool: string;
-}
-
 export const useSvgStore = defineStore('svgStore', {
-  state: (): SvgStoreState => ({
+  state: () => ({
     blocks: [],
     lines: [],
     selectedBlock: null,
+    selectedLine: null, // Add this
     isDrawing: false,
     lineType: 'solid',
     lineColor: '#000000',
@@ -43,20 +14,21 @@ export const useSvgStore = defineStore('svgStore', {
     activeTool: ''
   }),
   actions: {
-    addBlock(block: {} | null) {
+    addBlock(block) {
       this.blocks.push(block);
     },
-    selectBlock(block: {} | null) {
+    selectBlock(block) {
       this.selectedBlock = block;
+      this.selectedLine = null; // Deselect line when block is selected
     },
-    moveBlock(block: any, dx: number, dy: number) {
+    moveBlock(block, dx, dy) {
       const index = this.blocks.findIndex((b) => b.id === block.id);
       if (index !== -1) {
         this.blocks[index].x += dx;
         this.blocks[index].y += dy;
       }
     },
-    deleteBlock(block: any) {
+    deleteBlock(block) {
       this.blocks = this.blocks.filter((b) => b.id !== block.id);
       if (this.selectedBlock && this.selectedBlock.id === block.id) {
         this.selectedBlock = null;
@@ -69,6 +41,7 @@ export const useSvgStore = defineStore('svgStore', {
     stopDrawing() {
       if (this.currentLine.length > 0) {
         this.lines.push({
+          id: Date.now(),
           type: this.lineType,
           color: this.lineColor,
           points: [...this.currentLine]
@@ -78,14 +51,24 @@ export const useSvgStore = defineStore('svgStore', {
       this.isDrawing = false;
       this.activeTool = '';
     },
-    addLinePoint(point: any) {
+    addLinePoint(point) {
       this.currentLine.push(point);
     },
-    setLineType(type: 'solid' | 'dashed') {
+    setLineType(type) {
       this.lineType = type;
     },
-    setLineColor(color: string) {
+    setLineColor(color) {
       this.lineColor = color;
+    },
+    selectLine(line) {
+      this.selectedLine = line;
+      this.selectedBlock = null; // Deselect block when line is selected
+    },
+    deleteLine(line) {
+      this.lines = this.lines.filter((l) => l.id !== line.id);
+      if (this.selectedLine && this.selectedLine.id === line.id) {
+        this.selectedLine = null;
+      }
     },
     serializeState() {
       return JSON.stringify({
@@ -93,7 +76,7 @@ export const useSvgStore = defineStore('svgStore', {
         lines: this.lines
       });
     },
-    deserializeState(serializedState: string) {
+    deserializeState(serializedState) {
       const data = JSON.parse(serializedState);
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];

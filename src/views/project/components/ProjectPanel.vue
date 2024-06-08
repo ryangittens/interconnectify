@@ -10,7 +10,7 @@ import {
   Category2Icon,
   CircuitGroundIcon
 } from 'vue-tabler-icons';
-import { useSvgStore } from '@/stores/drawing';
+import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
 
@@ -86,9 +86,9 @@ const saveDrawing = async () => {
     }
 
     alert('Drawing updated successfully!');
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message;
-    alert('Error saving!', err.message);
+    alert('Error saving!');
   }
 };
 </script>
