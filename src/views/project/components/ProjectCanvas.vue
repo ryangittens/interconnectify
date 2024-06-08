@@ -4,7 +4,7 @@
       ref="svg"
       class="drawing-svg"
       xmlns="http://www.w3.org/2000/svg"
-      :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
+      :viewBox="`${store.viewBox.x} ${store.viewBox.y} ${store.viewBox.width} ${store.viewBox.height}`"
       @mousedown="startInteraction"
       @mousemove="handleMouseMove"
       @mouseup="endInteraction"
@@ -21,6 +21,7 @@
           :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
           fill="none"
           @click="handleLineClick(line)"
+          style="cursor: pointer"
         ></path>
         <!-- Hover Line for Preview -->
         <path
@@ -48,6 +49,7 @@
           :fill="block.color"
           :stroke="isBlockSelected(block) ? primary : 'black'"
           :stroke-width="isBlockSelected(block) ? 2 : 1"
+          style="cursor: pointer"
         />
         <g v-else v-html="block.content"></g>
         <circle
@@ -61,21 +63,21 @@
         />
       </g>
     </svg>
-    <v-expansion-panels class="conductorSchedulePanel">
-      <v-expansion-panel title="Conductor Schedule">
-        <v-expansion-panel-text>
-          <perfect-scrollbar class="conductorScheduleTable">
-            <v-data-table-virtual :headers="conductorTableHeadings" :items="store.lines" item-value="name"></v-data-table-virtual>
-          </perfect-scrollbar>
-        </v-expansion-panel-text>
-      </v-expansion-panel>
-    </v-expansion-panels>
+    <ConductorSchedule />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, onMounted, onBeforeUnmount, defineProps } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
+import { useHistoryStore } from '@/stores/history';
+
+import ConductorSchedule from './ConductorSchedule.vue';
+
+import { StopDrawingCommand, AddLinePointCommand } from '@/commands';
+
+const store = useSvgStore();
+const historyStore = useHistoryStore();
 
 const props = defineProps(['project']);
 const drawing = props.project?.drawing;
@@ -86,7 +88,6 @@ const secondary = ref('rgb(var(--v-theme-secondary))');
 const svg = ref(null);
 const linesContainer = ref(null);
 const axesContainer = ref(null);
-const store = useSvgStore();
 
 const drawingWire = ref(false);
 
@@ -95,34 +96,187 @@ const wireEnd = ref(null);
 
 const hoverPoint = ref({ x: null, y: null });
 
-const { deserializeState, moveBlock, selectBlock, stopDrawing, selectLine } = store;
+const { deserializeState, moveBlock, selectBlock, stopDrawing, selectLine, setSvgElement } = store;
 
-const viewBox = reactive({ x: 0, y: 0, width: 0, height: 0 });
 let panStart = { x: 0, y: 0 };
 let dragStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
 let dragging = false;
-const zoomLevel = ref(1);
 const zoomFactor = 0.04;
 const minZoomLevel = 0.02;
 const maxZoomLevel = 1.5;
 const gridSize = 20;
 
-const conductorTableHeadings = [
-  { title: 'RUN', align: 'start', key: 'name' },
-  { title: 'VOLTAGE', align: 'end', key: 'length' },
-  { title: 'CURRENT', align: 'end', key: 'speed' },
-  { title: 'VD', align: 'end', key: 'speed' },
-  { title: 'CCC', align: 'end', key: 'speed' },
-  { title: 'EGC', align: 'end', key: 'speed' },
-  { title: 'OCPD', align: 'end', key: 'speed' },
-  { title: 'SIZE', align: 'end', key: 'speed' },
-  { title: 'CONDUCTOR', align: 'end', key: 'speed' },
-  { title: 'OHMS', align: 'end', key: 'price' }
-];
+/* SETUP */
+
+const pan = (event) => {
+  if (!panning) return;
+  const dx = event.clientX - panStart.x;
+  const dy = event.clientY - panStart.y;
+  panStart = { x: event.clientX, y: event.clientY };
+
+  store.viewBox.x -= dx;
+  store.viewBox.y -= dy;
+};
+const zoom = (event) => {
+  event.preventDefault();
+  const { offsetX, offsetY, deltaY } = event;
+  const { width, height } = svg.value.getBoundingClientRect();
+  const zoomDirection = deltaY > 0 ? -1 : 1;
+  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.zoomLevel + zoomDirection * zoomFactor));
+  if (newZoomLevel === store.zoomLevel) return;
+  store.zoomLevel = newZoomLevel;
+  const scale = zoomDirection * zoomFactor * store.zoomLevel;
+  const newWidth = store.viewBox.width * (1 - scale);
+  const newHeight = store.viewBox.height * (1 - scale);
+  store.viewBox.x += (offsetX / width) * store.viewBox.width * scale;
+  store.viewBox.y += (offsetY / height) * store.viewBox.height * scale;
+  store.viewBox.width = newWidth;
+  store.viewBox.height = newHeight;
+};
+const getSVGCoordinates = (event) => {
+  const { left, top, width, height } = svg.value.getBoundingClientRect();
+  return {
+    x: ((event.clientX - left) / width) * store.viewBox.width + store.viewBox.x,
+    y: ((event.clientY - top) / height) * store.viewBox.height + store.viewBox.y
+  };
+};
+
+const initSVG = () => {
+  resizeSVG();
+  const { clientWidth, clientHeight } = svg.value;
+  store.viewBox.width = clientWidth;
+  store.viewBox.height = clientHeight;
+};
+const resizeSVG = () => {
+  const container = getClosestVContainer();
+  if (container) {
+    const containerPaddingLeft = parseFloat(window.getComputedStyle(container).paddingLeft);
+    svg.value.setAttribute('width', container.clientWidth);
+    svg.value.setAttribute('height', container.clientHeight);
+    svg.value.style.left = `${-containerPaddingLeft}px`;
+    store.viewBox.width = container.clientWidth;
+    store.viewBox.height = container.clientHeight;
+  }
+};
+const getClosestVContainer = () => {
+  let element = svg.value;
+  while (element) {
+    if (element.classList.contains('v-container')) return element;
+    element = element.parentElement;
+  }
+  return null;
+};
+onMounted(() => {
+  initSVG();
+  setSvgElement(svg.value);
+  deserializeState(drawing);
+  window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('resize', resizeSVG);
+  svg.value.addEventListener('mousemove', handleMouseMove);
+  svg.value.addEventListener('mousedown', startInteraction);
+  svg.value.addEventListener('mouseup', endInteraction);
+  svg.value.addEventListener('mouseleave', endInteraction);
+  svg.value.addEventListener('wheel', zoom);
+  svg.value.addEventListener('click', handleSvgClick);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('resize', resizeSVG);
+  svg.value.removeEventListener('mousemove', handleMouseMove);
+  svg.value.removeEventListener('mousedown', startInteraction);
+  svg.value.removeEventListener('mouseup', endInteraction);
+  svg.value.removeEventListener('mouseleave', endInteraction);
+  svg.value.removeEventListener('wheel', zoom);
+  svg.value.removeEventListener('click', handleSvgClick);
+});
+
+/* COMMON */
+const handleMouseMove = (event) => {
+  if (store.isDrawing) {
+    const coords = getSVGCoordinates(event);
+    hoverPoint.value = coords;
+    drawHoverLine(coords.x, coords.y, event.ctrlKey);
+  } else if (panning && !store.selectedBlock) {
+    pan(event);
+  } else if (dragging && store.selectedBlock) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - dragStart.x;
+    const dy = coords.y - dragStart.y;
+    const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
+    moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
+  }
+};
+
+const startInteraction = (event) => {
+  const coords = getSVGCoordinates(event);
+  if (store.selectedBlock) {
+    dragStart = coords;
+    initialBlockPosition = { ...store.selectedBlock };
+    dragging = true;
+  } else {
+    panStart = { x: event.clientX, y: event.clientY };
+    panning = true;
+  }
+};
+
+const endInteraction = () => {
+  panning = false;
+  dragging = false;
+};
+
+const handleSvgClick = (event) => {
+  if (!event.target.closest('rect') && !event.target.closest('g')) {
+    selectBlock(null);
+  }
+  if (!store.isDrawing) return;
+  const { x, y } = hoverPoint.value;
+  addPoint({ x, y }, event.ctrlKey);
+};
+
+/* BLOCKS */
+
+const handleBlockMouseDown = (block, event) => {
+  selectBlock(block);
+  startInteraction(event);
+};
 
 const isBlockSelected = (block) => store.selectedBlock && store.selectedBlock.id === block.id;
+
+/* WIRES/LINES */
+
+const drawAxes = (snappedPoint) => {
+  axesContainer.value.innerHTML = '';
+  const { x, y } = snappedPoint;
+  const { width, height } = store.viewBox;
+
+  const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  xAxis.setAttribute('x1', x);
+  xAxis.setAttribute('y1', 0);
+  xAxis.setAttribute('x2', x);
+  xAxis.setAttribute('y2', height);
+  xAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
+  xAxis.setAttribute('stroke-width', 1);
+  xAxis.setAttribute('stroke-dasharray', '5,5');
+
+  const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  yAxis.setAttribute('x1', 0);
+  yAxis.setAttribute('y1', y);
+  yAxis.setAttribute('x2', width);
+  yAxis.setAttribute('y2', y);
+  yAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
+  yAxis.setAttribute('stroke-width', 1);
+  yAxis.setAttribute('stroke-dasharray', '5,5');
+
+  axesContainer.value.appendChild(xAxis);
+  axesContainer.value.appendChild(yAxis);
+};
+
+const clearAxes = () => {
+  axesContainer.value.innerHTML = '';
+};
 
 const isLineSelected = (line) => store.selectedLine && store.selectedLine.id === line.id;
 
@@ -158,85 +312,7 @@ const addPoint = (point, ctrlKey) => {
     else x = lastPoint.x;
   }
   const snappedPoint = snapToGrid(x, y);
-  store.currentLine.push(snappedPoint);
-};
-
-const drawAxes = (snappedPoint) => {
-  axesContainer.value.innerHTML = '';
-  const { x, y } = snappedPoint;
-  const { width, height } = viewBox;
-
-  const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  xAxis.setAttribute('x1', x);
-  xAxis.setAttribute('y1', 0);
-  xAxis.setAttribute('x2', x);
-  xAxis.setAttribute('y2', height);
-  xAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
-  xAxis.setAttribute('stroke-width', 1);
-  xAxis.setAttribute('stroke-dasharray', '5,5');
-
-  const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  yAxis.setAttribute('x1', 0);
-  yAxis.setAttribute('y1', y);
-  yAxis.setAttribute('x2', width);
-  yAxis.setAttribute('y2', y);
-  yAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
-  yAxis.setAttribute('stroke-width', 1);
-  yAxis.setAttribute('stroke-dasharray', '5,5');
-
-  axesContainer.value.appendChild(xAxis);
-  axesContainer.value.appendChild(yAxis);
-};
-
-const clearAxes = () => {
-  axesContainer.value.innerHTML = '';
-};
-
-const handleMouseMove = (event) => {
-  if (store.isDrawing) {
-    const coords = getSVGCoordinates(event);
-    hoverPoint.value = coords;
-    drawHoverLine(coords.x, coords.y, event.ctrlKey);
-  } else if (panning && !store.selectedBlock) {
-    pan(event);
-  } else if (dragging && store.selectedBlock) {
-    const coords = getSVGCoordinates(event);
-    const dx = coords.x - dragStart.x;
-    const dy = coords.y - dragStart.y;
-    const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
-    moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
-  }
-};
-
-const startInteraction = (event) => {
-  const coords = getSVGCoordinates(event);
-  if (store.selectedBlock) {
-    dragStart = coords;
-    initialBlockPosition = { ...store.selectedBlock };
-    dragging = true;
-  } else {
-    panStart = { x: event.clientX, y: event.clientY };
-    panning = true;
-  }
-};
-
-const endInteraction = () => {
-  panning = false;
-  dragging = false;
-};
-
-const handleBlockMouseDown = (block, event) => {
-  selectBlock(block);
-  startInteraction(event);
-};
-
-const handleSvgClick = (event) => {
-  if (!event.target.closest('rect') && !event.target.closest('g')) {
-    selectBlock(null);
-  }
-  if (!store.isDrawing) return;
-  const { x, y } = hoverPoint.value;
-  addPoint({ x, y }, event.ctrlKey);
+  historyStore.executeCommand(new AddLinePointCommand(store, snappedPoint));
 };
 
 const handleKeyDown = (event) => {
@@ -247,26 +323,10 @@ const handleKeyDown = (event) => {
 };
 
 const endDrawing = () => {
-  store.lines.push({
-    id: Date.now(),
-    type: store.lineType,
-    color: store.lineColor,
-    pathData: store.currentLine.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' '),
-    points: [...store.currentLine]
-  });
-  store.currentLine = [];
   stopDrawing();
   clearAxes();
-};
 
-const pan = (event) => {
-  if (!panning) return;
-  const dx = event.clientX - panStart.x;
-  const dy = event.clientY - panStart.y;
-  panStart = { x: event.clientX, y: event.clientY };
-
-  viewBox.x -= dx / zoomLevel.value;
-  viewBox.y -= dy / zoomLevel.value;
+  historyStore.executeCommand(new StopDrawingCommand(store));
 };
 
 const startWire = (cp, block, event) => {
@@ -297,83 +357,6 @@ const finishWire = () => {
 const handleLineClick = (line) => {
   selectLine(line);
 };
-
-const zoom = (event) => {
-  event.preventDefault();
-  const { offsetX, offsetY, deltaY } = event;
-  const { width, height } = svg.value.getBoundingClientRect();
-  const zoomDirection = deltaY > 0 ? -1 : 1;
-  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, zoomLevel.value + zoomDirection * zoomFactor));
-  if (newZoomLevel === zoomLevel.value) return;
-  zoomLevel.value = newZoomLevel;
-  const scale = zoomDirection * zoomFactor * zoomLevel.value;
-  const newWidth = viewBox.width * (1 - scale);
-  const newHeight = viewBox.height * (1 - scale);
-  viewBox.x += (offsetX / width) * viewBox.width * scale;
-  viewBox.y += (offsetY / height) * viewBox.height * scale;
-  viewBox.width = newWidth;
-  viewBox.height = newHeight;
-};
-
-const getSVGCoordinates = (event) => {
-  const { left, top, width, height } = svg.value.getBoundingClientRect();
-  return {
-    x: ((event.clientX - left) / width) * viewBox.width + viewBox.x,
-    y: ((event.clientY - top) / height) * viewBox.height + viewBox.y
-  };
-};
-
-const initSVG = () => {
-  resizeSVG();
-  const { clientWidth, clientHeight } = svg.value;
-  viewBox.width = clientWidth;
-  viewBox.height = clientHeight;
-};
-
-const resizeSVG = () => {
-  const container = getClosestVContainer();
-  if (container) {
-    const containerPaddingLeft = parseFloat(window.getComputedStyle(container).paddingLeft);
-    svg.value.setAttribute('width', container.clientWidth);
-    svg.value.setAttribute('height', container.clientHeight);
-    svg.value.style.left = `${-containerPaddingLeft}px`;
-    viewBox.width = container.clientWidth;
-    viewBox.height = container.clientHeight;
-  }
-};
-
-const getClosestVContainer = () => {
-  let element = svg.value;
-  while (element) {
-    if (element.classList.contains('v-container')) return element;
-    element = element.parentElement;
-  }
-  return null;
-};
-
-onMounted(() => {
-  deserializeState(drawing);
-  initSVG();
-  window.addEventListener('keydown', handleKeyDown);
-  window.addEventListener('resize', resizeSVG);
-  svg.value.addEventListener('mousemove', handleMouseMove);
-  svg.value.addEventListener('mousedown', startInteraction);
-  svg.value.addEventListener('mouseup', endInteraction);
-  svg.value.addEventListener('mouseleave', endInteraction);
-  svg.value.addEventListener('wheel', zoom);
-  svg.value.addEventListener('click', handleSvgClick);
-});
-
-onBeforeUnmount(() => {
-  window.removeEventListener('keydown', handleKeyDown);
-  window.removeEventListener('resize', resizeSVG);
-  svg.value.removeEventListener('mousemove', handleMouseMove);
-  svg.value.removeEventListener('mousedown', startInteraction);
-  svg.value.removeEventListener('mouseup', endInteraction);
-  svg.value.removeEventListener('mouseleave', endInteraction);
-  svg.value.removeEventListener('wheel', zoom);
-  svg.value.removeEventListener('click', handleSvgClick);
-});
 </script>
 
 <style scoped>

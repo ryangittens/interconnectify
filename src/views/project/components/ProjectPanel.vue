@@ -8,11 +8,19 @@ import {
   LineDashedIcon,
   XIcon,
   Category2Icon,
-  CircuitGroundIcon
+  CircuitGroundIcon,
+  ArrowBackUpIcon,
+  ArrowForwardUpIcon,
+  Focus2Icon
 } from 'vue-tabler-icons';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
+import { useHistoryStore } from '@/stores/history';
+import { DeleteBlockCommand, DeleteLineCommand, AddBlockCommand } from '@/commands';
+
+const store = useSvgStore();
+const historyStore = useHistoryStore();
 
 defineEmits(['openBlockDialog']);
 const props = defineProps(['project']);
@@ -20,8 +28,6 @@ const project = props.project;
 const projectId = project.id;
 
 const error = ref(null);
-
-const store = useSvgStore();
 
 const setSolidBlackLine = () => {
   store.setLineType('solid');
@@ -41,9 +47,12 @@ const setDashedLine = () => {
   store.startDrawing();
 };
 
-const deleteSelectedBlock = () => {
+const deleteObject = () => {
   if (store.selectedBlock) {
-    store.deleteBlock(store.selectedBlock);
+    historyStore.executeCommand(new DeleteBlockCommand(store.selectedBlock, store));
+  }
+  if (store.selectedLine) {
+    historyStore.executeCommand(new DeleteLineCommand(store.selectedLine, store));
   }
 };
 
@@ -55,6 +64,7 @@ const { addBlock } = store;
 
 const addNewBlock = () => {
   const newBlock = {
+    object: 'block',
     id: Date.now(),
     x: 40,
     y: 40,
@@ -69,11 +79,23 @@ const addNewBlock = () => {
       { id: 'cp4', x: 80, y: 40 } // Right-center
     ]
   };
-  addBlock(newBlock);
+  historyStore.executeCommand(new AddBlockCommand(newBlock, store));
 };
 
 const serializeState = () => {
   return store.serializeState();
+};
+
+const undo = () => {
+  return historyStore.undo();
+};
+
+const redo = () => {
+  return historyStore.redo();
+};
+
+const centerSvg = () => {
+  return store.centerSVG();
 };
 
 const saveDrawing = async () => {
@@ -100,6 +122,15 @@ const saveDrawing = async () => {
     </v-btn>
     <v-btn @click="saveDrawing" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <DeviceFloppyIcon size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-btn @click="undo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+      <ArrowBackUpIcon size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-btn @click="redo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+      <ArrowForwardUpIcon size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-btn @click="centerSvg" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+      <Focus2Icon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
     <v-btn
@@ -138,16 +169,7 @@ const saveDrawing = async () => {
     >
       <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn
-      @click="deleteSelectedBlock"
-      class="text-secondary ml-2"
-      color="background"
-      icon
-      outlined
-      rounded="sm"
-      variant="flat"
-      size="small"
-    >
+    <v-btn @click="deleteObject" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <XIcon size="17" color="red" stroke-width="1.5" />
     </v-btn>
     <v-btn

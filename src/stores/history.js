@@ -12,7 +12,6 @@ export const useHistoryStore = defineStore('history', {
       this.redoStack = []; // Clear redo stack on new command
     },
     undo() {
-      console.log('got here undo');
       const command = this.undoStack.pop();
       if (command) {
         command.undo();
