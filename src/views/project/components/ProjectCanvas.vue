@@ -104,8 +104,8 @@ let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
-const minZoomLevel = 0.02;
-const maxZoomLevel = 1.5;
+const minZoomLevel = 0.04;
+const maxZoomLevel = 0.15;
 const gridSize = 20;
 
 /* SETUP */
@@ -116,24 +116,35 @@ const pan = (event) => {
   const dy = event.clientY - panStart.y;
   panStart = { x: event.clientX, y: event.clientY };
 
-  store.viewBox.x -= dx;
-  store.viewBox.y -= dy;
+  store.viewBox.x -= dx / (store.zoomLevel * 10);
+  store.viewBox.y -= dy / (store.zoomLevel * 10);
 };
 const zoom = (event) => {
+  console.log(store.zoomLevel);
   event.preventDefault();
+
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
+
+  // Determine the new zoom level
   const zoomDirection = deltaY > 0 ? -1 : 1;
-  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.zoomLevel + zoomDirection * zoomFactor));
+  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.zoomLevel * (1 + zoomDirection * zoomFactor)));
   if (newZoomLevel === store.zoomLevel) return;
+
+  // Calculate the scale factor based on the new zoom level
+  const scale = newZoomLevel / store.zoomLevel;
   store.zoomLevel = newZoomLevel;
-  const scale = zoomDirection * zoomFactor * store.zoomLevel;
-  const newWidth = store.viewBox.width * (1 - scale);
-  const newHeight = store.viewBox.height * (1 - scale);
-  store.viewBox.x += (offsetX / width) * store.viewBox.width * scale;
-  store.viewBox.y += (offsetY / height) * store.viewBox.height * scale;
-  store.viewBox.width = newWidth;
-  store.viewBox.height = newHeight;
+
+  // Calculate the new viewBox dimensions
+  const newWidth = store.viewBox.width / scale;
+  const newHeight = store.viewBox.height / scale;
+
+  // Calculate the new viewBox position to keep the mouse position fixed
+  const newX = store.viewBox.x + (offsetX / width) * (store.viewBox.width - newWidth);
+  const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
+
+  // Update the viewBox in the store
+  store.viewBox = { x: newX, y: newY, width: newWidth, height: newHeight };
 };
 const getSVGCoordinates = (event) => {
   const { left, top, width, height } = svg.value.getBoundingClientRect();
