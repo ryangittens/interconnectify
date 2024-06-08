@@ -105,7 +105,12 @@ export const useSvgStore = defineStore('svgStore', {
       const { clientWidth, clientHeight } = this.svg;
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];
-      this.viewBox = data?.viewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight };
+      this.viewBox = { x: data?.viewBox.x, y: data?.viewBox.y, width: clientWidth, height: clientHeight } || {
+        x: 0,
+        y: 0,
+        width: clientWidth,
+        height: clientHeight
+      };
       this.zoomLevel = data?.zoomLevel || 0.1;
     },
     setSvgElement(svg) {
