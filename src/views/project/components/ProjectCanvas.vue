@@ -104,8 +104,8 @@ let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
-const minZoomLevel = 0.08;
-const maxZoomLevel = 0.25;
+const minZoomLevel = 0.02;
+const maxZoomLevel = 0.5;
 const gridSize = 20;
 
 /* SETUP */
@@ -116,10 +116,11 @@ const pan = (event) => {
   const dy = event.clientY - panStart.y;
   panStart = { x: event.clientX, y: event.clientY };
 
-  store.viewBox.x -= dx / (store.zoomLevel * 10);
-  store.viewBox.y -= dy / (store.zoomLevel * 10);
+  store.viewBox.x -= dx;
+  store.viewBox.y -= dy;
 };
 const zoom = (event) => {
+  console.log(store.zoomLevel);
   event.preventDefault();
 
   const { offsetX, offsetY, deltaY } = event;
