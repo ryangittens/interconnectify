@@ -14,7 +14,7 @@ export const useSvgStore = defineStore('svgStore', {
     activeTool: '',
     svg: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
-    zoomLevel: 1
+    zoomLevel: 0.1
   }),
   actions: {
     addBlock(block) {
@@ -106,7 +106,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];
       this.viewBox = data?.viewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight };
-      this.zoomLevel = data?.zoomLevel || 1;
+      this.zoomLevel = data?.zoomLevel || 0.1;
     },
     setSvgElement(svg) {
       this.svg = svg;
