@@ -33,6 +33,29 @@
           fill="none"
         ></path>
       </g>
+      <!-- Grid Lines -->
+      <g v-if="store.showGrid" class="grid-container">
+        <line
+          v-for="x in Math.ceil(store.viewBox.width / gridSize) + 1"
+          :key="'x' + x"
+          :x1="store.viewBox.x + x * gridSize - (store.viewBox.x % gridSize)"
+          :y1="store.viewBox.y"
+          :x2="store.viewBox.x + x * gridSize - (store.viewBox.x % gridSize)"
+          :y2="store.viewBox.y + store.viewBox.height"
+          stroke="lightgray"
+          stroke-width="0.5"
+        />
+        <line
+          v-for="y in Math.ceil(store.viewBox.height / gridSize) + 1"
+          :key="'y' + y"
+          :x1="store.viewBox.x"
+          :y1="store.viewBox.y + y * gridSize - (store.viewBox.y % gridSize)"
+          :x2="store.viewBox.x + store.viewBox.width"
+          :y2="store.viewBox.y + y * gridSize - (store.viewBox.y % gridSize)"
+          stroke="lightgray"
+          stroke-width="0.5"
+        />
+      </g>
       <g ref="axesContainer"></g>
       <g
         v-for="block in store.blocks"
@@ -68,7 +91,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onBeforeUnmount, defineProps } from 'vue';
+import { ref, onMounted, onBeforeUnmount, defineProps } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 
@@ -96,7 +119,7 @@ const wireEnd = ref(null);
 
 const hoverPoint = ref({ x: null, y: null });
 
-const { deserializeState, moveBlock, selectBlock, stopDrawing, selectLine, setSvgElement } = store;
+const { deserializeState, moveBlock, selectBlock, stopDrawing, selectLine, setSvgElement, initializeViewBox } = store;
 
 let panStart = { x: 0, y: 0 };
 let dragStart = { x: 0, y: 0 };
@@ -112,13 +135,14 @@ const gridSize = 20;
 
 const pan = (event) => {
   if (!panning) return;
-  const dx = event.clientX - panStart.x;
-  const dy = event.clientY - panStart.y;
+  const dx = (event.clientX - panStart.x) / (store.zoomLevel * 10);
+  const dy = (event.clientY - panStart.y) / (store.zoomLevel * 10);
   panStart = { x: event.clientX, y: event.clientY };
 
   store.viewBox.x -= dx;
   store.viewBox.y -= dy;
 };
+
 const zoom = (event) => {
   event.preventDefault();
 
@@ -145,43 +169,43 @@ const zoom = (event) => {
   // Update the viewBox in the store
   store.viewBox = { x: newX, y: newY, width: newWidth, height: newHeight };
 };
+
 const getSVGCoordinates = (event) => {
-  const { left, top, width, height } = svg.value.getBoundingClientRect();
+  const { left, top } = svg.value.getBoundingClientRect();
+  const svgPoint = svg.value.createSVGPoint();
+  svgPoint.x = event.clientX;
+  svgPoint.y = event.clientY;
+  const point = svgPoint.matrixTransform(svg.value.getScreenCTM().inverse());
   return {
-    x: ((event.clientX - left) / width) * store.viewBox.width + store.viewBox.x,
-    y: ((event.clientY - top) / height) * store.viewBox.height + store.viewBox.y
+    x: point.x,
+    y: point.y
   };
 };
 
 const initSVG = () => {
-  resizeSVG();
-  const { clientWidth, clientHeight } = svg.value;
-  store.viewBox.width = clientWidth;
-  store.viewBox.height = clientHeight;
+  const container = svg.value.parentElement;
+  const { clientWidth, clientHeight } = container;
+  store.setViewBox(0, 0, clientWidth, clientHeight);
+  svg.value.setAttribute('width', clientWidth);
+  svg.value.setAttribute('height', clientHeight);
+  setSvgElement(svg.value);
+  deserializeState(drawing);
+  store.renderGrid();
 };
+
 const resizeSVG = () => {
-  const container = getClosestVContainer();
+  const container = svg.value.parentElement;
   if (container) {
     const containerPaddingLeft = parseFloat(window.getComputedStyle(container).paddingLeft);
     svg.value.setAttribute('width', container.clientWidth);
     svg.value.setAttribute('height', container.clientHeight);
     svg.value.style.left = `${-containerPaddingLeft}px`;
-    store.viewBox.width = container.clientWidth;
-    store.viewBox.height = container.clientHeight;
+    store.setViewBox(0, 0, container.clientWidth, container.clientHeight);
   }
 };
-const getClosestVContainer = () => {
-  let element = svg.value;
-  while (element) {
-    if (element.classList.contains('v-container')) return element;
-    element = element.parentElement;
-  }
-  return null;
-};
+
 onMounted(() => {
   initSVG();
-  setSvgElement(svg.value);
-  deserializeState(drawing);
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
@@ -242,8 +266,8 @@ const handleSvgClick = (event) => {
     selectBlock(null);
   }
   if (!store.isDrawing) return;
-  const { x, y } = hoverPoint.value;
-  addPoint({ x, y }, event.ctrlKey);
+  const coords = getSVGCoordinates(event);
+  addPoint(coords, event.ctrlKey);
 };
 
 /* BLOCKS */
@@ -291,8 +315,8 @@ const clearAxes = () => {
 const isLineSelected = (line) => store.selectedLine && store.selectedLine.id === line.id;
 
 const snapToGrid = (x, y) => ({
-  x: Math.round(x / gridSize) * gridSize,
-  y: Math.round(y / gridSize) * gridSize
+  x: Math.round(x / store.gridSize) * store.gridSize,
+  y: Math.round(y / store.gridSize) * store.gridSize
 });
 
 const drawHoverLine = (x, y, ctrlKey) => {

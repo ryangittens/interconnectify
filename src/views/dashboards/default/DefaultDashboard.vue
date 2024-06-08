@@ -1,12 +1,12 @@
 <script setup lang="ts">
 // imported components
-import Projects from './components/Projects.vue';
+import ProjectsCards from './components/ProjectsCards.vue';
 </script>
 
 <template>
   <v-row>
     <v-col cols="12" lg="12">
-      <Projects />
+      <ProjectsCards />
     </v-col>
   </v-row>
 </template>

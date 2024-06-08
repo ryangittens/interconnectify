@@ -90,6 +90,10 @@ const serializeState = () => {
   return store.serializeState();
 };
 
+const svgToDataUrl = (svgElement: any) => {
+  return store.svgToDataUrl(svgElement);
+};
+
 const undo = () => {
   return historyStore.undo();
 };
@@ -102,10 +106,27 @@ const centerSvg = () => {
   return store.centerSVG();
 };
 
+const fitSVGToExtent = () => {
+  return store.fitSVGToExtent();
+};
+
 const saveDrawing = async () => {
   try {
     const drawing = serializeState();
     const { data, error: updateError } = await supabase.from('projects').update({ drawing }).eq('id', projectId);
+
+    if (updateError) {
+      throw updateError;
+    }
+
+    snackbarStore.showSnackbar('Drawing Saved Successfully', 'success');
+  } catch (err: any) {
+    error.value = err.message;
+    snackbarStore.showSnackbar('Error Saving Drawing', 'error');
+  }
+  try {
+    const project_svg = svgToDataUrl(store.svg);
+    const { data, error: updateError } = await supabase.from('projects').update({ project_svg }).eq('id', projectId);
 
     if (updateError) {
       throw updateError;
@@ -133,7 +154,7 @@ const saveDrawing = async () => {
     <v-btn @click="redo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <ArrowForwardUpIcon size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="centerSvg" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+    <v-btn @click="fitSVGToExtent" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <Focus2Icon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />

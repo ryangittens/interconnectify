@@ -47,7 +47,7 @@ const fetchProjects = async () => {
       error: fetchError,
       count
     } = await supabase
-      .from('templates')
+      .from('projects')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -82,7 +82,7 @@ const goToProject = (projectId) => {
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <div class="d-flex align-center justify-space-between">
-        <h4 class="text-h4">Templates</h4>
+        <h4 class="text-h4">Projects</h4>
       </div>
       <div class="d-flex align-center justify-space-between mt-4">
         <v-text-field
@@ -126,13 +126,7 @@ const goToProject = (projectId) => {
             <template v-for="(project, i) in filteredProjects" :key="i">
               <v-col>
                 <v-card class="mx-auto overflow-hidden" max-width="344" min-width="244">
-                  <v-img
-                    class="align-end"
-                    gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
-                    height="200px"
-                    cover
-                    src="https://cdn.vuetifyjs.com/images/cards/sunshine.jpg"
-                  >
+                  <v-img class="align-end" color="lightprimary" height="200px" cover :src="project.project_svg">
                     <v-btn class="" color="error" icon rounded="lg" variant="text">
                       <HeartFilledIcon stroke-width="1.5" width="25" /> </v-btn
                   ></v-img>
