@@ -14,25 +14,23 @@
   <v-expansion-panels class="conductorSchedulePanel">
     <v-expansion-panel title="Conductor Schedule">
       <v-expansion-panel-text>
-        <v-container>
-          <v-row>
-            <v-col md="auto" v-for="heading in conductorTableHeadings">
-              <div class="text-h6">{{ heading.title }}</div>
-              <!-- <v-text-field
+        <v-row>
+          <v-col md="auto" v-for="heading in conductorTableHeadings">
+            <div class="text-h6">{{ heading.title }}</div>
+            <!-- <v-text-field
                 density="dense"
                 v-model="conductor[heading.key]"
                 class="conductorTableInput editable"
                 v-for="conductor in testData"
               ></v-text-field> -->
-              <ContentEditable
-                v-for="conductor in testData"
-                v-model="conductor[heading.key]"
-                :editable="heading.editable"
-                customClass="conductorTableInput"
-              />
-            </v-col>
-          </v-row>
-        </v-container>
+            <ContentEditable
+              v-for="conductor in testData"
+              v-model="conductor[heading.key]"
+              :editable="heading.editable"
+              customClass="conductorTableInput"
+            />
+          </v-col>
+        </v-row>
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>

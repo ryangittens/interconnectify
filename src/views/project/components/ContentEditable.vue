@@ -7,7 +7,7 @@ import { ref, watch } from 'vue';
 import { defineProps, defineEmits } from 'vue';
 
 const props = defineProps({
-  modelValue: String,
+  modelValue: [String, Number],
   editable: Boolean,
   customClass: String
 });
