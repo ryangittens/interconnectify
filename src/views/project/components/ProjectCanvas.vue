@@ -284,21 +284,21 @@ const isBlockSelected = (block) => store.selectedBlock && store.selectedBlock.id
 const drawAxes = (snappedPoint) => {
   axesContainer.value.innerHTML = '';
   const { x, y } = snappedPoint;
-  const { width, height } = store.viewBox;
+  const { x: viewBoxX, y: viewBoxY, width, height } = store.viewBox;
 
   const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
   xAxis.setAttribute('x1', x);
-  xAxis.setAttribute('y1', 0);
+  xAxis.setAttribute('y1', viewBoxY - height); // Extend beyond the top of the viewport
   xAxis.setAttribute('x2', x);
-  xAxis.setAttribute('y2', height);
+  xAxis.setAttribute('y2', viewBoxY + 2 * height); // Extend beyond the bottom of the viewport
   xAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
   xAxis.setAttribute('stroke-width', 1);
   xAxis.setAttribute('stroke-dasharray', '5,5');
 
   const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  yAxis.setAttribute('x1', 0);
+  yAxis.setAttribute('x1', viewBoxX - width); // Extend beyond the left of the viewport
   yAxis.setAttribute('y1', y);
-  yAxis.setAttribute('x2', width);
+  yAxis.setAttribute('x2', viewBoxX + 2 * width); // Extend beyond the right of the viewport
   yAxis.setAttribute('y2', y);
   yAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
   yAxis.setAttribute('stroke-width', 1);

@@ -27,13 +27,13 @@ const sidebarItem: menu[] = [
     title: 'Projects',
     icon: DashboardIcon,
     to: '/dashboard/default'
-  },
-
-  {
-    title: 'Templates',
-    icon: TemplateIcon,
-    to: '/dashboard/default'
   }
+
+  // {
+  //   title: 'Templates',
+  //   icon: TemplateIcon,
+  //   to: '/dashboard/default'
+  // }
 
   // { header: 'Pages' },
   // {

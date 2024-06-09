@@ -11,7 +11,8 @@ import {
   CircuitGroundIcon,
   ArrowBackUpIcon,
   ArrowForwardUpIcon,
-  Focus2Icon
+  Focus2Icon,
+  GridPatternIcon
 } from 'vue-tabler-icons';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
@@ -110,6 +111,10 @@ const fitSVGToExtent = () => {
   return store.fitSVGToExtent();
 };
 
+const toggleGrid = () => {
+  return store.toggleGrid();
+};
+
 const saveDrawing = async () => {
   try {
     const drawing = serializeState();
@@ -156,6 +161,9 @@ const saveDrawing = async () => {
     </v-btn>
     <v-btn @click="fitSVGToExtent" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <Focus2Icon size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-btn @click="toggleGrid" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+      <GridPatternIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
     <v-btn
