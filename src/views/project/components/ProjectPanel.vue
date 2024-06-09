@@ -202,12 +202,9 @@ const saveDrawing = async () => {
     >
       <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="deleteObject" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <XIcon size="17" color="red" stroke-width="1.5" />
-    </v-btn>
     <v-btn
       @click="$emit('openBlockDialog')"
-      class="text-secondary ml-2"
+      class="text-secondary ml-6"
       color="background"
       icon
       outlined
