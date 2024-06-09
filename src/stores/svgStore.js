@@ -113,8 +113,13 @@ export const useSvgStore = defineStore('svgStore', {
       const { clientWidth, clientHeight } = this.svg;
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];
-      this.viewBox = data?.viewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight };
       this.zoomLevel = data?.zoomLevel || 0.1;
+      if (data?.viewBox) {
+        this.viewBox.x = data?.viewBox?.x || 0;
+        this.viewBox.y = data?.viewBox?.y || 0;
+      } else {
+        this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
+      }
     },
     setSvgElement(svg) {
       this.svg = svg;
