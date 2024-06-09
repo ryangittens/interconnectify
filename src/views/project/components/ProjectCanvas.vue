@@ -1,5 +1,6 @@
 <template>
   <div ref="canvasContainer" class="canvas-container">
+    <InfoPanel />
     <svg
       ref="svg"
       class="drawing-svg"
@@ -96,6 +97,7 @@ import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 
 import ConductorSchedule from './ConductorSchedule.vue';
+import InfoPanel from './InfoPanel.vue';
 
 import { StopDrawingCommand, AddLinePointCommand } from '@/commands';
 
