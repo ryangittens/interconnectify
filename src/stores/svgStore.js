@@ -117,37 +117,25 @@ export const useSvgStore = defineStore('svgStore', {
       this.lines = data?.lines || [];
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
 
-      // if (data?.viewBox) {
-      //   console.log('got here', this.viewBox.x);
-      //   this.viewBox.x = data?.viewBox?.x || 0;
-      //   this.viewBox.y = data?.viewBox?.y || 0;
-      //   this.viewBox.width = clientWidth;
-      //   this.viewBox.height = clientHeight;
-      // } else {
-      //   this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
-      // }
+      // Calculate the center of the old viewBox
+      const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2;
+      const centerY = (data?.viewBox?.y || 0) + (data?.viewBox?.height || this.initialViewBox.height) / 2;
 
       // Calculate the new viewBox dimensions based on the new zoom level
       const newWidth = this.initialViewBox.width / this.zoomLevel;
       const newHeight = this.initialViewBox.height / this.zoomLevel;
 
-      // // Calculate the new viewBox position to keep the mouse position fixed
-      // const newX = store.viewBox.x + (offsetX / width) * (store.viewBox.width - newWidth);
-      // const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
+      // Calculate the new viewBox position to center the viewBox around the saved center
+      const newX = centerX - newWidth / 2;
+      const newY = centerY - newHeight / 2;
 
-      // Update the zoom level and viewBox in the store
-
-      this.setViewBox(data?.viewBox?.x || 0, data?.viewBox?.y, newWidth, newHeight);
-
-      // Apply the zoom level to the viewBox
-      // this.viewBox.width /= this.zoomLevel;
-      // this.viewBox.height /= this.zoomLevel;
+      // Update the viewBox in the store
+      this.setViewBox(newX, newY, newWidth, newHeight);
 
       // Re-render the grid if it is enabled
       if (this.showGrid) {
         this.renderGrid();
       }
-      this.set;
     },
     setSvgElement(svg) {
       this.svg = svg;
