@@ -7,6 +7,10 @@ import { useRouter } from 'vue-router';
 
 import ProjectDetailsModal from '@/components/shared/ProjectDetailsModal.vue';
 
+import { useSnackbarStore } from '@/stores/snackbar';
+
+const snackbarStore = useSnackbarStore();
+
 const authStore = useAuthStore();
 const router = useRouter();
 const projects = ref([]);
@@ -16,18 +20,48 @@ const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 const totalProjects = ref(0);
+const show = ref({});
+const projectIdToDelete = ref(null);
 
 const projectDialog = ref(false);
 
+const selectedTemplate = ref(null);
+
 function openProjectDialog() {
   projectDialog.value = true;
-  console.log('got here');
-}
-function closeProjectDialog() {
-  projectDialog.value = false;
 }
 
-const show = ref(false);
+function closeProjectDialog() {
+  projectDialog.value = false;
+  selectTemplate(null);
+}
+
+const deleteProject = async (projectId) => {
+  const confirmed = window.confirm('Are you sure you want to delete this project?');
+  if (!confirmed) return;
+
+  try {
+    const { error: deleteError } = await supabase.from('projects').delete().eq('id', projectId);
+
+    if (deleteError) {
+      throw deleteError;
+    }
+
+    projects.value = projects.value.filter((project) => project.id !== projectId);
+    totalProjects.value = projects.value.length;
+  } catch (err) {
+    error.value = err.message;
+    snackbarStore.showSnackbar('Error Deleting Project', 'error');
+  }
+};
+
+function selectTemplate(template: any) {
+  selectedTemplate.value = template;
+  if (template) {
+    openProjectDialog();
+  }
+}
+
 const filteredProjects = computed(() => {
   if (!searchQuery.value) {
     return projects.value;
@@ -61,9 +95,14 @@ const fetchProjects = async () => {
     totalProjects.value = count;
   } catch (err) {
     error.value = err.message;
+    snackbarStore.showSnackbar('Error Fetching Projects', 'error');
   } finally {
     loading.value = false;
   }
+};
+
+const toggleProjectPanel = (projectId) => {
+  show.value[projectId] = !show.value[projectId];
 };
 
 const totalPages = computed(() => Math.ceil(totalProjects.value / pageSize.value));
@@ -71,14 +110,10 @@ const totalPages = computed(() => Math.ceil(totalProjects.value / pageSize.value
 onMounted(fetchProjects);
 
 watch([currentPage, searchQuery], fetchProjects);
-
-const goToProject = (projectId) => {
-  router.push({ name: 'ProjectView', params: { id: projectId } });
-};
 </script>
 
 <template>
-  <ProjectDetailsModal :show="projectDialog" @close-project-dialog="closeProjectDialog" />
+  <ProjectDetailsModal :show="projectDialog" :selectedTemplate="selectedTemplate" @close-project-dialog="closeProjectDialog" />
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <div class="d-flex align-center justify-space-between">
@@ -89,7 +124,7 @@ const goToProject = (projectId) => {
           v-model="searchQuery"
           class=""
           persistent-placeholder
-          placeholder="Search Projects"
+          placeholder="Search Templates"
           color="primary"
           variant="outlined"
           hide-details
@@ -126,33 +161,37 @@ const goToProject = (projectId) => {
             <template v-for="(project, i) in filteredProjects" :key="i">
               <v-col>
                 <v-card class="mx-auto overflow-hidden" max-width="344" min-width="244">
-                  <v-img
-                    class="align-end"
-                    gradient="to bottom, rgba(0,0,0,.1), rgba(0,0,0,.5)"
-                    height="200px"
-                    cover
-                    src="https://cdn.vuetifyjs.com/images/cards/sunshine.jpg"
-                  >
-                    <v-btn class="" color="error" icon rounded="lg" variant="text">
-                      <HeartFilledIcon stroke-width="1.5" width="25" /> </v-btn
+                  <v-img class="align-end" color="lightprimary" height="200px" cover :src="project.project_svg">
+                    <v-btn @click="deleteProject(project.id)" class="deleteProjectIcon" color="error" icon rounded="lg" variant="text">
+                      <TrashIcon stroke-width="1.5" width="25" /> </v-btn
                   ></v-img>
 
                   <v-card-actions>
-                    <v-btn @click="goToProject(project.id)" color="orange-lighten-2" variant="text" v-text="project.project_name"></v-btn>
-
+                    <div @click="selectTemplate(project)" class="cursorPointer">
+                      <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
+                        {{ project.project_name }}
+                      </h6>
+                    </div>
                     <v-spacer></v-spacer>
 
-                    <v-btn size="small" :icon="show ? 'mdi-chevron-up' : 'mdi-chevron-down'" @click="show = !show"></v-btn>
+                    <v-btn
+                      size="small"
+                      :icon="show[project.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                      @click="toggleProjectPanel(project.id)"
+                    ></v-btn>
                   </v-card-actions>
 
                   <v-expand-transition>
-                    <div v-show="show">
+                    <div v-show="show[project.id]">
                       <v-divider></v-divider>
 
                       <v-card-text>
-                        I'm a thing. But, like most politicians, he promised more than he could deliver. You won't have time for sleeping,
-                        soldier, not with all the bed making you'll be doing. Then we'll go with that data file! Hey, you add a one and two
-                        zeros to that or we walk! You're going to do his laundry? I've got to find a way to escape.
+                        <div>
+                          <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold">
+                            {{ project.project_name }}
+                          </h6>
+                        </div>
+                        <p>{{ project.project_description }}</p>
                       </v-card-text>
                     </div>
                   </v-expand-transition>
@@ -196,9 +235,15 @@ const goToProject = (projectId) => {
 </template>
 
 <style lang="scss">
-.projectForm {
-  .v-text-field .v-field--active input {
-    font-weight: 500;
-  }
+.deleteProjectIcon {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+.projectCard {
+  position: relative;
+}
+.cursorPointer {
+  cursor: pointer;
 }
 </style>

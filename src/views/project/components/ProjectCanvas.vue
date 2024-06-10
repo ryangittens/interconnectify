@@ -130,15 +130,15 @@ let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
 const minZoomLevel = 0.02;
-const maxZoomLevel = 0.5;
+const maxZoomLevel = 1;
 const gridSize = 20;
 
 /* SETUP */
 
 const pan = (event) => {
   if (!panning) return;
-  const dx = (event.clientX - panStart.x) / (store.zoomLevel * 10);
-  const dy = (event.clientY - panStart.y) / (store.zoomLevel * 10);
+  const dx = event.clientX - panStart.x;
+  const dy = event.clientY - panStart.y;
   panStart = { x: event.clientX, y: event.clientY };
 
   store.viewBox.x -= dx;
@@ -146,8 +146,8 @@ const pan = (event) => {
 };
 
 const zoom = (event) => {
+  console.log(store.zoomLevel);
   event.preventDefault();
-
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
@@ -169,7 +169,7 @@ const zoom = (event) => {
   const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
 
   // Update the viewBox in the store
-  store.viewBox = { x: newX, y: newY, width: newWidth, height: newHeight };
+  store.setViewBox(newX, newY, newWidth, newHeight);
 };
 
 const getSVGCoordinates = (event) => {

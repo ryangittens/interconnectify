@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { useCustomizerStore } from '../../../stores/customizer';
+import { useCustomizerStore } from '@/stores/customizer';
 // Icon Imports
-import { BellIcon, SettingsIcon, SearchIcon, Menu2Icon } from 'vue-tabler-icons';
+import { BellIcon, SettingsIcon, SearchIcon, Menu2Icon, ChevronLeftIcon, ChevronRightIcon } from 'vue-tabler-icons';
 
 // dropdown imports
 import NotificationDD from './NotificationDD.vue';
@@ -20,14 +20,15 @@ function searchbox() {
   <v-app-bar elevation="0" height="80">
     <v-btn
       class="hidden-md-and-down text-secondary"
-      color="lightsecondary"
+      color="primary"
       icon
       rounded="sm"
-      variant="flat"
+      variant="tonal"
       @click.stop="customizer.SET_MINI_SIDEBAR(!customizer.mini_sidebar)"
       size="small"
     >
-      <Menu2Icon size="20" stroke-width="1.5" />
+      <ChevronRightIcon v-if="customizer.mini_sidebar" size="20" stroke-width="1.5" />
+      <ChevronLeftIcon v-else size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       class="hidden-lg-and-up text-secondary ms-3"

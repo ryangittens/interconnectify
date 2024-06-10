@@ -14,7 +14,7 @@ export const useSvgStore = defineStore('svgStore', {
     activeTool: '',
     svg: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
-    zoomLevel: 0.1,
+    zoomLevel: 1,
     gridSize: 20,
     showGrid: true
   }),
@@ -113,12 +113,24 @@ export const useSvgStore = defineStore('svgStore', {
       const { clientWidth, clientHeight } = this.svg;
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];
-      this.zoomLevel = data?.zoomLevel || 0.1;
+      this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
+
       if (data?.viewBox) {
         this.viewBox.x = data?.viewBox?.x || 0;
         this.viewBox.y = data?.viewBox?.y || 0;
+        this.viewBox.width = clientWidth;
+        this.viewBox.height = clientHeight;
       } else {
         this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
+      }
+
+      // Apply the zoom level to the viewBox
+      // this.viewBox.width /= this.zoomLevel;
+      // this.viewBox.height /= this.zoomLevel;
+
+      // Re-render the grid if it is enabled
+      if (this.showGrid) {
+        this.renderGrid();
       }
     },
     setSvgElement(svg) {
@@ -155,15 +167,61 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Add some padding
       const padding = 20;
-      this.viewBox.x = minX - padding;
-      this.viewBox.y = minY - padding;
-      this.viewBox.width = width + 2 * padding;
-      this.viewBox.height = height + 2 * padding;
+      const viewBoxWidth = width + 2 * padding;
+      const viewBoxHeight = height + 2 * padding;
+
+      const containerWidth = this.svg.clientWidth;
+      const containerHeight = this.svg.clientHeight;
+
+      // Calculate the aspect ratios
+      const contentAspectRatio = viewBoxWidth / viewBoxHeight;
+      const containerAspectRatio = containerWidth / containerHeight;
+
+      // Determine the final width and height to maintain the aspect ratio
+      let finalWidth, finalHeight;
+
+      if (contentAspectRatio > containerAspectRatio) {
+        finalWidth = viewBoxWidth;
+        finalHeight = viewBoxWidth / containerAspectRatio;
+      } else {
+        finalHeight = viewBoxHeight;
+        finalWidth = viewBoxHeight * containerAspectRatio;
+      }
+
+      // Calculate the offset to center the content
+      const offsetX = (finalWidth - viewBoxWidth) / 2;
+      const offsetY = (finalHeight - viewBoxHeight) / 2;
+
+      // Save the old viewBox dimensions to calculate the zoom level
+      const oldViewBoxWidth = this.viewBox.width;
+      const oldViewBoxHeight = this.viewBox.height;
+
+      // Set the viewBox to the calculated dimensions and center it
+      this.viewBox.x = minX - padding - offsetX;
+      this.viewBox.y = minY - padding - offsetY;
+      this.viewBox.width = finalWidth;
+      this.viewBox.height = finalHeight;
+
+      // Calculate the new zoom level based on the ratio of the old viewBox dimensions to the new ones
+      const scaleX = oldViewBoxWidth / finalWidth;
+      const scaleY = oldViewBoxHeight / finalHeight;
+      this.zoomLevel = Math.min(scaleX, scaleY) * this.zoomLevel; // Adjust the zoom level accordingly
+
+      // Draw the gridlines over the whole SVG
+      this.renderGrid();
     },
     toggleGrid() {
       this.showGrid = !this.showGrid;
       if (this.svgElement) {
         this.renderGrid();
+      }
+    },
+    selectedObject() {
+      if (this.selectedBlock) {
+        return this.selectBlock;
+      }
+      if (this.selectedLine) {
+        return this.selectLine;
       }
     },
     renderGrid() {
@@ -197,31 +255,24 @@ export const useSvgStore = defineStore('svgStore', {
 });
 
 // Helper function to calculate the bounding box
-function calculateBoundingBox(lines, blocks) {
+const calculateBoundingBox = (lines, blocks) => {
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
-
-  // Calculate bounds for lines
   lines.forEach((line) => {
     line.points.forEach((point) => {
       if (point.x < minX) minX = point.x;
-      if (point.x > maxX) maxX = point.x;
       if (point.y < minY) minY = point.y;
+      if (point.x > maxX) maxX = point.x;
       if (point.y > maxY) maxY = point.y;
     });
   });
-
-  // Calculate bounds for blocks
   blocks.forEach((block) => {
-    const blockMaxX = block.x + block.width;
-    const blockMaxY = block.y + block.height;
     if (block.x < minX) minX = block.x;
-    if (blockMaxX > maxX) maxX = blockMaxX;
     if (block.y < minY) minY = block.y;
-    if (blockMaxY > maxY) maxY = blockMaxY;
+    if (block.x + block.width > maxX) maxX = block.x + block.width;
+    if (block.y + block.height > maxY) maxY = block.y + block.height;
   });
-
   return { minX, minY, maxX, maxY };
-}
+};

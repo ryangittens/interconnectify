@@ -6,13 +6,15 @@ import { supabase } from '@/utils/supabaseClient';
 import { useAuthStore } from '@/stores/auth';
 import { defineProps, defineEmits, ref } from 'vue';
 
+import { useSnackbarStore } from '@/stores/snackbar';
+
+const snackbarStore = useSnackbarStore();
+
 const router = useRouter(); // Use Vue Router
 
 const authStore = useAuthStore();
 
-const props = defineProps({
-  show: Boolean
-});
+const props = defineProps(['show', 'selectedTemplate']);
 
 const emit = defineEmits(['closeProjectDialog']);
 
@@ -32,7 +34,20 @@ const { value: project_name } = useField('project_name');
 const onSubmit = handleSubmit(async (values) => {
   try {
     const user = authStore.user; // Get the logged-in user
-    const { data, error } = await supabase.from('projects').insert({ project_name: values.project_name, user_id: user.id }).select('*'); // Ensure to select the inserted record
+    const newProject = {
+      project_name: values.project_name,
+      user_id: user.id
+    };
+
+    // Include template details if a template is selected
+    if (props.selectedTemplate) {
+      //select which fields to duplicate from template
+      newProject.drawing = props.selectedTemplate.drawing;
+      newProject.project_svg = props.selectedTemplate.project_svg;
+      newProject.project_description = newProject.project_description;
+    }
+
+    const { data, error } = await supabase.from('projects').insert(newProject).select('*'); // Ensure to select the inserted record
 
     if (error) {
       throw error;
@@ -48,7 +63,7 @@ const onSubmit = handleSubmit(async (values) => {
     }
   } catch (error) {
     errors.apiError = error.message;
-    console.error('Error creating project:', error.message);
+    snackbarStore.showSnackbar('Error Creating Project', 'error');
   }
 });
 </script>
@@ -58,13 +73,14 @@ const onSubmit = handleSubmit(async (values) => {
     <v-card elevation="0" class="innerCard maxWidth">
       <v-card-text>
         <div class="d-flex align-center">
-          <h4 class="text-h4 mt-1">New Project</h4>
+          <h4 v-if="selectedTemplate" class="text-h4 mt-1">Start With Template: {{ selectedTemplate.project_name }}</h4>
+          <h4 v-else class="text-h4 mt-1">New Blank Project</h4>
         </div>
         <div class="mt-4">
           <Form @submit="onSubmit" class="mt-7 projectForm">
             <v-text-field
               v-model="project_name"
-              label="Project Name"
+              label="New Project Name"
               required
               density="comfortable"
               hide-details="auto"
