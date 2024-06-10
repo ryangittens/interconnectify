@@ -116,6 +116,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
 
       if (data?.viewBox) {
+        console.log('got here', this.viewBox.x);
         this.viewBox.x = data?.viewBox?.x || 0;
         this.viewBox.y = data?.viewBox?.y || 0;
         this.viewBox.width = clientWidth;
