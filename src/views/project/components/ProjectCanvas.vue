@@ -146,8 +146,8 @@ const pan = (event) => {
 };
 
 const zoom = (event) => {
-  console.log(store.zoomLevel);
   event.preventDefault();
+  console.log('xoom levels', store.zoomLevel);
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
@@ -156,19 +156,16 @@ const zoom = (event) => {
   const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.zoomLevel * (1 + zoomDirection * zoomFactor)));
   if (newZoomLevel === store.zoomLevel) return;
 
-  // Calculate the scale factor based on the new zoom level
-  const scale = newZoomLevel / store.zoomLevel;
-  store.zoomLevel = newZoomLevel;
-
-  // Calculate the new viewBox dimensions
-  const newWidth = store.viewBox.width / scale;
-  const newHeight = store.viewBox.height / scale;
+  // Calculate the new viewBox dimensions based on the new zoom level
+  const newWidth = store.initialViewBox.width / newZoomLevel;
+  const newHeight = store.initialViewBox.height / newZoomLevel;
 
   // Calculate the new viewBox position to keep the mouse position fixed
   const newX = store.viewBox.x + (offsetX / width) * (store.viewBox.width - newWidth);
   const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
 
-  // Update the viewBox in the store
+  // Update the zoom level and viewBox in the store
+  store.zoomLevel = newZoomLevel;
   store.setViewBox(newX, newY, newWidth, newHeight);
 };
 

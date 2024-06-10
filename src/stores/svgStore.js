@@ -16,7 +16,8 @@ export const useSvgStore = defineStore('svgStore', {
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
     zoomLevel: 1,
     gridSize: 20,
-    showGrid: true
+    showGrid: true,
+    initialViewBox: { width: 0, height: 0 } // Store initial dimensions
   }),
   actions: {
     addBlock(block) {
@@ -111,21 +112,32 @@ export const useSvgStore = defineStore('svgStore', {
     deserializeState(serializedState) {
       const data = JSON.parse(serializedState);
       const { clientWidth, clientHeight } = this.svg;
+      this.initializeViewBox();
       this.blocks = data?.blocks || [];
       this.lines = data?.lines || [];
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
 
-      if (data?.viewBox) {
-        console.log('got here', this.viewBox.x);
-        this.viewBox.x = data?.viewBox?.x || 0;
-        this.viewBox.y = data?.viewBox?.y || 0;
-        this.viewBox.width = clientWidth;
-        this.viewBox.height = clientHeight;
-      } else {
-        this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
-      }
+      // if (data?.viewBox) {
+      //   console.log('got here', this.viewBox.x);
+      //   this.viewBox.x = data?.viewBox?.x || 0;
+      //   this.viewBox.y = data?.viewBox?.y || 0;
+      //   this.viewBox.width = clientWidth;
+      //   this.viewBox.height = clientHeight;
+      // } else {
+      //   this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
+      // }
 
-      this.initializeViewBox();
+      // Calculate the new viewBox dimensions based on the new zoom level
+      const newWidth = this.initialViewBox.width / this.zoomLevel;
+      const newHeight = this.initialViewBox.height / this.zoomLevel;
+
+      // // Calculate the new viewBox position to keep the mouse position fixed
+      // const newX = store.viewBox.x + (offsetX / width) * (store.viewBox.width - newWidth);
+      // const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
+
+      // Update the zoom level and viewBox in the store
+
+      this.setViewBox(data?.viewBox?.x || 0, data?.viewBox?.y, newWidth, newHeight);
 
       // Apply the zoom level to the viewBox
       // this.viewBox.width /= this.zoomLevel;
@@ -142,15 +154,23 @@ export const useSvgStore = defineStore('svgStore', {
     },
     setViewBox(x, y, width, height) {
       this.viewBox = { x, y, width, height };
+      this.zoomLevel = this.initialViewBox.width / width; // Update zoomLevel based on the new viewBox dimensions
     },
+    // initializeViewBox() {
+    //   if (this.svg) {
+    //     const { clientWidth, clientHeight } = this.svg;
+    //     this.viewBox.x = 0;
+    //     this.viewBox.y = 0;
+    //     this.viewBox.width = clientWidth;
+    //     this.viewBox.height = clientHeight;
+    //     this.zoomLevel = 1;
+    //   }
+    // },
     initializeViewBox() {
       if (this.svg) {
         const { clientWidth, clientHeight } = this.svg;
-        this.viewBox.x = 0;
-        this.viewBox.y = 0;
-        this.viewBox.width = clientWidth;
-        this.viewBox.height = clientHeight;
-        this.zoomLevel = 1;
+        this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
+        this.initialViewBox = { width: clientWidth, height: clientHeight }; // Initialize the initial viewBox dimensions
       }
     },
     centerSVG() {
