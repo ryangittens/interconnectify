@@ -130,15 +130,15 @@ let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
 const minZoomLevel = 0.02;
-const maxZoomLevel = 1;
+const maxZoomLevel = 2;
 const gridSize = 20;
 
 /* SETUP */
 
 const pan = (event) => {
   if (!panning) return;
-  const dx = event.clientX - panStart.x;
-  const dy = event.clientY - panStart.y;
+  const dx = (event.clientX - panStart.x) / store.zoomLevel;
+  const dy = (event.clientY - panStart.y) / store.zoomLevel;
   panStart = { x: event.clientX, y: event.clientY };
 
   store.viewBox.x -= dx;
