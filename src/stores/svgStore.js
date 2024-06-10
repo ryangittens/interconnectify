@@ -124,6 +124,8 @@ export const useSvgStore = defineStore('svgStore', {
         this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight };
       }
 
+      this.initializeViewBox();
+
       // Apply the zoom level to the viewBox
       // this.viewBox.width /= this.zoomLevel;
       // this.viewBox.height /= this.zoomLevel;
@@ -132,6 +134,7 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.showGrid) {
         this.renderGrid();
       }
+      this.set;
     },
     setSvgElement(svg) {
       this.svg = svg;
@@ -146,6 +149,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.viewBox.y = 0;
         this.viewBox.width = clientWidth;
         this.viewBox.height = clientHeight;
+        this.zoomLevel = 1;
       }
     },
     centerSVG() {
