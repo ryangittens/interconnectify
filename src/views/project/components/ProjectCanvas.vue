@@ -147,7 +147,7 @@ const pan = (event) => {
 
 const zoom = (event) => {
   event.preventDefault();
-  console.log('xoom levels', store.zoomLevel);
+  // console.log('xoom levels', store.zoomLevel);
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
