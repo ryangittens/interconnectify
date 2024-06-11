@@ -12,28 +12,6 @@
       @mouseleave="endInteraction"
       @wheel="zoom"
     >
-      <g ref="linesContainer">
-        <path
-          v-for="line in store.lines"
-          :key="line.id"
-          :d="line.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')"
-          :stroke="isLineSelected(line) ? primary : line.color"
-          stroke-width="2"
-          :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
-          fill="none"
-          @click="handleLineClick(line)"
-          style="cursor: pointer"
-        ></path>
-        <!-- Hover Line for Preview -->
-        <path
-          v-if="hoverPoint && hoverPoint.x !== null && store.isDrawing && store.currentLine.length"
-          :d="`M ${store.currentLine.map((point) => `${point.x},${point.y}`).join(' L ')} L ${hoverPoint.x},${hoverPoint.y}`"
-          :stroke="store.lineColor"
-          stroke-width="2"
-          :stroke-dasharray="store.lineType === 'dashed' ? '5, 5' : 'none'"
-          fill="none"
-        ></path>
-      </g>
       <!-- Grid Lines -->
       <g v-if="store.showGrid" class="grid-container">
         <line
@@ -58,6 +36,29 @@
         />
       </g>
       <g ref="axesContainer"></g>
+      <g ref="linesContainer">
+        <path
+          v-for="line in store.lines"
+          :key="line.id"
+          :d="line.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')"
+          :stroke="isLineSelected(line) ? primary : line.color"
+          stroke-width="2"
+          :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
+          fill="none"
+          @click="handleLineClick(line)"
+          style="cursor: pointer"
+        ></path>
+        <!-- Hover Line for Preview -->
+        <path
+          v-if="hoverPoint && hoverPoint.x !== null && store.isDrawing && store.currentLine.length"
+          :d="`M ${store.currentLine.map((point) => `${point.x},${point.y}`).join(' L ')} L ${hoverPoint.x},${hoverPoint.y}`"
+          :stroke="store.lineColor"
+          stroke-width="2"
+          :stroke-dasharray="store.lineType === 'dashed' ? '5, 5' : 'none'"
+          fill="none"
+        ></path>
+      </g>
+
       <g
         v-for="block in store.blocks"
         :key="block.id"
@@ -84,6 +85,7 @@
           r="5"
           :fill="secondary"
           @click.stop="startWire(cp, block, $event)"
+          style="cursor: crosshair"
         />
       </g>
     </svg>
@@ -129,7 +131,7 @@ let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
 let dragging = false;
 const zoomFactor = 0.04;
-const minZoomLevel = 0.02;
+const minZoomLevel = 0.5;
 const maxZoomLevel = 2;
 const gridSize = 20;
 
@@ -241,6 +243,12 @@ const handleMouseMove = (event) => {
     const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
     moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
   }
+};
+
+const handleMouseUp = (event) => {
+  if (!store.isDrawing) return;
+  const coords = getSVGCoordinates(event);
+  startWire(coords.x, coords.y); // Use the enhanced startWire function
 };
 
 const startInteraction = (event) => {

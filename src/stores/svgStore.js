@@ -24,8 +24,10 @@ export const useSvgStore = defineStore('svgStore', {
       this.blocks.push(block);
     },
     selectBlock(block) {
-      this.selectedBlock = block;
-      this.selectedLine = null; // Deselect line when block is selected
+      if (!this.isDrawing) {
+        this.selectedBlock = block;
+        this.selectedLine = null; // Deselect line when block is selected
+      }
     },
     moveBlock(block, dx, dy) {
       const index = this.blocks.findIndex((b) => b.id === block.id);
@@ -76,8 +78,10 @@ export const useSvgStore = defineStore('svgStore', {
       this.lineColor = color;
     },
     selectLine(line) {
-      this.selectedLine = line;
-      this.selectedBlock = null; // Deselect block when line is selected
+      if (!this.isDrawing) {
+        this.selectedLine = line;
+        this.selectedBlock = null; // Deselect block when line is selected
+      }
     },
     deleteLine(line) {
       this.lines = this.lines.filter((l) => l.id !== line.id);
