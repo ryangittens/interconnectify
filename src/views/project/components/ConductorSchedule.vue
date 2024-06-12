@@ -24,7 +24,7 @@
                 v-for="conductor in testData"
               ></v-text-field> -->
             <ContentEditable
-              v-for="conductor in testData"
+              v-for="conductor in conductors"
               v-model="conductor[heading.key]"
               :editable="heading.editable"
               customClass="conductorTableInput"
@@ -44,6 +44,7 @@ import ContentEditable from './ContentEditable.vue';
 const conductors = store.lines;
 
 const conductorTableHeadings = [
+  { title: 'RUN', key: 'id', editable: false },
   { title: 'RUN', key: 'run', editable: false },
   { title: 'VOLTAGE', key: 'voltage', editable: false },
   { title: 'CURRENT', key: 'current', editable: true },

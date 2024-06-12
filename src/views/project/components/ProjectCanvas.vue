@@ -245,12 +245,6 @@ const handleMouseMove = (event) => {
   }
 };
 
-const handleMouseUp = (event) => {
-  if (!store.isDrawing) return;
-  const coords = getSVGCoordinates(event);
-  startWire(coords.x, coords.y); // Use the enhanced startWire function
-};
-
 const startInteraction = (event) => {
   const coords = getSVGCoordinates(event);
   if (store.selectedBlock) {
@@ -353,7 +347,8 @@ const addPoint = (point, ctrlKey) => {
     else x = lastPoint.x;
   }
   const snappedPoint = snapToGrid(x, y);
-  historyStore.executeCommand(new AddLinePointCommand(store, snappedPoint));
+  const updatedPoint = { ...point, ...snappedPoint };
+  historyStore.executeCommand(new AddLinePointCommand(store, updatedPoint));
 };
 
 const handleKeyDown = (event) => {
@@ -375,13 +370,26 @@ const startWire = (cp, block, event) => {
   const cpY = block.y + cp.y;
   const point = snapToGrid(cpX, cpY);
   if (store.isDrawing) {
-    addPoint(point, event.ctrlKey);
     if (drawingWire.value) {
       wireEnd.value = { block, cp };
+      const endPoint = {
+        x: wireEnd.value.block.x + wireEnd.value.cp.x,
+        y: wireEnd.value.block.y + wireEnd.value.cp.y,
+        blockId: wireEnd.value.block.id,
+        connectionPointId: wireEnd.value.cp.id
+      };
+      addPoint(endPoint, event.ctrlKey);
       finishWire();
     } else {
-      wireStart.value = { block, cp };
       drawingWire.value = true;
+      wireStart.value = { block, cp };
+      const startPoint = {
+        x: wireStart.value.block.x + wireStart.value.cp.x,
+        y: wireStart.value.block.y + wireStart.value.cp.y,
+        blockId: wireStart.value.block.id,
+        connectionPointId: wireStart.value.cp.id
+      };
+      addPoint(startPoint, event.ctrlKey);
     }
   }
 };

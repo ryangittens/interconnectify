@@ -17,23 +17,129 @@ export const useSvgStore = defineStore('svgStore', {
     zoomLevel: 1,
     gridSize: 20,
     showGrid: true,
-    initialViewBox: { width: 0, height: 0 } // Store initial dimensions
+    initialViewBox: { width: 0, height: 0 }
   }),
   actions: {
     addBlock(block) {
       this.blocks.push(block);
     },
+    moveBlock(block, dx, dy) {
+      const index = this.blocks.findIndex((b) => b.id === block.id);
+      if (index !== -1) {
+        // Update the block position
+        this.blocks[index].x += dx;
+        this.blocks[index].y += dy;
+
+        // Update connected wires
+        let linesConnectedToBlock = [];
+        let lineStartedAtBlock = false;
+
+        this.lines.forEach((line) => {
+          line.points.forEach((point) => {
+            if (point?.blockId === block.id) {
+              linesConnectedToBlock.push(line);
+              let lineIndex = line.points.findIndex((p) => p.blockId === block.id);
+              if (lineIndex === 0) {
+                lineStartedAtBlock = true;
+              }
+              point.x += dx;
+              point.y += dy;
+            }
+          });
+
+          // Update line points to add/remove intermediate points
+          this.updateLinePoints(line, lineStartedAtBlock);
+        });
+      }
+    },
+
+    updateLinePoints(line, lineStartedAtBlock) {
+      if (line.points.length < 2) return;
+      let newPoints;
+      if (lineStartedAtBlock) {
+        newPoints = [line.points[0]];
+        for (let i = 0; i < line.points.length - 1; i++) {
+          const currentPoint = line.points[i];
+          const nextPoint = line.points[i + 1];
+
+          // Add the current point
+          newPoints.push(currentPoint);
+
+          // Add intermediate points to maintain right-angle connections only if necessary
+          if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
+            const midPoint = {
+              x: currentPoint.x,
+              y: nextPoint.y,
+              blockId: null
+            };
+            newPoints.push(midPoint);
+          }
+        }
+
+        newPoints.push(line.points[line.points.length - 1]);
+      } else {
+        newPoints = [line.points[line.points.length - 1]];
+        for (let i = line.points.length - 1; i > 0; i--) {
+          const currentPoint = line.points[i];
+          const nextPoint = line.points[i - 1];
+
+          // Add the current point
+          newPoints.push(currentPoint);
+
+          // Add intermediate points to maintain right-angle connections only if necessary
+          if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
+            const midPoint = {
+              x: currentPoint.x,
+              y: nextPoint.y,
+              blockId: null
+            };
+            newPoints.push(midPoint);
+          }
+        }
+
+        newPoints.push(line.points[0]);
+        // keep original direction
+        newPoints.reverse();
+      }
+
+      // Clean up points to remove unnecessary midpoints
+      line.points = this.cleanUpPoints(newPoints);
+    },
+
+    cleanUpPoints(points) {
+      if (points.length <= 2) return points;
+
+      const newPoints = [points[0]];
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const prevPoint = newPoints[newPoints.length - 1];
+        const currentPoint = points[i];
+        const nextPoint = points[i + 1];
+
+        // Check if the current point is necessary
+        const isHorizontal = prevPoint.y === currentPoint.y && currentPoint.y === nextPoint.y;
+        const isVertical = prevPoint.x === currentPoint.x && currentPoint.x === nextPoint.x;
+
+        if (!isHorizontal && !isVertical) {
+          newPoints.push(currentPoint);
+        }
+      }
+
+      newPoints.push(points[points.length - 1]);
+      return newPoints;
+    },
+
+    // Include this method if calculateMidPointBetweenBlocks is needed
+    calculateMidPointBetweenBlocks(block1, block2) {
+      return {
+        x: (block1.x + block2.x) / 2,
+        y: (block1.y + block2.y) / 2
+      };
+    },
     selectBlock(block) {
       if (!this.isDrawing) {
         this.selectedBlock = block;
         this.selectedLine = null; // Deselect line when block is selected
-      }
-    },
-    moveBlock(block, dx, dy) {
-      const index = this.blocks.findIndex((b) => b.id === block.id);
-      if (index !== -1) {
-        this.blocks[index].x += dx;
-        this.blocks[index].y += dy;
       }
     },
     deleteBlock(block) {
@@ -55,6 +161,7 @@ export const useSvgStore = defineStore('svgStore', {
       if (line) {
         this.addLine(line);
       } else if (this.currentLine.length > 0) {
+        console.log('currentLine', this.currentLine);
         let newLine = {
           object: 'line',
           id: Date.now(),
