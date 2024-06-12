@@ -1,5 +1,7 @@
 <template>
-  <span :contenteditable="editable" :class="[customClass, { editable }]" @input="onInput" @blur="onBlur">{{ modelValue }}</span>
+  <span :contenteditable="editable" class="tableValue" :class="[...customClass, { editable }]" @input="onInput" @blur="onBlur">{{
+    modelValue
+  }}</span>
 </template>
 
 <script setup>
@@ -9,7 +11,7 @@ import { defineProps, defineEmits } from 'vue';
 const props = defineProps({
   modelValue: [String, Number],
   editable: Boolean,
-  customClass: String
+  customClass: Array
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -37,5 +39,11 @@ const onBlur = () => {
 /* Add your custom styles here */
 .editable {
   background-color: #f9f9f9;
+}
+.selected {
+  background-color: rgba(var(--v-theme-primary), var(--v-activated-opacity));
+}
+.tableValue {
+  height: 34px;
 }
 </style>

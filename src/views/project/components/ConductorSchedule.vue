@@ -15,7 +15,7 @@
     <v-expansion-panel title="Conductor Schedule">
       <v-expansion-panel-text>
         <v-row>
-          <v-col md="auto" v-for="heading in conductorTableHeadings">
+          <v-col md="auto" v-for="heading in conductorTableHeadings" color="primary">
             <div class="text-h6">{{ heading.title }}</div>
             <!-- <v-text-field
                 density="dense"
@@ -24,10 +24,10 @@
                 v-for="conductor in testData"
               ></v-text-field> -->
             <ContentEditable
-              v-for="conductor in conductors"
+              v-for="conductor in store.lines"
               v-model="conductor[heading.key]"
               :editable="heading.editable"
-              customClass="conductorTableInput"
+              :customClass="['conductorTableInput', { selected: isSelected(conductor) }]"
             />
           </v-col>
         </v-row>
@@ -40,8 +40,13 @@
 import { useSvgStore } from '@/stores/svgStore';
 const store = useSvgStore();
 import ContentEditable from './ContentEditable.vue';
+import { computed, ref } from 'vue';
 
-const conductors = store.lines;
+const selectedLine = computed(() => store.selectedLine);
+
+const isSelected = (line) => {
+  return selectedLine.value && line.id === selectedLine.value.id;
+};
 
 const conductorTableHeadings = [
   { title: 'RUN', key: 'id', editable: false },

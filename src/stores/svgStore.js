@@ -161,7 +161,7 @@ export const useSvgStore = defineStore('svgStore', {
       if (line) {
         this.addLine(line);
       } else if (this.currentLine.length > 0) {
-        console.log('currentLine', this.currentLine);
+        console.log('currentLine', this.currentLine, this.lines);
         let newLine = {
           object: 'line',
           id: Date.now(),
