@@ -47,6 +47,7 @@
           fill="none"
           @click="handleLineClick(line)"
           style="cursor: pointer"
+          @mousedown.stop="startLineDrag(line, $event)"
         ></path>
         <!-- Hover Line for Preview -->
         <path
@@ -123,13 +124,22 @@ const wireEnd = ref(null);
 
 const hoverPoint = ref({ x: null, y: null });
 
-const { deserializeState, moveBlock, selectBlock, stopDrawing, selectLine, setSvgElement, initializeViewBox } = store;
+const {
+  getSVGCoordinates,
+  startLineDrag,
+  deserializeState,
+  moveBlock,
+  selectBlock,
+  stopDrawing,
+  selectLine,
+  setSvgElement,
+  initializeViewBox,
+  dragSegment
+} = store;
 
 let panStart = { x: 0, y: 0 };
-let dragStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
 let panning = false;
-let dragging = false;
 const zoomFactor = 0.04;
 const minZoomLevel = 0.5;
 const maxZoomLevel = 2;
@@ -169,18 +179,6 @@ const zoom = (event) => {
   // Update the zoom level and viewBox in the store
   store.zoomLevel = newZoomLevel;
   store.setViewBox(newX, newY, newWidth, newHeight);
-};
-
-const getSVGCoordinates = (event) => {
-  const { left, top } = svg.value.getBoundingClientRect();
-  const svgPoint = svg.value.createSVGPoint();
-  svgPoint.x = event.clientX;
-  svgPoint.y = event.clientY;
-  const point = svgPoint.matrixTransform(svg.value.getScreenCTM().inverse());
-  return {
-    x: point.x,
-    y: point.y
-  };
 };
 
 const initSVG = () => {
@@ -236,21 +234,30 @@ const handleMouseMove = (event) => {
     drawHoverLine(coords.x, coords.y, event.ctrlKey);
   } else if (panning && !store.selectedBlock) {
     pan(event);
-  } else if (dragging && store.selectedBlock) {
+  } else if (store.dragging && store.selectedBlock) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - dragStart.x;
-    const dy = coords.y - dragStart.y;
+    const dx = coords.x - store.dragStart.x;
+    const dy = coords.y - store.dragStart.y;
     const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
     moveBlock(store.selectedBlock, snappedCoords.x - store.selectedBlock.x, snappedCoords.y - store.selectedBlock.y);
+  } else if (store.dragging && store.selectedLineSegment) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - store.dragStart.x;
+    const dy = coords.y - store.dragStart.y;
+    dragSegment(store.selectedLineSegment, dx, dy);
+    store.dragStart = coords; // Update drag start for smooth dragging
   }
 };
 
 const startInteraction = (event) => {
   const coords = getSVGCoordinates(event);
   if (store.selectedBlock) {
-    dragStart = coords;
+    store.dragStart = coords;
     initialBlockPosition = { ...store.selectedBlock };
-    dragging = true;
+    store.dragging = true;
+  } else if (store.selectedLineSegment) {
+    store.dragStart = coords;
+    store.dragging = true;
   } else {
     panStart = { x: event.clientX, y: event.clientY };
     panning = true;
@@ -259,7 +266,7 @@ const startInteraction = (event) => {
 
 const endInteraction = () => {
   panning = false;
-  dragging = false;
+  store.dragging = false;
 };
 
 const handleSvgClick = (event) => {

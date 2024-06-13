@@ -17,7 +17,9 @@ export const useSvgStore = defineStore('svgStore', {
     zoomLevel: 1,
     gridSize: 20,
     showGrid: true,
-    initialViewBox: { width: 0, height: 0 }
+    initialViewBox: { width: 0, height: 0 },
+    dragStart: { x: 0, y: 0 },
+    dgagging: false
   }),
   actions: {
     addBlock(block) {
@@ -30,11 +32,14 @@ export const useSvgStore = defineStore('svgStore', {
         this.blocks[index].x += dx;
         this.blocks[index].y += dy;
 
+        // Determine if the block movement is primarily horizontal or vertical
+        const isHorizontalMove = Math.abs(dx) > Math.abs(dy);
+
         // Update connected wires
         let linesConnectedToBlock = [];
-        let lineStartedAtBlock = false;
 
         this.lines.forEach((line) => {
+          let lineStartedAtBlock = false;
           line.points.forEach((point) => {
             if (point?.blockId === block.id) {
               linesConnectedToBlock.push(line);
@@ -48,12 +53,13 @@ export const useSvgStore = defineStore('svgStore', {
           });
 
           // Update line points to add/remove intermediate points
-          this.updateLinePoints(line, lineStartedAtBlock);
+          this.updateLinePoints(line, lineStartedAtBlock, isHorizontalMove);
         });
       }
     },
 
-    updateLinePoints(line, lineStartedAtBlock) {
+    updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
+      console.log(lineStartedAtBlock);
       if (line.points.length < 2) return;
       let newPoints;
       if (lineStartedAtBlock) {
@@ -67,12 +73,21 @@ export const useSvgStore = defineStore('svgStore', {
 
           // Add intermediate points to maintain right-angle connections only if necessary
           if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
-            const midPoint = {
-              x: currentPoint.x,
-              y: nextPoint.y,
-              blockId: null
-            };
-            newPoints.push(midPoint);
+            if (isHorizontalMove) {
+              const midPoint = {
+                x: currentPoint.x,
+                y: nextPoint.y,
+                blockId: null
+              };
+              newPoints.push(midPoint);
+            } else {
+              const midPoint = {
+                x: nextPoint.x,
+                y: currentPoint.y,
+                blockId: null
+              };
+              newPoints.push(midPoint);
+            }
           }
         }
 
@@ -88,12 +103,21 @@ export const useSvgStore = defineStore('svgStore', {
 
           // Add intermediate points to maintain right-angle connections only if necessary
           if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
-            const midPoint = {
-              x: currentPoint.x,
-              y: nextPoint.y,
-              blockId: null
-            };
-            newPoints.push(midPoint);
+            if (isHorizontalMove) {
+              const midPoint = {
+                x: currentPoint.x,
+                y: nextPoint.y,
+                blockId: null
+              };
+              newPoints.push(midPoint);
+            } else {
+              const midPoint = {
+                x: nextPoint.x,
+                y: currentPoint.y,
+                blockId: null
+              };
+              newPoints.push(midPoint);
+            }
           }
         }
 
@@ -128,13 +152,59 @@ export const useSvgStore = defineStore('svgStore', {
       newPoints.push(points[points.length - 1]);
       return newPoints;
     },
-
-    // Include this method if calculateMidPointBetweenBlocks is needed
-    calculateMidPointBetweenBlocks(block1, block2) {
+    startLineDrag(line, event) {
+      console.log('start line drag');
+      const coords = this.getSVGCoordinates(event);
+      const segment = this.findLineSegment(line, coords);
+      if (segment) {
+        this.selectedLineSegment = segment;
+        this.dragStart = coords;
+        this.dragging = true;
+      }
+    },
+    getSVGCoordinates(event) {
+      const { left, top } = this.svg.getBoundingClientRect();
+      const svgPoint = this.svg.createSVGPoint();
+      svgPoint.x = event.clientX;
+      svgPoint.y = event.clientY;
+      const point = svgPoint.matrixTransform(this.svg.getScreenCTM().inverse());
       return {
-        x: (block1.x + block2.x) / 2,
-        y: (block1.y + block2.y) / 2
+        x: point.x,
+        y: point.y
       };
+    },
+    findLineSegment(line, coords) {
+      for (let i = 0; i < line.points.length - 1; i++) {
+        const startPoint = line.points[i];
+        const endPoint = line.points[i + 1];
+        if (this.isPointOnSegment(coords, startPoint, endPoint)) {
+          return { line, index: i, startPoint, endPoint };
+        }
+      }
+      return null;
+    },
+    isPointOnSegment(point, startPoint, endPoint) {
+      const buffer = 5; // Tolerance for clicking near the segment
+      const lineLength = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
+      const distanceToStart = Math.hypot(point.x - startPoint.x, point.y - startPoint.y);
+      const distanceToEnd = Math.hypot(point.x - endPoint.x, point.y - endPoint.y);
+      return distanceToStart + distanceToEnd >= lineLength - buffer && distanceToStart + distanceToEnd <= lineLength + buffer;
+    },
+
+    dragSegment(segment, dx, dy) {
+      const { line, index, startPoint, endPoint } = segment;
+      const movedStartPoint = { ...startPoint, x: startPoint.x + dx, y: startPoint.y + dy };
+      const movedEndPoint = { ...endPoint, x: endPoint.x + dx, y: endPoint.y + dy };
+
+      // Check if segment movement is valid and update points
+      if (index === 0 || line.points[index - 1].x !== startPoint.x || line.points[index - 1].y !== startPoint.y) {
+        line.points[index] = movedStartPoint;
+      }
+      if (index === line.points.length - 2 || line.points[index + 2].x !== endPoint.x || line.points[index + 2].y !== endPoint.y) {
+        line.points[index + 1] = movedEndPoint;
+      }
+
+      this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy));
     },
     selectBlock(block) {
       if (!this.isDrawing) {
