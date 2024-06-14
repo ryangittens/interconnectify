@@ -19,7 +19,8 @@ export const useSvgStore = defineStore('svgStore', {
     showGrid: true,
     initialViewBox: { width: 0, height: 0 },
     dragStart: { x: 0, y: 0 },
-    dgagging: false
+    dgagging: false,
+    selectedLineSegment: null
   }),
   actions: {
     addBlock(block) {
@@ -59,7 +60,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
 
     updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
-      console.log(lineStartedAtBlock);
+      //console.log(lineStartedAtBlock);
       if (line.points.length < 2) return;
       let newPoints;
       if (lineStartedAtBlock) {
@@ -144,23 +145,26 @@ export const useSvgStore = defineStore('svgStore', {
         const isHorizontal = prevPoint.y === currentPoint.y && currentPoint.y === nextPoint.y;
         const isVertical = prevPoint.x === currentPoint.x && currentPoint.x === nextPoint.x;
 
-        if (!isHorizontal && !isVertical) {
-          newPoints.push(currentPoint);
+        // Prevent points connected to blocks from being removed
+        if (currentPoint.blockId || prevPoint.blockId || nextPoint.blockId || (!isHorizontal && !isVertical)) {
+          // Avoid adding duplicate points
+          if (currentPoint.x !== newPoints[0].x || currentPoint.y !== newPoints[0].y) {
+            newPoints.push(currentPoint);
+          }
         }
       }
 
-      newPoints.push(points[points.length - 1]);
-      return newPoints;
-    },
-    startLineDrag(line, event) {
-      console.log('start line drag');
-      const coords = this.getSVGCoordinates(event);
-      const segment = this.findLineSegment(line, coords);
-      if (segment) {
-        this.selectedLineSegment = segment;
-        this.dragStart = coords;
-        this.dragging = true;
+      // Ensure the last point is always added and avoid duplicates
+      const lastPoint = points[points.length - 1];
+      if (
+        newPoints.length === 0 ||
+        lastPoint.x !== newPoints[newPoints.length - 1].x ||
+        lastPoint.y !== newPoints[newPoints.length - 1].y
+      ) {
+        newPoints.push(lastPoint);
       }
+
+      return newPoints;
     },
     getSVGCoordinates(event) {
       const { left, top } = this.svg.getBoundingClientRect();
@@ -173,38 +177,169 @@ export const useSvgStore = defineStore('svgStore', {
         y: point.y
       };
     },
+    isPointOnSegment(point, startPoint, endPoint) {
+      const buffer = 5; // Tolerance for clicking near the segment
+      if (startPoint.x === endPoint.x) {
+        // Vertical segment
+        return (
+          Math.abs(point.x - startPoint.x) <= buffer &&
+          point.y >= Math.min(startPoint.y, endPoint.y) &&
+          point.y <= Math.max(startPoint.y, endPoint.y)
+        );
+      } else if (startPoint.y === endPoint.y) {
+        // Horizontal segment
+        return (
+          Math.abs(point.y - startPoint.y) <= buffer &&
+          point.x >= Math.min(startPoint.x, endPoint.x) &&
+          point.x <= Math.max(startPoint.x, endPoint.x)
+        );
+      }
+      return false;
+    },
+    startLineDrag(line, event) {
+      console.log('start line drag');
+      const coords = this.getSVGCoordinates(event);
+      const segment = this.findLineSegment(line, coords);
+      if (segment) {
+        this.selectedLineSegment = segment;
+        this.dragStart = coords;
+        this.dragging = true;
+
+        // Highlight the selected segment
+        //this.highlightSegment(segment.startPoint, segment.endPoint);
+      }
+    },
     findLineSegment(line, coords) {
+      console.log('got her find line segment');
       for (let i = 0; i < line.points.length - 1; i++) {
         const startPoint = line.points[i];
         const endPoint = line.points[i + 1];
         if (this.isPointOnSegment(coords, startPoint, endPoint)) {
+          //this.highlightSegment(startPoint, endPoint); // Highlight the segment for debugging
           return { line, index: i, startPoint, endPoint };
         }
       }
       return null;
     },
-    isPointOnSegment(point, startPoint, endPoint) {
-      const buffer = 5; // Tolerance for clicking near the segment
-      const lineLength = Math.hypot(endPoint.x - startPoint.x, endPoint.y - startPoint.y);
-      const distanceToStart = Math.hypot(point.x - startPoint.x, point.y - startPoint.y);
-      const distanceToEnd = Math.hypot(point.x - endPoint.x, point.y - endPoint.y);
-      return distanceToStart + distanceToEnd >= lineLength - buffer && distanceToStart + distanceToEnd <= lineLength + buffer;
+    highlightSegment(startPoint, endPoint) {
+      const svgNS = 'http://www.w3.org/2000/svg';
+      const line = document.createElementNS(svgNS, 'line');
+      line.setAttribute('x1', startPoint.x);
+      line.setAttribute('y1', startPoint.y);
+      line.setAttribute('x2', endPoint.x);
+      line.setAttribute('y2', endPoint.y);
+      line.setAttribute('stroke', 'red');
+      line.setAttribute('stroke-width', '4');
+      line.setAttribute('id', 'highlighted-segment');
+
+      // Remove existing highlight if any
+      const existingHighlight = document.getElementById('highlighted-segment');
+      if (existingHighlight) {
+        existingHighlight.remove();
+      }
+
+      // Append the new highlight
+      this.svg.appendChild(line);
     },
-
     dragSegment(segment, dx, dy) {
-      const { line, index, startPoint, endPoint } = segment;
-      const movedStartPoint = { ...startPoint, x: startPoint.x + dx, y: startPoint.y + dy };
-      const movedEndPoint = { ...endPoint, x: endPoint.x + dx, y: endPoint.y + dy };
+      const { line, startPoint, endPoint } = segment;
+      //console.log('original line', line);
 
-      // Check if segment movement is valid and update points
-      if (index === 0 || line.points[index - 1].x !== startPoint.x || line.points[index - 1].y !== startPoint.y) {
-        line.points[index] = movedStartPoint;
+      let index = segment.index;
+
+      // Check if the segment is connected to a block
+      const isConnectedToBlock = startPoint.blockId || endPoint.blockId;
+
+      // If connected to a block, do not allow movement
+      // if (isConnectedToBlock) {
+      //   return;
+      // }
+
+      //find which points are connected to end point
+      const startPointConnectedToBlock = startPoint.blockId ? true : false;
+      const endPointConnectedToBlock = endPoint.blockId ? true : false;
+
+      // Determine if the segment is horizontal or vertical
+      const isHorizontal = startPoint.y === endPoint.y;
+      const isVertical = startPoint.x === endPoint.x;
+
+      // Restrict movement based on segment orientation
+      if (isHorizontal) {
+        dx = 0; // No horizontal movement for horizontal segments
+      } else if (isVertical) {
+        dy = 0; // No vertical movement for vertical segments
       }
-      if (index === line.points.length - 2 || line.points[index + 2].x !== endPoint.x || line.points[index + 2].y !== endPoint.y) {
-        line.points[index + 1] = movedEndPoint;
+
+      // Calculate new positions for the segment's points
+      const newStartPoint = { x: startPoint.x + dx, y: startPoint.y + dy };
+      const newEndPoint = { x: endPoint.x + dx, y: endPoint.y + dy };
+
+      // Snap the new positions to the grid
+      const snappedStartPoint = this.snapToGrid(newStartPoint.x, newStartPoint.y);
+      const snappedEndPoint = this.snapToGrid(newEndPoint.x, newEndPoint.y);
+
+      // Add intermediate points to keep end points in place
+      if (isHorizontal) {
+        if (endPointConnectedToBlock && startPointConnectedToBlock) {
+          if (snappedStartPoint.y !== line.points[index].y) {
+            line.points.unshift(line.points[0]);
+            line.points.splice(line.points.length - 1, 0, { x: endPoint.x, y: snappedEndPoint.y, blockId: 'fuck' });
+            console.log(line.points.map((p) => p.blockId).toString());
+            // Update the points in the line only for the selected segment
+            // line.points[1] = { ...line.points[1], ...snappedStartPoint };
+            // line.points[2] = { ...line.points[2], ...snappedEndPoint };
+            console.log(this.selectedLineSegment.startPoint, this.selectedLineSegment.endPoint);
+            line.points[0].blockId = startPoint.blockId;
+            line.points[1].blockId = null;
+            line.points[2].blockId = null;
+            line.points[3].blockId = endPoint.blockId;
+            console.log('fuckkk');
+            this.selectedLineSegment.index = 1;
+            console.log(line.points.map((p) => p.blockId).toString());
+          }
+        } else if (endPointConnectedToBlock) {
+          console.log('got here 1');
+          line.points.splice(index + 1, 0, { x: endPoint.x, y: snappedEndPoint.y });
+          // Update the points in the line only for the selected segment
+          line.points[index] = snappedStartPoint;
+          line.points[index + 1] = snappedEndPoint;
+        } else if (startPointConnectedToBlock) {
+          console.log('got here 2');
+          line.points.splice(1, 0, { x: endPoint.x, y: snappedEndPoint.y });
+          line.points[1] = snappedStartPoint;
+          line.points[2] = snappedEndPoint;
+        }
       }
+
+      if (isVertical && endPointConnectedToBlock) {
+        console.log('got here 3');
+        line.points.splice(index + 1, 0, { x: snappedEndPoint.x, y: endPoint.y });
+        // Update the points in the line only for the selected segment
+        line.points[index] = snappedStartPoint;
+        line.points[index + 1] = snappedEndPoint;
+      }
+      if (isVertical && startPointConnectedToBlock) {
+        console.log('got here 4');
+        line.points.splice(1, 0, { x: snappedEndPoint.x, y: endPoint.y });
+        line.points[1] = snappedStartPoint;
+        line.points[2] = snappedEndPoint;
+      }
+
+      if (!endPointConnectedToBlock && !startPointConnectedToBlock) {
+        console.log('got here ew line', line.points[line.points.length - 1].blockId);
+        line.points[index] = { ...line.points[index], ...snappedStartPoint };
+        line.points[index + 1] = { ...line.points[index + 1], ...snappedEndPoint };
+      }
+
+      // Redraw the line
 
       this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy));
+    },
+    snapToGrid(x, y) {
+      return {
+        x: Math.round(x / this.gridSize) * this.gridSize,
+        y: Math.round(y / this.gridSize) * this.gridSize
+      };
     },
     selectBlock(block) {
       if (!this.isDrawing) {

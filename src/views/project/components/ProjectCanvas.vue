@@ -134,7 +134,8 @@ const {
   selectLine,
   setSvgElement,
   initializeViewBox,
-  dragSegment
+  dragSegment,
+  snapToGrid
 } = store;
 
 let panStart = { x: 0, y: 0 };
@@ -245,7 +246,7 @@ const handleMouseMove = (event) => {
     const dx = coords.x - store.dragStart.x;
     const dy = coords.y - store.dragStart.y;
     dragSegment(store.selectedLineSegment, dx, dy);
-    store.dragStart = coords; // Update drag start for smooth dragging
+    //store.dragStart = coords; // Update drag start for smooth dragging
   }
 };
 
@@ -267,6 +268,8 @@ const startInteraction = (event) => {
 const endInteraction = () => {
   panning = false;
   store.dragging = false;
+  // Clear selected line segment
+  store.selectedLineSegment = null;
 };
 
 const handleSvgClick = (event) => {
@@ -321,11 +324,6 @@ const clearAxes = () => {
 };
 
 const isLineSelected = (line) => store.selectedLine && store.selectedLine.id === line.id;
-
-const snapToGrid = (x, y) => ({
-  x: Math.round(x / store.gridSize) * store.gridSize,
-  y: Math.round(y / store.gridSize) * store.gridSize
-});
 
 const drawHoverLine = (x, y, ctrlKey) => {
   if (store.currentLine.length > 0) {
