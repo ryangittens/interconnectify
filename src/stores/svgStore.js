@@ -148,7 +148,7 @@ export const useSvgStore = defineStore('svgStore', {
         // Prevent points connected to blocks from being removed
         if (currentPoint.blockId || prevPoint.blockId || nextPoint.blockId || (!isHorizontal && !isVertical)) {
           // Avoid adding duplicate points
-          if (currentPoint.x !== newPoints[0].x || currentPoint.y !== newPoints[0].y) {
+          if (currentPoint.x !== prevPoint.x || currentPoint.y !== prevPoint.y) {
             newPoints.push(currentPoint);
           }
         }
@@ -156,11 +156,8 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Ensure the last point is always added and avoid duplicates
       const lastPoint = points[points.length - 1];
-      if (
-        newPoints.length === 0 ||
-        lastPoint.x !== newPoints[newPoints.length - 1].x ||
-        lastPoint.y !== newPoints[newPoints.length - 1].y
-      ) {
+      const lastNewPoint = newPoints[newPoints.length - 1];
+      if (lastPoint.x !== lastNewPoint.x || lastPoint.y !== lastNewPoint.y) {
         newPoints.push(lastPoint);
       }
 
@@ -281,21 +278,26 @@ export const useSvgStore = defineStore('svgStore', {
       // Add intermediate points to keep end points in place
       if (isHorizontal) {
         if (endPointConnectedToBlock && startPointConnectedToBlock) {
-          if (snappedStartPoint.y !== line.points[index].y) {
-            line.points.unshift(line.points[0]);
-            line.points.splice(line.points.length - 1, 0, { x: endPoint.x, y: snappedEndPoint.y, blockId: 'fuck' });
-            console.log(line.points.map((p) => p.blockId).toString());
-            // Update the points in the line only for the selected segment
-            // line.points[1] = { ...line.points[1], ...snappedStartPoint };
-            // line.points[2] = { ...line.points[2], ...snappedEndPoint };
-            console.log(this.selectedLineSegment.startPoint, this.selectedLineSegment.endPoint);
-            line.points[0].blockId = startPoint.blockId;
-            line.points[1].blockId = null;
-            line.points[2].blockId = null;
-            line.points[3].blockId = endPoint.blockId;
-            console.log('fuckkk');
-            this.selectedLineSegment.index = 1;
-            console.log(line.points.map((p) => p.blockId).toString());
+          // Both endpoints are connected to blocks
+
+          if (snappedStartPoint.y !== startPoint.y) {
+            console.log('got here 0', line.points.length);
+            if (line.points.length == 2) {
+              console.log('got here 2');
+              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' });
+              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' });
+            }
+            if (line.points.length == 4) {
+              console.log('got here 4');
+              line.points[1] = snappedStartPoint;
+              line.points[2] = snappedEndPoint;
+            }
+          }
+
+          if (snappedStartPoint.y == startPoint.y) {
+            if (line.points.length == 4) {
+              line.points.splice(1, 2);
+            }
           }
         } else if (endPointConnectedToBlock) {
           console.log('got here 1');
@@ -311,22 +313,43 @@ export const useSvgStore = defineStore('svgStore', {
         }
       }
 
-      if (isVertical && endPointConnectedToBlock) {
-        console.log('got here 3');
-        line.points.splice(index + 1, 0, { x: snappedEndPoint.x, y: endPoint.y });
-        // Update the points in the line only for the selected segment
-        line.points[index] = snappedStartPoint;
-        line.points[index + 1] = snappedEndPoint;
-      }
-      if (isVertical && startPointConnectedToBlock) {
-        console.log('got here 4');
-        line.points.splice(1, 0, { x: snappedEndPoint.x, y: endPoint.y });
-        line.points[1] = snappedStartPoint;
-        line.points[2] = snappedEndPoint;
+      if (isVertical) {
+        if (endPointConnectedToBlock && startPointConnectedToBlock) {
+          // Both endpoints are connected to blocks
+
+          if (snappedStartPoint.x !== startPoint.x) {
+            console.log('got here');
+            if (line.points.length == 2) {
+              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' });
+              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' });
+            }
+            if (line.points.length == 4) {
+              line.points[1] = snappedStartPoint;
+              line.points[2] = snappedEndPoint;
+            }
+          }
+
+          if (snappedStartPoint.x == startPoint.x) {
+            if (line.points.length == 4) {
+              line.points.splice(1, 2);
+            }
+          }
+        } else if (endPointConnectedToBlock) {
+          console.log('got here 3');
+          line.points.splice(index + 1, 0, { x: snappedEndPoint.x, y: endPoint.y });
+          // Update the points in the line only for the selected segment
+          line.points[index] = snappedStartPoint;
+          line.points[index + 1] = snappedEndPoint;
+        } else if (startPointConnectedToBlock) {
+          console.log('got here 4');
+          line.points.splice(1, 0, { x: snappedEndPoint.x, y: endPoint.y });
+          line.points[1] = snappedStartPoint;
+          line.points[2] = snappedEndPoint;
+        }
       }
 
       if (!endPointConnectedToBlock && !startPointConnectedToBlock) {
-        console.log('got here ew line', line.points[line.points.length - 1].blockId);
+        // console.log('got here ew line', line.points[line.points.length - 1].blockId);
         line.points[index] = { ...line.points[index], ...snappedStartPoint };
         line.points[index + 1] = { ...line.points[index + 1], ...snappedEndPoint };
       }
