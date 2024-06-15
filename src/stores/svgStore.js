@@ -64,6 +64,7 @@ export const useSvgStore = defineStore('svgStore', {
       if (line.points.length < 2) return;
       let newPoints;
       if (lineStartedAtBlock) {
+        console.log('debug 1', ...line.points);
         newPoints = [line.points[0]];
         for (let i = 0; i < line.points.length - 1; i++) {
           const currentPoint = line.points[i];
@@ -93,7 +94,9 @@ export const useSvgStore = defineStore('svgStore', {
         }
 
         newPoints.push(line.points[line.points.length - 1]);
+        console.log('debug 1-1', ...line.points);
       } else {
+        console.log('debug 2', ...line.points);
         newPoints = [line.points[line.points.length - 1]];
         for (let i = line.points.length - 1; i > 0; i--) {
           const currentPoint = line.points[i];
@@ -129,12 +132,14 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Clean up points to remove unnecessary midpoints
       line.points = this.cleanUpPoints(newPoints);
+      console.log('debug 3', ...line.points);
     },
 
     cleanUpPoints(points) {
       if (points.length <= 2) return points;
       //console.log(...points);
       const newPoints = [points[0]];
+      console.log('debug 4', ...points);
 
       for (let i = 1; i < points.length - 1; i++) {
         const prevPoint = newPoints[newPoints.length - 1];
@@ -161,11 +166,20 @@ export const useSvgStore = defineStore('svgStore', {
       // Ensure the last point is always added and avoid duplicates
       const lastPoint = points[points.length - 1];
       const lastNewPoint = newPoints[newPoints.length - 1];
-      if (lastPoint.x !== lastNewPoint.x || lastPoint.y !== lastNewPoint.y) {
+      if (lastPoint.x == lastNewPoint.x && lastPoint.y == lastNewPoint.y) {
+        console.log('debug 4-2');
+        if (lastPoint?.blockId || lastPoint?.connectionPointId) {
+          newPoints[newPoints.length - 1] = lastPoint;
+        }
+      } else if (!(lastNewPoint.blockId || lastNewPoint.connectionPointId) && (lastPoint.blockId || lastPoint.connectionPointId)) {
+        console.log('debug 4-3');
+        newPoints.push(lastPoint);
+      } else if (newPoints.length == 1) {
         newPoints.push(lastPoint);
       }
 
       //console.log(...newPoints);
+      console.log('debug 4-4', ...newPoints);
       return newPoints;
     },
     getSVGCoordinates(event) {
@@ -395,12 +409,10 @@ export const useSvgStore = defineStore('svgStore', {
         }
       }
 
-      // Redraw the line
-
-      this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy));
-
       // Reset the first and last points to the original block connection points
       this.resetEndPointsToOriginal(line, originalFirstPoint, originalLastPoint);
+      // Redraw the line
+      this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy));
     },
     resetEndPointsToOriginal(line, originalFirstPoint, originalLastPoint) {
       if (originalFirstPoint.blockId && originalFirstPoint.connectionPointId) {
@@ -469,6 +481,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.selectedLine = line;
         this.selectedBlock = null; // Deselect block when line is selected
       }
+      console.log(line);
     },
     deleteLine(line) {
       this.lines = this.lines.filter((l) => l.id !== line.id);
@@ -622,10 +635,10 @@ export const useSvgStore = defineStore('svgStore', {
     },
     selectedObject() {
       if (this.selectedBlock) {
-        return this.selectBlock;
+        return this.selectedBlock;
       }
       if (this.selectedLine) {
-        return this.selectLine;
+        return this.selectedLine;
       }
     },
     renderGrid() {
