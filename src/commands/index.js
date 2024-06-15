@@ -4,3 +4,4 @@ export { DeleteLineCommand } from './DeleteLineCommand';
 export { MoveBlockCommand } from './MoveBlockCommand';
 export { AddLinePointCommand } from './AddLinePointCommand';
 export { StopDrawingCommand } from './StopDrawingCommand';
+export { DragLineSegmentCommand } from './DragLineSegmentCommand';

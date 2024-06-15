@@ -26,6 +26,7 @@ import { useHistoryStore } from '@/stores/history';
 import { DeleteBlockCommand, DeleteLineCommand } from '@/commands';
 const historyStore = useHistoryStore();
 const store = useSvgStore();
+const { deleteObject } = store;
 const drawer = computed(() => {
   return !store.isDrawing && (store.selectedBlock || store.selectedLine) ? true : false;
 });
@@ -37,15 +38,6 @@ const selectedObject = computed(() => {
     return store.selectedLine;
   }
 });
-
-const deleteObject = () => {
-  if (store.selectedBlock) {
-    historyStore.executeCommand(new DeleteBlockCommand(store.selectedBlock, store));
-  }
-  if (store.selectedLine) {
-    historyStore.executeCommand(new DeleteLineCommand(store.selectedLine, store));
-  }
-};
 </script>
 
 <style></style>

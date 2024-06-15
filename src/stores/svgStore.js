@@ -1,5 +1,9 @@
 // src/stores/svgStore.js
 import { defineStore } from 'pinia';
+import { DragLineSegmentCommand, DeleteBlockCommand, DeleteLineCommand } from '@/commands';
+import { useHistoryStore } from './history';
+
+const historyStore = useHistoryStore();
 
 export const useSvgStore = defineStore('svgStore', {
   state: () => ({
@@ -19,8 +23,12 @@ export const useSvgStore = defineStore('svgStore', {
     showGrid: true,
     initialViewBox: { width: 0, height: 0 },
     dragStart: { x: 0, y: 0 },
-    dgagging: false,
-    selectedLineSegment: null
+    dragging: false,
+    selectedLineSegment: null,
+    draggingLine: null,
+    originalPoints: [],
+    currentMoveBlockCommand: null,
+    movingBlock: null
   }),
   actions: {
     addBlock(block) {
@@ -37,13 +45,10 @@ export const useSvgStore = defineStore('svgStore', {
         const isHorizontalMove = Math.abs(dx) > Math.abs(dy);
 
         // Update connected wires
-        let linesConnectedToBlock = [];
-
         this.lines.forEach((line) => {
           let lineStartedAtBlock = false;
           line.points.forEach((point) => {
             if (point?.blockId === block.id) {
-              linesConnectedToBlock.push(line);
               let lineIndex = line.points.findIndex((p) => p.blockId === block.id);
               if (lineIndex === 0) {
                 lineStartedAtBlock = true;
@@ -58,13 +63,27 @@ export const useSvgStore = defineStore('svgStore', {
         });
       }
     },
+    startBlockMove(block) {
+      this.movingBlock = block;
+    },
+    updateBlockAndLines(block, lines) {
+      const blockIndex = this.blocks.findIndex((b) => b.id === block.id);
+      if (blockIndex !== -1) {
+        this.blocks[blockIndex] = block;
+      }
+
+      lines.forEach((updatedLine) => {
+        const lineIndex = this.lines.findIndex((line) => line.id === updatedLine.id);
+        if (lineIndex !== -1) {
+          this.lines[lineIndex].points = updatedLine.points;
+        }
+      });
+    },
 
     updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
-      //console.log(lineStartedAtBlock);
       if (line.points.length < 2) return;
       let newPoints;
       if (lineStartedAtBlock) {
-        console.log('debug 1', ...line.points);
         newPoints = [line.points[0]];
         for (let i = 0; i < line.points.length - 1; i++) {
           const currentPoint = line.points[i];
@@ -94,9 +113,7 @@ export const useSvgStore = defineStore('svgStore', {
         }
 
         newPoints.push(line.points[line.points.length - 1]);
-        console.log('debug 1-1', ...line.points);
       } else {
-        console.log('debug 2', ...line.points);
         newPoints = [line.points[line.points.length - 1]];
         for (let i = line.points.length - 1; i > 0; i--) {
           const currentPoint = line.points[i];
@@ -132,14 +149,12 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Clean up points to remove unnecessary midpoints
       line.points = this.cleanUpPoints(newPoints);
-      console.log('debug 3', ...line.points);
     },
 
     cleanUpPoints(points) {
       if (points.length <= 2) return points;
-      //console.log(...points);
+
       const newPoints = [points[0]];
-      console.log('debug 4', ...points);
 
       for (let i = 1; i < points.length - 1; i++) {
         const prevPoint = newPoints[newPoints.length - 1];
@@ -167,19 +182,15 @@ export const useSvgStore = defineStore('svgStore', {
       const lastPoint = points[points.length - 1];
       const lastNewPoint = newPoints[newPoints.length - 1];
       if (lastPoint.x == lastNewPoint.x && lastPoint.y == lastNewPoint.y) {
-        console.log('debug 4-2');
         if (lastPoint?.blockId || lastPoint?.connectionPointId) {
           newPoints[newPoints.length - 1] = lastPoint;
         }
       } else if (!(lastNewPoint.blockId || lastNewPoint.connectionPointId) && (lastPoint.blockId || lastPoint.connectionPointId)) {
-        console.log('debug 4-3');
         newPoints.push(lastPoint);
       } else if (newPoints.length == 1) {
         newPoints.push(lastPoint);
       }
 
-      //console.log(...newPoints);
-      console.log('debug 4-4', ...newPoints);
       return newPoints;
     },
     getSVGCoordinates(event) {
@@ -212,6 +223,14 @@ export const useSvgStore = defineStore('svgStore', {
       }
       return false;
     },
+    deleteObject() {
+      if (this.selectedBlock) {
+        historyStore.executeCommand(new DeleteBlockCommand(this.selectedBlock, this));
+      }
+      if (this.selectedLine) {
+        historyStore.executeCommand(new DeleteLineCommand(this.selectedLine, this));
+      }
+    },
     startLineDrag(line, event) {
       console.log('start line drag');
       const coords = this.getSVGCoordinates(event);
@@ -221,12 +240,23 @@ export const useSvgStore = defineStore('svgStore', {
         this.dragStart = coords;
         this.dragging = true;
 
+        this.draggingLine = line;
+        this.originalPoints = line.points.map((point) => ({ ...point }));
+
         // Highlight the selected segment
         //this.highlightSegment(segment.startPoint, segment.endPoint);
       }
     },
+    endLineDrag() {
+      if (this.draggingLine) {
+        const finalPoints = this.draggingLine.points.map((point) => ({ ...point }));
+        const command = new DragLineSegmentCommand(this.draggingLine, this.originalPoints, finalPoints, this);
+        historyStore.executeCommand(command);
+        this.draggingLine = null;
+        this.originalPoints = [];
+      }
+    },
     findLineSegment(line, coords) {
-      console.log('got her find line segment');
       for (let i = 0; i < line.points.length - 1; i++) {
         const startPoint = line.points[i];
         const endPoint = line.points[i + 1];
@@ -259,7 +289,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
     dragSegment(segment, dx, dy) {
       const { line, startPoint, endPoint } = segment;
-      //console.log('original line', line);
+
       if (line.points.length == 2) {
         this.selectedLineSegment.index = 0;
       }
@@ -268,11 +298,6 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Check if the segment is connected to a block
       const isConnectedToBlock = startPoint.blockId || endPoint.blockId;
-
-      // If connected to a block, do not allow movement
-      // if (isConnectedToBlock) {
-      //   return;
-      // }
 
       // Capture original first and last points of the line
       const originalFirstPoint = { ...line.points[0] };
@@ -284,8 +309,6 @@ export const useSvgStore = defineStore('svgStore', {
       //find which points are connected to end point
       const startPointConnectedToBlock = actualStartPoint?.blockId ? true : false;
       const endPointConnectedToBlock = actualEndPoint?.blockId ? true : false;
-
-      console.log(startPointConnectedToBlock, endPointConnectedToBlock, index, ...line.points);
 
       // Determine if the segment is horizontal or vertical
       const isHorizontal = startPoint.y === endPoint.y;
@@ -312,15 +335,13 @@ export const useSvgStore = defineStore('svgStore', {
           // Both endpoints are connected to blocks
 
           if (snappedStartPoint.y !== startPoint.y) {
-            console.log('got here 0', line.points.length);
             if (line.points.length == 2) {
-              console.log('got here 2');
+              //  console.log('got here 2');
               line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' });
               line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' });
               this.selectedLineSegment.index = 1;
             }
             if (line.points.length == 4) {
-              console.log('got here 4');
               line.points[1] = snappedStartPoint;
               line.points[2] = snappedEndPoint;
             }
@@ -332,32 +353,18 @@ export const useSvgStore = defineStore('svgStore', {
             }
           }
         } else if (endPointConnectedToBlock) {
-          console.log('got here 1');
           line.points.splice(index + 1, 0, { x: endPoint.x, y: snappedEndPoint.y });
           // Update the points in the line only for the selected segment
           line.points[index] = snappedStartPoint;
           line.points[index + 1] = snappedEndPoint;
         } else if (startPointConnectedToBlock) {
-          console.log('got here 2');
           line.points.splice(1, 0, { x: endPoint.x, y: snappedEndPoint.y });
           line.points[1] = snappedStartPoint;
           line.points[2] = snappedEndPoint;
         } else if (!endPointConnectedToBlock && !startPointConnectedToBlock) {
-          // console.log('got here ew line', line.points[line.points.length - 1].blockId);
-          console.log('not connected horizontal');
-          if (!line.points[index]?.blockId) {
-            console.log('got here 0');
-          }
-          if (line.points[index + 1]?.blockId) {
-            console.log('got here');
-          }
-          if (!line.points[index].blockId && !line.points[index + 1].blockId) {
-          }
-
           line.points[index] = { ...line.points[index], ...snappedStartPoint };
           line.points[index + 1] = { ...line.points[index + 1], ...snappedEndPoint };
         }
-        console.log(...line.points);
       }
 
       if (isVertical) {
@@ -365,7 +372,6 @@ export const useSvgStore = defineStore('svgStore', {
           // Both endpoints are connected to blocks
 
           if (snappedStartPoint.x !== startPoint.x) {
-            //console.log('got here');
             if (line.points.length == 2) {
               line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' });
               line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' });
@@ -382,28 +388,15 @@ export const useSvgStore = defineStore('svgStore', {
             }
           }
         } else if (endPointConnectedToBlock) {
-          //console.log('got here 3');
           line.points.splice(index + 1, 0, { x: snappedEndPoint.x, y: endPoint.y });
           // Update the points in the line only for the selected segment
           line.points[index] = snappedStartPoint;
           line.points[index + 1] = snappedEndPoint;
         } else if (startPointConnectedToBlock) {
-          //console.log('got here 4');
           line.points.splice(1, 0, { x: snappedEndPoint.x, y: endPoint.y });
           line.points[1] = snappedStartPoint;
           line.points[2] = snappedEndPoint;
         } else if (!endPointConnectedToBlock && !startPointConnectedToBlock) {
-          //console.log('not connected vertical');
-          // console.log('got here ew line', line.points[line.points.length - 1].blockId);
-          if (line.points[index].blockId) {
-            console.log('got here 0');
-          }
-          if (line.points[index + 1].blockId) {
-            console.log('got here');
-          }
-          if (!line.points[index].blockId && !line.points[index + 1].blockId) {
-          }
-
           line.points[index] = { ...line.points[index], ...snappedStartPoint };
           line.points[index + 1] = { ...line.points[index + 1], ...snappedEndPoint };
         }
@@ -413,6 +406,11 @@ export const useSvgStore = defineStore('svgStore', {
       this.resetEndPointsToOriginal(line, originalFirstPoint, originalLastPoint);
       // Redraw the line
       this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy));
+      this.draggingLine = line;
+    },
+    clearInteractionStore() {
+      this.selectedLineSegment = this.draggingLine = this.movingBlock = null;
+      this.dragging = false;
     },
     resetEndPointsToOriginal(line, originalFirstPoint, originalLastPoint) {
       if (originalFirstPoint.blockId && originalFirstPoint.connectionPointId) {
@@ -453,7 +451,6 @@ export const useSvgStore = defineStore('svgStore', {
       if (line) {
         this.addLine(line);
       } else if (this.currentLine.length > 0) {
-        console.log('currentLine', this.currentLine, this.lines);
         let newLine = {
           object: 'line',
           id: Date.now(),
