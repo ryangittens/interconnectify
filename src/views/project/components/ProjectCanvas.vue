@@ -201,6 +201,7 @@ const resizeSVG = () => {
     svg.value.setAttribute('height', container.clientHeight);
     svg.value.style.left = `${-containerPaddingLeft}px`;
     store.setViewBox(0, 0, container.clientWidth, container.clientHeight);
+    store.renderGrid();
   }
 };
 
