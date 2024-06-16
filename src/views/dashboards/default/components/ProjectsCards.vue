@@ -10,7 +10,8 @@ import {
   TemplateIcon,
   DotsIcon,
   PlusIcon,
-  HeartFilledIcon
+  HeartFilledIcon,
+  FolderPlusIcon
 } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
 import ProjectDetailsModal from '@/components/shared/ProjectDetailsModal.vue';
@@ -171,7 +172,7 @@ const goToProject = (projectId) => {
         </v-btn>
       </div>
       <div class="mt-4">
-        <perfect-scrollbar>
+        <perfect-scrollbar class="perfectScroll">
           <!-- <v-list lines="two" class="py-0">
             <v-list-item
               v-for="(project, i) in filteredProjects"
@@ -212,7 +213,7 @@ const goToProject = (projectId) => {
 
                     <v-spacer></v-spacer>
 
-                    <v-btn size="small" icon @click="saveProjectAsTemplate(project)"><TemplateIcon stroke-width="1" width="25" /></v-btn>
+                    <v-btn size="small" icon @click="saveProjectAsTemplate(project)"><FolderPlusIcon stroke-width="1" width="25" /></v-btn>
                     <v-btn
                       size="small"
                       :icon="show[project.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"
@@ -273,7 +274,7 @@ const goToProject = (projectId) => {
   </v-card>
 </template>
 
-<style lang="scss">
+<style lang="scss" scoped>
 .deleteProjectIcon {
   position: absolute;
   top: 0;
@@ -284,5 +285,10 @@ const goToProject = (projectId) => {
 }
 .cursorPointer {
   cursor: pointer;
+}
+
+.perfectScroll {
+  width: 100%;
+  height: calc(100vh - 310px);
 }
 </style>

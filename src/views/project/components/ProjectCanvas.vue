@@ -228,6 +228,7 @@ onMounted(() => {
   svg.value.addEventListener('mouseleave', endInteraction);
   svg.value.addEventListener('wheel', zoom);
   svg.value.addEventListener('click', handleSvgClick);
+  window.addEventListener('beforeunload', beforeUnloadHandler);
 });
 
 onBeforeUnmount(() => {
@@ -239,9 +240,17 @@ onBeforeUnmount(() => {
   svg.value.removeEventListener('mouseleave', endInteraction);
   svg.value.removeEventListener('wheel', zoom);
   svg.value.removeEventListener('click', handleSvgClick);
+  window.removeEventListener('beforeunload', beforeUnloadHandler);
 });
 
 /* COMMON */
+const beforeUnloadHandler = (event) => {
+  if (!historyStore.saved) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+};
+
 const handleMouseMove = (event) => {
   handleBlockMouseMove(event);
   handleLineMouseMove(event);

@@ -25,6 +25,11 @@ const MainRoutes = {
       name: 'ProjectView',
       path: '/project/:id',
       component: () => import('@/views/project/ProjectView.vue')
+    },
+    {
+      name: 'Interconnection',
+      path: '/tools/interconnection',
+      component: () => import('@/views/interconnection/InterconnectionTool.vue')
     }
   ]
 };

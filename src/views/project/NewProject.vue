@@ -138,25 +138,7 @@ watch([currentPage, searchQuery], fetchProjects);
         </v-btn>
       </div>
       <div class="mt-4">
-        <perfect-scrollbar>
-          <!-- <v-list lines="two" class="py-0">
-            <v-list-item
-              v-for="(project, i) in filteredProjects"
-              @click="goToProject(project.id)"
-              :key="i"
-              :value="project"
-              color="secondary"
-              rounded="sm"
-            >
-              <div class="d-inline-flex align-center justify-space-between w-100">
-                <div>
-                  <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold">
-                    {{ project.project_name }}
-                  </h6>
-                </div>
-              </div>
-            </v-list-item>
-          </v-list> -->
+        <perfect-scrollbar class="perfectScroll">
           <v-row class="ma-0">
             <template v-for="(project, i) in filteredProjects" :key="i">
               <v-col>
@@ -245,5 +227,10 @@ watch([currentPage, searchQuery], fetchProjects);
 }
 .cursorPointer {
   cursor: pointer;
+}
+
+.perfectScroll {
+  width: 100%;
+  height: calc(100vh - 310px);
 }
 </style>

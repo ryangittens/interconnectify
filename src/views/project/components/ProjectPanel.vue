@@ -191,7 +191,7 @@ const saveDrawing = async () => {
     if (updateError) {
       throw updateError;
     }
-
+    historyStore.markSaved();
     snackbarStore.showSnackbar('Drawing Saved Successfully', 'success');
   } catch (err: any) {
     error.value = err.message;
@@ -205,7 +205,17 @@ const saveDrawing = async () => {
     <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <DownloadIcon size="17" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="saveDrawing" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
+    <v-btn
+      @click="saveDrawing"
+      class="text-secondary ml-2"
+      color="background"
+      icon
+      outlined
+      rounded="sm"
+      :disabled="historyStore.saved"
+      :variant="historyStore.saved ? 'plain' : 'flat'"
+      size="small"
+    >
       <DeviceFloppyIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn @click="undo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">

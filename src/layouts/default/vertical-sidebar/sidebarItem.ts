@@ -1,4 +1,4 @@
-import { DashboardIcon, PlusIcon, TemplateIcon } from 'vue-tabler-icons';
+import { DashboardIcon, PlusIcon, TemplateIcon, PlugConnectedIcon, ListDetailsIcon } from 'vue-tabler-icons';
 
 export interface menu {
   header?: string;
@@ -25,8 +25,13 @@ const sidebarItem: menu[] = [
   { divider: true },
   {
     title: 'Projects',
-    icon: DashboardIcon,
+    icon: ListDetailsIcon,
     to: '/dashboard/default'
+  },
+  {
+    title: 'Interconnection',
+    icon: PlugConnectedIcon,
+    to: '/tools/interconnection'
   }
 
   // {
