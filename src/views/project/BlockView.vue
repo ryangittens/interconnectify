@@ -12,7 +12,7 @@ const route = useRoute();
 const projectId = route.params.id;
 const project = ref(null);
 const loading = ref(true);
-const error = ref(null);
+const error = ref({});
 
 const fetchProject = async () => {
   try {
@@ -23,7 +23,7 @@ const fetchProject = async () => {
     }
 
     project.value = data;
-  } catch (err) {
+  } catch (err: any) {
     error.value = err.message;
   } finally {
     loading.value = false;
@@ -47,8 +47,8 @@ function closeBlockDialog() {
   <div v-else>
     <!-- <h1>{{ project.name }}</h1>
     <p>{{ project.description }}</p> -->
-    <ProjectPanel :project="project" mode="project" @open-block-dialog="openBlockDialog" />
-    <ProjectCanvas :project="project" mode="project" />
+    <ProjectPanel :project="project" mode="block" @open-block-dialog="openBlockDialog" />
+    <ProjectCanvas :project="project" mode="block" />
     <BlockDialog :show="blockDialog" @close-block-dialog="closeBlockDialog" />
     <!-- Add more project details here -->
   </div>

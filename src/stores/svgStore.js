@@ -1,6 +1,6 @@
 // src/stores/svgStore.js
 import { defineStore } from 'pinia';
-import { DragLineSegmentCommand, DeleteBlockCommand, DeleteLineCommand } from '@/commands';
+import { DragLineSegmentCommand, DeleteBlockCommand, DeleteLineCommand, AddLinePointCommand, StopDrawingCommand } from '@/commands';
 import { useHistoryStore } from './history';
 
 const historyStore = useHistoryStore();
@@ -15,11 +15,11 @@ export const useSvgStore = defineStore('svgStore', {
     lineType: 'solid',
     lineColor: '#000000',
     currentLine: [],
-    activeTool: '',
+    activeTool: null,
     svg: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
     zoomLevel: 1,
-    gridSize: 20,
+    gridSize: 10,
     showGrid: true,
     initialViewBox: { width: 0, height: 0 },
     dragStart: { x: 0, y: 0 },
@@ -28,9 +28,174 @@ export const useSvgStore = defineStore('svgStore', {
     draggingLine: null,
     originalPoints: [],
     currentMoveBlockCommand: null,
-    movingBlock: null
+    movingBlock: null,
+    mouseDown: false,
+    mouseDownLine: null,
+    mouseDownBlock: null,
+    isDragging: false,
+    isLineDragging: false,
+    isBlockDragging: false,
+    panning: false,
+    wireEnd: null,
+    wireStart: null,
+    hoverPoint: { x: null, y: null },
+    isCreatingRectangle: false,
+    currentRectangle: null,
+    rectangles: [],
+    rectangleStartPoint: { x: null, y: null },
+    selectedText: null,
+    texts: []
   }),
   actions: {
+    startTextTool() {
+      this.activeTool = 'text';
+    },
+    addText(start, content = 'New Text') {
+      if (this.activeTool !== 'text') return;
+      const snappedStart = this.snapToGrid(start.x, start.y);
+      const newText = {
+        id: Date.now(),
+        x: snappedStart.x,
+        y: snappedStart.y,
+        content,
+        fontSize: 16
+      };
+      this.texts.push(newText);
+      this.selectText(newText);
+    },
+    selectText(text) {
+      this.selectedText = text;
+    },
+    updateTextSize(newSize) {
+      if (this.selectedText) {
+        this.selectedText.fontSize = newSize;
+      }
+    },
+    updateTextContent(content) {
+      if (this.selectedText) {
+        this.selectedText.content = content;
+      }
+    },
+    startRectangleTool() {
+      this.activeTool = 'rectangle';
+      this.currentRectangle = null;
+    },
+    startCreatingRectangle(start) {
+      if (this.activeTool !== 'rectangle') return;
+      this.isCreatingRectangle = true;
+      this.rectangleStartPoint = { x: start.x, y: start.y };
+      this.currentRectangle = {
+        x: start.x,
+        y: start.y,
+        width: 0,
+        height: 0,
+        color: 'rgba(0, 0, 255, 0.5)'
+      };
+    },
+    updateCurrentRectangle(end) {
+      if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return;
+      const startX = this.rectangleStartPoint.x;
+      const startY = this.rectangleStartPoint.y;
+      const width = end.x - startX;
+      const height = end.y - startY;
+
+      if (width < 0) {
+        this.currentRectangle.x = end.x;
+        this.currentRectangle.width = Math.abs(width);
+      } else {
+        this.currentRectangle.x = startX;
+        this.currentRectangle.width = width;
+      }
+
+      if (height < 0) {
+        this.currentRectangle.y = end.y;
+        this.currentRectangle.height = Math.abs(height);
+      } else {
+        this.currentRectangle.y = startY;
+        this.currentRectangle.height = height;
+      }
+    },
+    finishCreatingRectangle() {
+      if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return;
+      this.rectangles.push(this.currentRectangle);
+      this.isCreatingRectangle = false;
+      this.currentRectangle = null;
+      this.activeTool = null;
+      this.endDrawing();
+    },
+    cancelCreatingRectangle() {
+      this.isCreatingRectangle = false;
+      this.currentRectangle = null;
+      this.activeTool = null;
+    },
+    endDrawing() {
+      this.stopDrawing();
+      this.activeTool = null;
+      historyStore.executeCommand(new StopDrawingCommand(this));
+    },
+    finishWire() {
+      if (this.wireStart && this.wireEnd) {
+        this.wireStart = null;
+        this.wireEnd = null;
+        this.drawingWire = false;
+        this.endDrawing();
+      }
+    },
+    startWire(cp, block, event) {
+      if (this.isDrawing) {
+        if (this.drawingWire) {
+          this.wireEnd = { block, cp };
+          const endPoint = {
+            x: this.wireEnd.block.x + this.wireEnd.cp.x,
+            y: this.wireEnd.block.y + this.wireEnd.cp.y,
+            blockId: this.wireEnd.block.id,
+            connectionPointId: this.wireEnd.cp.id
+          };
+          this.addPoint(endPoint, event.ctrlKey);
+          this.finishWire();
+        } else {
+          this.drawingWire = true;
+          this.wireStart = { block, cp };
+          const startPoint = {
+            x: this.wireStart.block.x + this.wireStart.cp.x,
+            y: this.wireStart.block.y + this.wireStart.cp.y,
+            blockId: this.wireStart.block.id,
+            connectionPointId: this.wireStart.cp.id
+          };
+          this.addPoint(startPoint, event.ctrlKey);
+        }
+      }
+    },
+    addPoint(point, ctrlKey) {
+      const lastPoint = this.currentLine[this.currentLine.length - 1];
+      let { x, y } = point;
+      if (lastPoint && !ctrlKey) {
+        const dx = Math.abs(x - lastPoint.x);
+        const dy = Math.abs(y - lastPoint.y);
+        if (dx > dy) y = lastPoint.y;
+        else x = lastPoint.x;
+      }
+      const snappedPoint = this.snapToGrid(x, y);
+      const updatedPoint = { ...point, ...snappedPoint };
+      historyStore.executeCommand(new AddLinePointCommand(this, updatedPoint));
+    },
+    endInteraction() {
+      this.panning = false;
+      this.endLineDrag();
+
+      // Finalize MoveBlockCommand and execute
+      if (this.currentMoveBlockCommand) {
+        const dx = this.movingBlock.x - this.currentMoveBlockCommand.originalBlockPosition.x;
+        const dy = this.movingBlock.y - this.currentMoveBlockCommand.originalBlockPosition.y;
+        this.currentMoveBlockCommand.dx = dx;
+        this.currentMoveBlockCommand.dy = dy;
+        this.currentMoveBlockCommand.execute();
+        historyStore.executeCommand(this.currentMoveBlockCommand);
+        this.currentMoveBlockCommand = null;
+      }
+
+      this.clearInteractionStore();
+    },
     addBlock(block) {
       this.blocks.push(block);
     },

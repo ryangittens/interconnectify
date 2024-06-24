@@ -22,6 +22,11 @@ const MainRoutes = {
       component: () => import('@/views/project/NewProject.vue')
     },
     {
+      name: 'NewBlock',
+      path: '/block/new',
+      component: () => import('@/views/project/NewBlock.vue')
+    },
+    {
       name: 'ProjectView',
       path: '/project/:id',
       component: () => import('@/views/project/ProjectView.vue')

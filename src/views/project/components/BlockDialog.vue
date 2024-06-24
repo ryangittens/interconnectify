@@ -35,7 +35,7 @@
                     <template v-for="(block, i) in filteredBlocks" :key="i">
                       <v-col>
                         <v-card @click="selectBlock(block)" class="blockCard mx-auto overflow-hidden" max-width="344" min-width="244">
-                          <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_image"></v-img>
+                          <!-- <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img> -->
                           <v-card-actions>
                             <div class="cursorPointer">
                               <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
@@ -52,7 +52,7 @@
               <div class="text-center mt-2">
                 <v-btn color="primary" variant="text">
                   <template v-slot:append>
-                    <v-btn @click="currentPage > 1 && currentPage--" :disabled="currentPage === 1" color="primary" variant="text">
+                    <v-btn @click="prevPage" :disabled="currentPage === 1" color="primary" variant="text">
                       Previous
                       <template v-slot:prepend>
                         <ChevronLeftIcon stroke-width="1.5" width="20" />
@@ -63,12 +63,7 @@
                 <span>{{ currentPage }} / {{ totalPages }}</span>
                 <v-btn color="primary" variant="text">
                   <template v-slot:append>
-                    <v-btn
-                      @click="currentPage < totalPages && currentPage++"
-                      :disabled="currentPage === totalPages"
-                      color="primary"
-                      variant="text"
-                    >
+                    <v-btn @click="nextPage" :disabled="currentPage === totalPages" color="primary" variant="text">
                       Next
                       <template v-slot:append>
                         <ChevronRightIcon stroke-width="1.5" width="20" />

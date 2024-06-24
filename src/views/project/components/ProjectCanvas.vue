@@ -12,86 +12,12 @@
       @mouseleave="endInteraction"
       @wheel="zoom"
     >
-      <!-- Grid Lines -->
-      <g v-if="store.showGrid" class="grid-container">
-        <line
-          v-for="x in Math.ceil(store.viewBox.width / gridSize) + 1"
-          :key="'x' + x"
-          :x1="store.viewBox.x + x * gridSize - (store.viewBox.x % gridSize)"
-          :y1="store.viewBox.y"
-          :x2="store.viewBox.x + x * gridSize - (store.viewBox.x % gridSize)"
-          :y2="store.viewBox.y + store.viewBox.height"
-          stroke="lightgray"
-          stroke-width="0.5"
-        />
-        <line
-          v-for="y in Math.ceil(store.viewBox.height / gridSize) + 1"
-          :key="'y' + y"
-          :x1="store.viewBox.x"
-          :y1="store.viewBox.y + y * gridSize - (store.viewBox.y % gridSize)"
-          :x2="store.viewBox.x + store.viewBox.width"
-          :y2="store.viewBox.y + y * gridSize - (store.viewBox.y % gridSize)"
-          stroke="lightgray"
-          stroke-width="0.5"
-        />
-      </g>
+      <GridLines />
+      <Lines />
+      <Blocks />
+      <RectangleTool />
+      <TextTool />
       <g ref="axesContainer"></g>
-      <g ref="linesContainer">
-        <path
-          v-for="line in store.lines"
-          :key="line.id"
-          :d="line.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')"
-          :stroke="isLineSelected(line) ? primary : line.color"
-          stroke-width="2"
-          :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
-          fill="none"
-          style="cursor: pointer"
-          @mousedown.stop="handleLineMouseDown(line, $event)"
-          @mouseup="handleLineMouseUp(line, $event)"
-          @click="handleLineClick(line)"
-        ></path>
-        <!-- Hover Line for Preview -->
-        <path
-          v-if="hoverPoint && hoverPoint.x !== null && store.isDrawing && store.currentLine.length"
-          :d="`M ${store.currentLine.map((point) => `${point.x},${point.y}`).join(' L ')} L ${hoverPoint.x},${hoverPoint.y}`"
-          :stroke="store.lineColor"
-          stroke-width="2"
-          :stroke-dasharray="store.lineType === 'dashed' ? '5, 5' : 'none'"
-          fill="none"
-        ></path>
-      </g>
-
-      <g
-        v-for="block in store.blocks"
-        :key="block.id"
-        :transform="`translate(${block.x}, ${block.y})`"
-        @mousedown.stop="handleBlockMouseDown(block, $event)"
-        @mouseup="handleBlockMouseUp(block, $event)"
-        @click="handleBlockClick(block)"
-      >
-        <rect
-          v-if="!block.content"
-          :x="0"
-          :y="0"
-          :width="block.width"
-          :height="block.height"
-          :fill="block.color"
-          :stroke="isBlockSelected(block) ? primary : 'black'"
-          :stroke-width="isBlockSelected(block) ? 2 : 1"
-          style="cursor: pointer"
-        />
-        <g v-else v-html="block.content"></g>
-        <circle
-          v-for="cp in block.connectionPoints"
-          :key="cp.id"
-          :cx="cp.x"
-          :cy="cp.y"
-          r="5"
-          :fill="secondary"
-          @click.stop="startWire(cp, block, $event)"
-          style="cursor: crosshair"
-        />
-      </g>
     </svg>
     <ConductorSchedule />
   </div>
@@ -105,27 +31,28 @@ import { useHistoryStore } from '@/stores/history';
 import ConductorSchedule from './ConductorSchedule.vue';
 import InfoPanel from './InfoPanel.vue';
 
+import GridLines from './GridLines.vue';
+import Blocks from './Blocks.vue';
+import Lines from './Lines.vue';
+import RectangleTool from './RectangleTool.vue';
+import TextTool from './TextTool.vue';
+
 import { StopDrawingCommand, AddLinePointCommand, MoveBlockCommand, DragLineSegmentCommand } from '@/commands';
 
 const store = useSvgStore();
 const historyStore = useHistoryStore();
 
-const props = defineProps(['project']);
+const props = defineProps({
+  project: Object || null,
+  mode: String || null
+});
+
+console.log(props.project);
+
 const drawing = props.project?.drawing;
 
-const primary = ref('rgb(var(--v-theme-primary))');
-const secondary = ref('rgb(var(--v-theme-secondary))');
-
 const svg = ref(null);
-const linesContainer = ref(null);
 const axesContainer = ref(null);
-
-const drawingWire = ref(false);
-
-const wireStart = ref(null);
-const wireEnd = ref(null);
-
-const hoverPoint = ref({ x: null, y: null });
 
 const {
   getSVGCoordinates,
@@ -133,36 +60,26 @@ const {
   deserializeState,
   selectBlock,
   stopDrawing,
-  selectLine,
   setSvgElement,
-  initializeViewBox,
   dragSegment,
   snapToGrid,
   moveBlock,
-  endLineDrag,
-  clearInteractionStore,
   deleteObject,
-  startBlockMove
+  startBlockMove,
+  endInteraction,
+  addPoint
 } = store;
 
 let panStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
-let panning = false;
 const zoomFactor = 0.04;
 const minZoomLevel = 0.5;
 const maxZoomLevel = 2;
-const gridSize = 20;
-const mouseDown = ref(false);
-const mouseDownLine = ref(null);
-const mouseDownBlock = ref(null);
-const isDragging = ref(false);
-const isLineDragging = ref(false);
-const isBlockDragging = ref(false);
 
 /* SETUP */
 
 const pan = (event) => {
-  if (!panning) return;
+  if (!store.panning) return;
   const dx = (event.clientX - panStart.x) / store.zoomLevel;
   const dy = (event.clientY - panStart.y) / store.zoomLevel;
   panStart = { x: event.clientX, y: event.clientY };
@@ -256,9 +173,9 @@ const handleMouseMove = (event) => {
   handleLineMouseMove(event);
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
-    hoverPoint.value = coords;
+    store.hoverPoint = coords;
     drawHoverLine(coords.x, coords.y, event.ctrlKey);
-  } else if (panning && !store.movingBlock) {
+  } else if (store.panning && !store.movingBlock) {
     pan(event);
   } else if (store.dragging && store.movingBlock) {
     const coords = getSVGCoordinates(event);
@@ -273,6 +190,8 @@ const handleMouseMove = (event) => {
     const dy = coords.y - store.dragStart.y;
     dragSegment(store.selectedLineSegment, dx, dy);
     //store.dragStart = coords; // Update drag start for smooth dragging
+  } else if (store.activeTool == 'rectangle' && store.isCreatingRectangle) {
+    updateRectangle(event);
   }
 };
 
@@ -292,114 +211,85 @@ const startInteraction = (event) => {
     // Initialize DragLineSegmentCommand
     const originalPoints = store.selectedLineSegment.line.points.map((point) => ({ ...point }));
     store.currentDragLineSegmentCommand = new DragLineSegmentCommand(store.selectedLineSegment.line, originalPoints, originalPoints, store);
+  } else if (store.activeTool == 'rectangle') {
+    //startRectangle(event);
   } else {
     panStart = { x: event.clientX, y: event.clientY };
-    panning = true;
+    store.panning = true;
   }
-};
-
-const endInteraction = () => {
-  panning = false;
-  endLineDrag();
-
-  // Finalize MoveBlockCommand and execute
-  if (store.currentMoveBlockCommand) {
-    const dx = store.movingBlock.x - store.currentMoveBlockCommand.originalBlockPosition.x;
-    const dy = store.movingBlock.y - store.currentMoveBlockCommand.originalBlockPosition.y;
-    store.currentMoveBlockCommand.dx = dx;
-    store.currentMoveBlockCommand.dy = dy;
-    store.currentMoveBlockCommand.execute();
-    historyStore.executeCommand(store.currentMoveBlockCommand);
-    store.currentMoveBlockCommand = null;
-  }
-
-  clearInteractionStore();
 };
 
 const handleSvgClick = (event) => {
   if (!event.target.closest('rect') && !event.target.closest('g')) {
     selectBlock(null);
   }
-  if (!store.isDrawing) return;
-  const coords = getSVGCoordinates(event);
-  addPoint(coords, event.ctrlKey);
+  if (store.isDrawing) {
+    const coords = getSVGCoordinates(event);
+    addPoint(coords, event.ctrlKey);
+  }
+  if (store.activeTool == 'rectangle' && store.isCreatingRectangle) {
+    endRectangle(event);
+  } else if (store.activeTool == 'rectangle') {
+    startRectangle(event);
+  }
+  if (store.activeTool === 'text') {
+    const coords = getSVGCoordinates(event);
+    store.addText(coords);
+  }
 };
 
-/* BLOCKS */
-
-const handleBlockMouseDown = (block, event) => {
-  mouseDown.value = true; // Set mouseDown flag to true
-  mouseDownBlock.value = block; // Store the line being dragged
-  isBlockDragging.value = false; // Reset dragging flag
-};
+/* Mouse Moves */
 
 const handleBlockMouseMove = (event) => {
-  if (mouseDown.value) {
-    if (!isBlockDragging.value) {
-      if (mouseDownBlock.value) {
+  if (store.mouseDown) {
+    if (!store.isBlockDragging) {
+      if (store.mouseDownBlock) {
         // If dragging hasn't started yet, start it now
-        isBlockDragging.value = true;
-        isDragging.value = true;
-        startBlockMove(mouseDownBlock.value, event);
+        store.isBlockDragging = true;
+        store.isDragging = true;
+        startBlockMove(store.mouseDownBlock, event);
         startInteraction(event);
       }
     }
   }
-};
-
-const handleBlockMouseUp = (block, event) => {
-  if (!isBlockDragging.value) {
-    // It's a click event, not a drag
-    //handleBlockClick(block);
-  }
-  endInteraction(event);
-  mouseDown.value = false; // Reset mouseDown flag
-  mouseDownLine.value = null; // Reset the line being dragged
-};
-
-const handleBlockClick = (block) => {
-  selectBlock(block);
-};
-
-const isBlockSelected = (block) => store.selectedBlock && store.selectedBlock.id === block.id;
-
-/* WIRES/LINES */
-
-const handleLineMouseDown = (line, event) => {
-  mouseDown.value = true; // Set mouseDown flag to true
-  mouseDownLine.value = line; // Store the line being dragged
-  isLineDragging.value = false; // Reset dragging flag
 };
 
 const handleLineMouseMove = (event) => {
-  if (mouseDown.value) {
-    if (!isLineDragging.value) {
-      if (mouseDownLine.value) {
+  if (store.mouseDown) {
+    if (!store.isLineDragging) {
+      if (store.mouseDownLine) {
         // If dragging hasn't started yet, start it now
-        isLineDragging.value = true;
-        isDragging.value = true;
-        startLineDrag(mouseDownLine.value, event);
+        store.isLineDragging = true;
+        store.isDragging = true;
+        startLineDrag(store.mouseDownLine, event);
         startInteraction(event);
       }
     }
   }
 };
 
-const handleLineMouseUp = (line, event) => {
-  if (!isLineDragging.value) {
-    // It's a click event, not a drag
-    //handleLineClick(line);
-  } else {
-    // If it was a drag, end the drag interaction
-    endLineDrag(line, event);
-  }
-  endInteraction(event);
-  mouseDown.value = false; // Reset mouseDown flag
-  mouseDownLine.value = null; // Reset the line being dragged
+const startRectangle = (event) => {
+  const coords = getSVGCoordinates(event);
+  const snappedCoords = snapToGrid(coords.x, coords.y);
+  store.startCreatingRectangle(snappedCoords);
 };
 
-const handleLineClick = (line) => {
-  selectLine(line);
+const updateRectangle = (event) => {
+  if (store.isCreatingRectangle) {
+    const coords = getSVGCoordinates(event);
+    const snappedCoords = snapToGrid(coords.x, coords.y);
+    store.updateCurrentRectangle(snappedCoords);
+  }
+};
+
+const endRectangle = () => {
+  if (store.isCreatingRectangle) {
+    store.finishCreatingRectangle();
+  }
+};
+
+const cancelRectangle = () => {
+  store.cancelCreatingRectangle();
 };
 
 const drawAxes = (snappedPoint) => {
@@ -433,8 +323,6 @@ const clearAxes = () => {
   axesContainer.value.innerHTML = '';
 };
 
-const isLineSelected = (line) => store.selectedLine && store.selectedLine.id === line.id;
-
 const drawHoverLine = (x, y, ctrlKey) => {
   if (store.currentLine.length > 0) {
     const lastPoint = store.currentLine[store.currentLine.length - 1];
@@ -445,25 +333,9 @@ const drawHoverLine = (x, y, ctrlKey) => {
       else x = lastPoint.x;
     }
     const snappedPoint = snapToGrid(x, y);
-    hoverPoint.value = snappedPoint;
-
-    store.hoverLine = { x1: lastPoint.x, y1: lastPoint.y, x2: snappedPoint.x, y2: snappedPoint.y };
+    store.hoverPoint = snappedPoint;
     drawAxes(snappedPoint);
   }
-};
-
-const addPoint = (point, ctrlKey) => {
-  const lastPoint = store.currentLine[store.currentLine.length - 1];
-  let { x, y } = point;
-  if (lastPoint && !ctrlKey) {
-    const dx = Math.abs(x - lastPoint.x);
-    const dy = Math.abs(y - lastPoint.y);
-    if (dx > dy) y = lastPoint.y;
-    else x = lastPoint.x;
-  }
-  const snappedPoint = snapToGrid(x, y);
-  const updatedPoint = { ...point, ...snappedPoint };
-  historyStore.executeCommand(new AddLinePointCommand(store, updatedPoint));
 };
 
 const handleKeyDown = (event) => {
@@ -500,44 +372,6 @@ const endDrawing = () => {
   clearAxes();
 
   historyStore.executeCommand(new StopDrawingCommand(store));
-};
-
-const startWire = (cp, block, event) => {
-  const cpX = block.x + cp.x;
-  const cpY = block.y + cp.y;
-  const point = snapToGrid(cpX, cpY);
-  if (store.isDrawing) {
-    if (drawingWire.value) {
-      wireEnd.value = { block, cp };
-      const endPoint = {
-        x: wireEnd.value.block.x + wireEnd.value.cp.x,
-        y: wireEnd.value.block.y + wireEnd.value.cp.y,
-        blockId: wireEnd.value.block.id,
-        connectionPointId: wireEnd.value.cp.id
-      };
-      addPoint(endPoint, event.ctrlKey);
-      finishWire();
-    } else {
-      drawingWire.value = true;
-      wireStart.value = { block, cp };
-      const startPoint = {
-        x: wireStart.value.block.x + wireStart.value.cp.x,
-        y: wireStart.value.block.y + wireStart.value.cp.y,
-        blockId: wireStart.value.block.id,
-        connectionPointId: wireStart.value.cp.id
-      };
-      addPoint(startPoint, event.ctrlKey);
-    }
-  }
-};
-
-const finishWire = () => {
-  if (wireStart.value && wireEnd.value) {
-    wireStart.value = null;
-    wireEnd.value = null;
-    drawingWire.value = false;
-    endDrawing();
-  }
 };
 </script>
 
