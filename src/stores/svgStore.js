@@ -1,6 +1,16 @@
 // src/stores/svgStore.js
 import { defineStore } from 'pinia';
-import { DragLineSegmentCommand, DeleteBlockCommand, DeleteLineCommand, AddLinePointCommand, StopDrawingCommand } from '@/commands';
+import { uuid } from 'vue-uuid';
+import {
+  DragLineSegmentCommand,
+  DeleteBlockCommand,
+  DeleteLineCommand,
+  AddLinePointCommand,
+  StopDrawingCommand,
+  DeleteTextCommand,
+  AddRectangleCommand,
+  DeleteRectangleCommand
+} from '@/commands';
 import { useHistoryStore } from './history';
 
 const historyStore = useHistoryStore();
@@ -44,24 +54,42 @@ export const useSvgStore = defineStore('svgStore', {
     rectangles: [],
     rectangleStartPoint: { x: null, y: null },
     selectedText: null,
-    texts: []
+    selectedRectangle: null,
+    texts: [],
+    axezContainer: null
   }),
   actions: {
+    clearAxes() {
+      if (this.axesContainer) {
+        this.axesContainer.innerHTML = '';
+      }
+    },
     startTextTool() {
       this.activeTool = 'text';
     },
-    addText(start, content = 'New Text') {
+    createText(start, content = 'New Text') {
       if (this.activeTool !== 'text') return;
       const snappedStart = this.snapToGrid(start.x, start.y);
       const newText = {
-        id: Date.now(),
+        object: 'text',
+        id: uuid.v1(),
         x: snappedStart.x,
         y: snappedStart.y,
         content,
         fontSize: 16
       };
+      return newText;
+    },
+    addText(newText) {
       this.texts.push(newText);
       this.selectText(newText);
+      this.endDrawing();
+    },
+    deleteText(text) {
+      this.texts = this.texts.filter((t) => t.id !== text.id);
+      if (this.selectedText && this.selectedText.id === text.id) {
+        this.selectedText = null;
+      }
     },
     selectText(text) {
       this.selectedText = text;
@@ -85,6 +113,8 @@ export const useSvgStore = defineStore('svgStore', {
       this.isCreatingRectangle = true;
       this.rectangleStartPoint = { x: start.x, y: start.y };
       this.currentRectangle = {
+        object: 'rectangle',
+        id: uuid.v1(),
         x: start.x,
         y: start.y,
         width: 0,
@@ -115,18 +145,25 @@ export const useSvgStore = defineStore('svgStore', {
         this.currentRectangle.height = height;
       }
     },
-    finishCreatingRectangle() {
-      if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return;
-      this.rectangles.push(this.currentRectangle);
+    addRectangle(currentRectangle) {
       this.isCreatingRectangle = false;
+      this.rectangles.push(currentRectangle);
       this.currentRectangle = null;
-      this.activeTool = null;
       this.endDrawing();
+    },
+    selectRectangle(rect) {
+      this.selectedRectangle = rect;
     },
     cancelCreatingRectangle() {
       this.isCreatingRectangle = false;
       this.currentRectangle = null;
       this.activeTool = null;
+    },
+    deleteRectangle(rect) {
+      this.rectangles = this.rectangles.filter((r) => r.id !== rect.id);
+      if (this.selectedRectangle && this.selectedRectangle.id === rect.id) {
+        this.selectedRectangle = null;
+      }
     },
     endDrawing() {
       this.stopDrawing();
@@ -395,6 +432,12 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedLine) {
         historyStore.executeCommand(new DeleteLineCommand(this.selectedLine, this));
       }
+      if (this.selectedText) {
+        historyStore.executeCommand(new DeleteTextCommand(this.selectedText, this));
+      }
+      if (this.selectedRectangle) {
+        historyStore.executeCommand(new DeleteRectangleCommand(this.selectedRectangle, this));
+      }
     },
     startLineDrag(line, event) {
       console.log('start line drag');
@@ -618,7 +661,7 @@ export const useSvgStore = defineStore('svgStore', {
       } else if (this.currentLine.length > 0) {
         let newLine = {
           object: 'line',
-          id: Date.now(),
+          id: uuid.v1(),
           type: this.lineType,
           color: this.lineColor,
           points: [...this.currentLine]
@@ -627,7 +670,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.currentLine = [];
       }
       this.isDrawing = false;
-      this.activeTool = '';
+      this.clearAxes();
     },
     addLinePoint(point) {
       this.currentLine.push(point);
@@ -643,7 +686,6 @@ export const useSvgStore = defineStore('svgStore', {
         this.selectedLine = line;
         this.selectedBlock = null; // Deselect block when line is selected
       }
-      console.log(line);
     },
     deleteLine(line) {
       this.lines = this.lines.filter((l) => l.id !== line.id);
@@ -663,8 +705,10 @@ export const useSvgStore = defineStore('svgStore', {
     },
     serializeState() {
       return JSON.stringify({
+        texts: this.texts,
         blocks: this.blocks,
         lines: this.lines,
+        rectangles: this.rectangles,
         viewBox: this.viewBox,
         zoomLevel: this.zoomLevel
       });
@@ -680,7 +724,9 @@ export const useSvgStore = defineStore('svgStore', {
       const { clientWidth, clientHeight } = this.svg;
       this.initializeViewBox();
       this.blocks = data?.blocks || [];
+      this.rectangles = data?.rectangles || [];
       this.lines = data?.lines || [];
+      this.texts = data?.texts || [];
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
 
       // Calculate the center of the old viewBox
@@ -703,8 +749,81 @@ export const useSvgStore = defineStore('svgStore', {
         this.renderGrid();
       }
     },
+    deserializeBlocks(data) {
+      const parsedData = JSON.parse(data);
+      parsedData.forEach((blockData) => {
+        if (blockData.object === 'project') {
+          this.importProjectAsBlock(blockData);
+        } else {
+          this.blocks.push(blockData);
+        }
+      });
+    },
+
+    importProjectAsBlock(projectData) {
+      const elements = [
+        ...projectData.rectangles.map((rect) => ({
+          ...rect,
+          type: 'rectangle'
+        })),
+        ...projectData.texts.map((text) => ({
+          ...text,
+          type: 'text'
+        })),
+        ...projectData.lines.map((line) => ({
+          ...line,
+          type: 'line'
+        })),
+        ...projectData.paths.map((path) => ({
+          ...path,
+          type: 'path'
+        }))
+      ];
+
+      const newBlock = {
+        object: 'block',
+        id: uuid.v1(),
+        x: 40, // Adjust the position as needed
+        y: 40, // Adjust the position as needed
+        width: projectData.width || 80, // Adjust width and height as needed
+        height: projectData.height || 80,
+        color: projectData.color || '#f0f0f0', // Default color if not provided
+        content: this.generateSVGContent(elements),
+        connectionPoints: projectData.connectionPoints || [
+          { id: 'cp1', x: 40, y: 0 }, // Top-center
+          { id: 'cp2', x: 40, y: 80 }, // Bottom-center
+          { id: 'cp3', x: 0, y: 40 }, // Left-center
+          { id: 'cp4', x: 80, y: 40 } // Right-center
+        ]
+      };
+
+      this.blocks.push(newBlock);
+    },
+
+    generateSVGContent(elements) {
+      const svgHeader = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="160.2" viewBox="0 0 800 1602">';
+      const svgFooter = '</svg>';
+      const svgContent = elements
+        .map((element) => {
+          if (element.type === 'rectangle') {
+            return `<rect x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}" fill="${element.color}" />`;
+          } else if (element.type === 'text') {
+            return `<text x="${element.x}" y="${element.y}" font-size="${element.fontSize}">${element.content}</text>`;
+          } else if (element.type === 'line') {
+            return `<line x1="${element.points[0].x}" y1="${element.points[0].y}" x2="${element.points[1].x}" y2="${element.points[1].y}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
+          } else if (element.type === 'path') {
+            return `<path d="${element.d}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
+          }
+        })
+        .join('');
+
+      return svgHeader + svgContent + svgFooter;
+    },
     setSvgElement(svg) {
       this.svg = svg;
+    },
+    setAxesContainer(element) {
+      this.axesContainer = element;
     },
     setViewBox(x, y, width, height) {
       this.viewBox = { x, y, width, height };
@@ -802,6 +921,18 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedLine) {
         return this.selectedLine;
       }
+      if (this.selectedText) {
+        return this.selectedText;
+      }
+      if (this.selectedRectangle) {
+        return this.selectedRectangle;
+      }
+    },
+    deselectAll() {
+      this.selectText(null);
+      this.selectBlock(null);
+      this.selectLine(null);
+      this.selectRectangle(null);
     },
     renderGrid() {
       if (!this.svgElement) return;

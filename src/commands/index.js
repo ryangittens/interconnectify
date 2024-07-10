@@ -5,3 +5,7 @@ export { MoveBlockCommand } from './MoveBlockCommand';
 export { AddLinePointCommand } from './AddLinePointCommand';
 export { StopDrawingCommand } from './StopDrawingCommand';
 export { DragLineSegmentCommand } from './DragLineSegmentCommand';
+export { AddTextCommand } from './AddTextCommand';
+export { DeleteTextCommand } from './DeleteTextCommand';
+export { AddRectangleCommand } from './AddRectangleCommand';
+export { DeleteRectangleCommand } from './DeleteRectangleCommand';

@@ -12,12 +12,12 @@
       @mouseleave="endInteraction"
       @wheel="zoom"
     >
+      <g ref="axesContainer"></g>
       <GridLines />
       <Lines />
       <Blocks />
       <RectangleTool />
       <TextTool />
-      <g ref="axesContainer"></g>
     </svg>
     <ConductorSchedule />
   </div>
@@ -37,7 +37,14 @@ import Lines from './Lines.vue';
 import RectangleTool from './RectangleTool.vue';
 import TextTool from './TextTool.vue';
 
-import { StopDrawingCommand, AddLinePointCommand, MoveBlockCommand, DragLineSegmentCommand } from '@/commands';
+import {
+  StopDrawingCommand,
+  AddLinePointCommand,
+  MoveBlockCommand,
+  DragLineSegmentCommand,
+  AddTextCommand,
+  AddRectangleCommand
+} from '@/commands';
 
 const store = useSvgStore();
 const historyStore = useHistoryStore();
@@ -52,6 +59,7 @@ console.log(props.project);
 const drawing = props.project?.drawing;
 
 const svg = ref(null);
+
 const axesContainer = ref(null);
 
 const {
@@ -61,13 +69,16 @@ const {
   selectBlock,
   stopDrawing,
   setSvgElement,
+  setAxesContainer,
   dragSegment,
   snapToGrid,
   moveBlock,
   deleteObject,
   startBlockMove,
   endInteraction,
-  addPoint
+  addPoint,
+  deselectAll,
+  endDrawing
 } = store;
 
 let panStart = { x: 0, y: 0 };
@@ -119,6 +130,7 @@ const initSVG = () => {
   svg.value.setAttribute('width', clientWidth);
   svg.value.setAttribute('height', clientHeight);
   setSvgElement(svg.value);
+  setAxesContainer(axesContainer.value);
   deserializeState(drawing);
   store.renderGrid();
 };
@@ -220,8 +232,14 @@ const startInteraction = (event) => {
 };
 
 const handleSvgClick = (event) => {
-  if (!event.target.closest('rect') && !event.target.closest('g')) {
-    selectBlock(null);
+  console.log(event.target);
+  if (
+    !event.target.closest('rect') &&
+    !event.target.closest('path') &&
+    !event.target.closest('text') &&
+    !event.target.closest('foreignObject')
+  ) {
+    deselectAll();
   }
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
@@ -234,7 +252,8 @@ const handleSvgClick = (event) => {
   }
   if (store.activeTool === 'text') {
     const coords = getSVGCoordinates(event);
-    store.addText(coords);
+    let text = store.createText(coords);
+    historyStore.executeCommand(new AddTextCommand(text, store));
   }
 };
 
@@ -284,7 +303,7 @@ const updateRectangle = (event) => {
 
 const endRectangle = () => {
   if (store.isCreatingRectangle) {
-    store.finishCreatingRectangle();
+    historyStore.executeCommand(new AddRectangleCommand(store.currentRectangle, store));
   }
 };
 
@@ -293,7 +312,7 @@ const cancelRectangle = () => {
 };
 
 const drawAxes = (snappedPoint) => {
-  axesContainer.value.innerHTML = '';
+  store.axesContainer.innerHTML = '';
   const { x, y } = snappedPoint;
   const { x: viewBoxX, y: viewBoxY, width, height } = store.viewBox;
 
@@ -315,12 +334,8 @@ const drawAxes = (snappedPoint) => {
   yAxis.setAttribute('stroke-width', 1);
   yAxis.setAttribute('stroke-dasharray', '5,5');
 
-  axesContainer.value.appendChild(xAxis);
-  axesContainer.value.appendChild(yAxis);
-};
-
-const clearAxes = () => {
-  axesContainer.value.innerHTML = '';
+  store.axesContainer.appendChild(xAxis);
+  store.axesContainer.appendChild(yAxis);
 };
 
 const drawHoverLine = (x, y, ctrlKey) => {
@@ -365,13 +380,6 @@ const handleKeyDown = (event) => {
         break;
       }
   }
-};
-
-const endDrawing = () => {
-  stopDrawing();
-  clearAxes();
-
-  historyStore.executeCommand(new StopDrawingCommand(store));
 };
 </script>
 

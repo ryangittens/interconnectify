@@ -28,16 +28,9 @@ const historyStore = useHistoryStore();
 const store = useSvgStore();
 const { deleteObject } = store;
 const drawer = computed(() => {
-  return !store.isDrawing && (store.selectedBlock || store.selectedLine) ? true : false;
+  return !store.isDrawing && selectedObject.value ? true : false;
 });
-const selectedObject = computed(() => {
-  if (store.selectedBlock) {
-    return store.selectedBlock;
-  }
-  if (store.selectedLine) {
-    return store.selectedLine;
-  }
-});
+const selectedObject = computed(() => store.selectedObject());
 </script>
 
 <style></style>

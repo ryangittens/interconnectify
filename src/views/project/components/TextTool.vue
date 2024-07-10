@@ -12,7 +12,7 @@
       {{ text.content }}
     </text>
   </g>
-  <foreignObject
+  <!-- <foreignObject
     v-if="store.selectedText"
     :x="store.selectedText.x"
     :y="store.selectedText.y - store.selectedText.fontSize"
@@ -27,7 +27,7 @@
       @blur="deselectText"
       style="font-size: 16px; width: 300px"
     />
-  </foreignObject>
+  </foreignObject> -->
 </template>
 
 <script setup>
@@ -39,11 +39,6 @@ const textInput = ref(null);
 
 const selectText = (text) => {
   store.selectText(text);
-  nextTick(() => {
-    if (textInput.value) {
-      textInput.value.focus();
-    }
-  });
 };
 
 const updateTextContent = (event) => {
@@ -54,18 +49,5 @@ const deselectText = () => {
   store.selectText(null);
 };
 
-watch(
-  () => store.selectedText,
-  (newText) => {
-    if (newText && textInput.value) {
-      textInput.value.focus();
-    }
-  }
-);
-
-onMounted(() => {
-  if (store.selectedText && textInput.value) {
-    textInput.value.focus();
-  }
-});
+onMounted(() => {});
 </script>

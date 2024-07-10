@@ -10,8 +10,19 @@
       stroke-width="1"
     />
   </g>
-  <g v-for="rect in store.rectangles" :key="rect.id">
-    <rect :x="rect.x" :y="rect.y" :width="rect.width" :height="rect.height" :fill="rect.color" stroke="black" stroke-width="1" />
+  <g>
+    <rect
+      v-for="rect in store.rectangles"
+      :key="rect.id"
+      :x="rect.x"
+      :y="rect.y"
+      :width="rect.width"
+      :height="rect.height"
+      :fill="rect.color"
+      stroke="black"
+      stroke-width="1"
+      @click.stop="selectRectangle(rect)"
+    />
   </g>
 </template>
 
@@ -22,6 +33,10 @@ import { useSvgStore } from '@/stores/svgStore';
 const store = useSvgStore();
 
 const rectangle = ref(null);
+
+const selectRectangle = (rect) => {
+  store.selectRectangle(rect);
+};
 
 watchEffect(() => {
   if (store.isCreatingRectangle) {
