@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onBeforeMount } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
 import { useAuthStore } from '@/stores/auth';
 import { ChevronRightIcon, ChevronLeftIcon, DotsIcon, PlusIcon, HeartFilledIcon } from 'vue-tabler-icons';
@@ -107,7 +107,8 @@ const toggleProjectPanel = (projectId) => {
 
 const totalPages = computed(() => Math.ceil(totalProjects.value / pageSize.value));
 
-onMounted(fetchProjects);
+// onMounted(fetchProjects);
+fetchProjects();
 
 watch([currentPage, searchQuery], fetchProjects);
 </script>
