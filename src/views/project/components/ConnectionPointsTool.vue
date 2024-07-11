@@ -1,15 +1,15 @@
 <template>
-  <g v-if="activeBlock">
+  <g v-if="store.selectedBlock">
     <circle
-      v-for="cp in activeBlock.connectionPoints"
+      v-for="cp in store.selectedBlock.connectionPoints"
       :key="cp.id"
-      :cx="cp.x"
-      :cy="cp.y"
+      :cx="store.selectedBlock.x + cp.x"
+      :cy="store.selectedBlock.y + cp.y"
       r="5"
       fill="red"
       @click="removeConnectionPoint(cp.id)"
     />
-    <circle v-if="isAdding" :cx="currentPoint.x" :cy="currentPoint.y" r="5" fill="blue" />
+    <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="5" fill="blue" />
   </g>
 </template>
 

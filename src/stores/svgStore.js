@@ -56,9 +56,40 @@ export const useSvgStore = defineStore('svgStore', {
     selectedText: null,
     selectedRectangle: null,
     texts: [],
-    axezContainer: null
+    axezContainer: null,
+    isAddingConnectionPoint: false,
+    currentPoint: { x: 0, y: 0 }
   }),
   actions: {
+    startConnectionPointsTool() {
+      this.activeTool = 'connectionPoints';
+      this.isAddingConnectionPoint = true;
+    },
+    addConnectionPoint(event) {
+      if (!this.selectedBlock) {
+        return;
+      }
+      const coords = this.getSVGCoordinates(event);
+      // const snappedCoords = this.snapToGrid(coords.x, coords.y);
+      // this.selectedBlock.connectionPoints.push({
+      //   id: Date.now().toString(),
+      //   x: snappedCoords.x - this.selectedBlock.x,
+      //   y: snappedCoords.y - this.selectedBlock.y
+      // });
+      const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
+      this.selectedBlock.connectionPoints.push({
+        id: Date.now().toString(),
+        x: snappedCoords.x,
+        y: snappedCoords.y
+      });
+      this.isAddingConnectionPoint = false;
+      this.endDrawing();
+    },
+    updateCurrentPoint(event) {
+      const coords = this.getSVGCoordinates(event);
+      const snappedCoords = this.snapToGrid(coords.x, coords.y);
+      this.currentPoint = snappedCoords;
+    },
     clearAxes() {
       if (this.axesContainer) {
         this.axesContainer.innerHTML = '';
@@ -169,6 +200,9 @@ export const useSvgStore = defineStore('svgStore', {
       this.stopDrawing();
       this.activeTool = null;
       historyStore.executeCommand(new StopDrawingCommand(this));
+      this.deselectAll();
+      this.isDrawing = false;
+      this.isAddingConnectionPoint = false;
     },
     finishWire() {
       if (this.wireStart && this.wireEnd) {

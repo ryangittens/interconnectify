@@ -17,6 +17,7 @@
       <Lines />
       <Blocks />
       <RectangleTool />
+      <ConnectionPointsTool />
       <TextTool />
     </svg>
     <ConductorSchedule />
@@ -36,6 +37,7 @@ import Blocks from './Blocks.vue';
 import Lines from './Lines.vue';
 import RectangleTool from './RectangleTool.vue';
 import TextTool from './TextTool.vue';
+import ConnectionPointsTool from './ConnectionPointsTool.vue';
 
 import {
   StopDrawingCommand,
@@ -183,6 +185,7 @@ const beforeUnloadHandler = (event) => {
 const handleMouseMove = (event) => {
   handleBlockMouseMove(event);
   handleLineMouseMove(event);
+  handleConnectionPointsMouseMove(event);
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
     store.hoverPoint = coords;
@@ -232,14 +235,17 @@ const startInteraction = (event) => {
 };
 
 const handleSvgClick = (event) => {
-  console.log(event.target);
   if (
+    !store.activeTool &&
     !event.target.closest('rect') &&
     !event.target.closest('path') &&
     !event.target.closest('text') &&
     !event.target.closest('foreignObject')
   ) {
     deselectAll();
+  }
+  if (store.isAddingConnectionPoint) {
+    store.addConnectionPoint(event);
   }
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
@@ -251,6 +257,11 @@ const handleSvgClick = (event) => {
     startRectangle(event);
   }
   if (store.activeTool === 'text') {
+    const coords = getSVGCoordinates(event);
+    let text = store.createText(coords);
+    historyStore.executeCommand(new AddTextCommand(text, store));
+  }
+  if (store.activeTool === 'connectionPoint' && store.selectedBlock) {
     const coords = getSVGCoordinates(event);
     let text = store.createText(coords);
     historyStore.executeCommand(new AddTextCommand(text, store));
@@ -284,6 +295,14 @@ const handleLineMouseMove = (event) => {
         startInteraction(event);
       }
     }
+  }
+};
+
+const handleConnectionPointsMouseMove = (event) => {
+  if (store.isAddingConnectionPoint) {
+    const coords = store.getSVGCoordinates(event);
+    const snappedCoords = store.snapToGrid(coords.x, coords.y);
+    store.currentPoint = snappedCoords;
   }
 };
 
