@@ -1,22 +1,23 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import { useRoute } from 'vue-router';
+import { supabase } from '@/utils/supabaseClient';
+
 // imported components
 import ProjectCanvas from './components/ProjectCanvas.vue';
 import ProjectPanel from './components/ProjectPanel.vue';
 import BlockDialog from './components/BlockDialog.vue';
 
-import { useRoute } from 'vue-router';
-import { supabase } from '@/utils/supabaseClient';
-
 const route = useRoute();
 const projectId = route.params.id;
+const table = computed(() => route.params?.table || 'projects');
 const project = ref(null);
 const loading = ref(true);
 const error = ref(null);
 
 const fetchProject = async () => {
   try {
-    const { data, error: fetchError } = await supabase.from('projects').select('*').eq('id', projectId).single();
+    const { data, error: fetchError } = await supabase.from(table.value).select('*').eq('id', projectId).single();
 
     if (fetchError) {
       throw fetchError;
@@ -32,7 +33,7 @@ const fetchProject = async () => {
 
 onMounted(fetchProject);
 
-let blockDialog = ref(false);
+const blockDialog = ref(false);
 function openBlockDialog() {
   blockDialog.value = true;
 }

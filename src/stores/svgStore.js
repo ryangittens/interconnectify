@@ -786,7 +786,7 @@ export const useSvgStore = defineStore('svgStore', {
     deserializeBlocks(data) {
       const parsedData = JSON.parse(data);
       parsedData.forEach((blockData) => {
-        if (blockData.object === 'project') {
+        if (blockData.object === 'block') {
           this.importProjectAsBlock(blockData);
         } else {
           this.blocks.push(blockData);
@@ -794,24 +794,27 @@ export const useSvgStore = defineStore('svgStore', {
       });
     },
 
-    importProjectAsBlock(projectData) {
+    importBlock(data) {
+      const block = data;
+      const drawing = JSON.parse(block.drawing);
+
       const elements = [
-        ...projectData.rectangles.map((rect) => ({
+        ...(drawing.rectangles?.map((rect) => ({
           ...rect,
           type: 'rectangle'
-        })),
-        ...projectData.texts.map((text) => ({
+        })) || []),
+        ...(drawing.texts?.map((text) => ({
           ...text,
           type: 'text'
-        })),
-        ...projectData.lines.map((line) => ({
+        })) || []),
+        ...(drawing.lines?.map((line) => ({
           ...line,
           type: 'line'
-        })),
-        ...projectData.paths.map((path) => ({
+        })) || []),
+        ...(drawing.paths?.map((path) => ({
           ...path,
           type: 'path'
-        }))
+        })) || [])
       ];
 
       const newBlock = {
@@ -819,11 +822,11 @@ export const useSvgStore = defineStore('svgStore', {
         id: uuid.v1(),
         x: 40, // Adjust the position as needed
         y: 40, // Adjust the position as needed
-        width: projectData.width || 80, // Adjust width and height as needed
-        height: projectData.height || 80,
-        color: projectData.color || '#f0f0f0', // Default color if not provided
+        width: block?.width || 80, // Adjust width and height as needed
+        height: block?.height || 80,
+        color: block?.color || '#f0f0f0', // Default color if not provided
         content: this.generateSVGContent(elements),
-        connectionPoints: projectData.connectionPoints || [
+        connectionPoints: drawing.connectionPoints || [
           { id: 'cp1', x: 40, y: 0 }, // Top-center
           { id: 'cp2', x: 40, y: 80 }, // Bottom-center
           { id: 'cp3', x: 0, y: 40 }, // Left-center
@@ -833,7 +836,6 @@ export const useSvgStore = defineStore('svgStore', {
 
       this.blocks.push(newBlock);
     },
-
     generateSVGContent(elements) {
       const svgHeader = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="160.2" viewBox="0 0 800 1602">';
       const svgFooter = '</svg>';
@@ -887,7 +889,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     fitSVGToExtent() {
-      const { minX, minY, maxX, maxY } = calculateBoundingBox(this.lines, this.blocks);
+      const { minX, minY, maxX, maxY } = calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.texts);
 
       if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
         console.error('No elements to fit');
@@ -999,24 +1001,30 @@ export const useSvgStore = defineStore('svgStore', {
 });
 
 // Helper function to calculate the bounding box
-const calculateBoundingBox = (lines, blocks) => {
+const calculateBoundingBox = (lines, blocks, rectangles) => {
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
-  lines.forEach((line) => {
-    line.points.forEach((point) => {
+  lines?.forEach((line) => {
+    line?.points?.forEach((point) => {
       if (point.x < minX) minX = point.x;
       if (point.y < minY) minY = point.y;
       if (point.x > maxX) maxX = point.x;
       if (point.y > maxY) maxY = point.y;
     });
   });
-  blocks.forEach((block) => {
+  blocks?.forEach((block) => {
     if (block.x < minX) minX = block.x;
     if (block.y < minY) minY = block.y;
     if (block.x + block.width > maxX) maxX = block.x + block.width;
     if (block.y + block.height > maxY) maxY = block.y + block.height;
+  });
+  rectangles?.forEach((rectangle) => {
+    if (rectangle.x < minX) minX = rectangle.x;
+    if (rectangle.y < minY) minY = rectangle.y;
+    if (rectangle.x + rectangle.width > maxX) maxX = rectangle.x + rectangle.width;
+    if (rectangle.y + rectangle.height > maxY) maxY = rectangle.y + rectangle.height;
   });
   return { minX, minY, maxX, maxY };
 };

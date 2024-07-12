@@ -28,7 +28,7 @@ const MainRoutes = {
     },
     {
       name: 'ProjectView',
-      path: '/project/:id',
+      path: '/project/:id/:table',
       component: () => import('@/views/project/ProjectView.vue')
     },
     {

@@ -160,7 +160,7 @@ const nextPage = () => {
 const totalPages = computed(() => Math.ceil(totalBlocks.value / pageSize.value));
 
 const selectBlock = (block) => {
-  svgStore.startPlacingBlock(block);
+  svgStore.importBlock(block);
   emit('closeBlockDialog');
 };
 

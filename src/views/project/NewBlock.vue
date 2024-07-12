@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ChevronRightIcon, ChevronLeftIcon, DotsIcon, PlusIcon, HeartFilledIcon } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
 
-import ProjectDetailsModal from '@/components/shared/ProjectDetailsModal.vue';
+import BlockDetailsModal from '@/components/shared/BlockDetailsModal.vue';
 
 import { useSnackbarStore } from '@/stores/snackbar';
 
@@ -13,63 +13,63 @@ const snackbarStore = useSnackbarStore();
 
 const authStore = useAuthStore();
 const router = useRouter();
-const projects = ref([]);
+const blocks = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
-const totalProjects = ref(0);
+const totalBlocks = ref(0);
 const show = ref({});
-const projectIdToDelete = ref(null);
+const blockIdToDelete = ref(null);
 
-const projectDialog = ref(false);
+const blockDialog = ref(false);
 
 const selectedTemplate = ref(null);
 
-function openProjectDialog() {
-  projectDialog.value = true;
+function openBlockDialog() {
+  blockDialog.value = true;
 }
 
-function closeProjectDialog() {
-  projectDialog.value = false;
+function closeBlockDialog() {
+  blockDialog.value = false;
   selectTemplate(null);
 }
 
-const deleteProject = async (projectId) => {
-  const confirmed = window.confirm('Are you sure you want to delete this project?');
+const deleteBlock = async (blockId) => {
+  const confirmed = window.confirm('Are you sure you want to delete this block?');
   if (!confirmed) return;
 
   try {
-    const { error: deleteError } = await supabase.from('projects').delete().eq('id', projectId);
+    const { error: deleteError } = await supabase.from('blocks').delete().eq('id', blockId);
 
     if (deleteError) {
       throw deleteError;
     }
 
-    projects.value = projects.value.filter((project) => project.id !== projectId);
-    totalProjects.value = projects.value.length;
+    blocks.value = blocks.value.filter((block) => block.id !== blockId);
+    totalBlocks.value = blocks.value.length;
   } catch (err) {
     error.value = err.message;
-    snackbarStore.showSnackbar('Error Deleting Project', 'error');
+    snackbarStore.showSnackbar('Error Deleting Block', 'error');
   }
 };
 
 function selectTemplate(template: any) {
   selectedTemplate.value = template;
   if (template) {
-    openProjectDialog();
+    openBlockDialog();
   }
 }
 
-const filteredProjects = computed(() => {
+const filteredBlocks = computed(() => {
   if (!searchQuery.value) {
-    return projects.value;
+    return blocks.value;
   }
-  return projects.value.filter((project) => project.project_name.toLowerCase().includes(searchQuery.value.toLowerCase()));
+  return blocks.value.filter((block) => block.block_name.toLowerCase().includes(searchQuery.value.toLowerCase()));
 });
 
-const fetchProjects = async () => {
+const fetchBlocks = async () => {
   loading.value = true;
   try {
     const user = authStore.user;
@@ -81,7 +81,7 @@ const fetchProjects = async () => {
       error: fetchError,
       count
     } = await supabase
-      .from('templates')
+      .from('blocks')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
@@ -91,29 +91,29 @@ const fetchProjects = async () => {
       throw fetchError;
     }
 
-    projects.value = data;
-    totalProjects.value = count;
+    blocks.value = data;
+    totalBlocks.value = count;
   } catch (err) {
     error.value = err.message;
-    snackbarStore.showSnackbar('Error Fetching Projects', 'error');
+    snackbarStore.showSnackbar('Error Fetching Blocks', 'error');
   } finally {
     loading.value = false;
   }
 };
 
-const toggleProjectPanel = (projectId) => {
-  show.value[projectId] = !show.value[projectId];
+const toggleBlockPanel = (blockId) => {
+  show.value[blockId] = !show.value[blockId];
 };
 
-const totalPages = computed(() => Math.ceil(totalProjects.value / pageSize.value));
+const totalPages = computed(() => Math.ceil(totalBlocks.value / pageSize.value));
 
-onMounted(fetchProjects);
+onMounted(fetchBlocks);
 
-watch([currentPage, searchQuery], fetchProjects);
+watch([currentPage, searchQuery], fetchBlocks);
 </script>
 
 <template>
-  <ProjectDetailsModal :show="projectDialog" :selectedTemplate="selectedTemplate" @close-project-dialog="closeProjectDialog" />
+  <BlockDetailsModal :show="blockDialog" :selectedTemplate="selectedTemplate" @close-block-dialog="closeBlockDialog" />
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <div class="d-flex align-center justify-space-between">
@@ -133,47 +133,47 @@ watch([currentPage, searchQuery], fetchProjects);
             <SearchIcon stroke-width="1.5" size="17" class="text-lightText SearchIcon" />
           </template>
         </v-text-field>
-        <v-btn @click="openProjectDialog" class="ml-4" color="primary" size="large" icon rounded="sm" variant="tonal">
+        <v-btn @click="openBlockDialog" class="ml-4" color="primary" size="large" icon rounded="sm" variant="tonal">
           <PlusIcon stroke-width="1.5" width="25" />
         </v-btn>
       </div>
       <div class="mt-4">
         <perfect-scrollbar class="perfectScroll">
           <v-row class="ma-0">
-            <template v-for="(project, i) in filteredProjects" :key="i">
+            <template v-for="(block, i) in filteredBlocks" :key="i">
               <v-col>
                 <v-card class="mx-auto overflow-hidden" max-width="344" min-width="244">
-                  <v-img class="align-end" color="lightprimary" height="200px" cover :src="project.project_svg">
-                    <v-btn @click="deleteProject(project.id)" class="deleteProjectIcon" color="error" icon rounded="lg" variant="text">
+                  <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg">
+                    <v-btn @click="deleteBlock(block.id)" class="deleteProjectIcon" color="error" icon rounded="lg" variant="text">
                       <TrashIcon stroke-width="1.5" width="25" /> </v-btn
                   ></v-img>
 
                   <v-card-actions>
-                    <div @click="selectTemplate(project)" class="cursorPointer">
+                    <div @click="selectTemplate(block)" class="cursorPointer">
                       <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
-                        {{ project.project_name }}
+                        {{ block.block_name }}
                       </h6>
                     </div>
                     <v-spacer></v-spacer>
 
                     <v-btn
                       size="small"
-                      :icon="show[project.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"
-                      @click="toggleProjectPanel(project.id)"
+                      :icon="show[block.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"
+                      @click="toggleBlockPanel(block.id)"
                     ></v-btn>
                   </v-card-actions>
 
                   <v-expand-transition>
-                    <div v-show="show[project.id]">
+                    <div v-show="show[block.id]">
                       <v-divider></v-divider>
 
                       <v-card-text>
                         <div>
                           <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold">
-                            {{ project.project_name }}
+                            {{ block.block_name }}
                           </h6>
                         </div>
-                        <p>{{ project.project_description }}</p>
+                        <p>{{ block.block_description }}</p>
                       </v-card-text>
                     </div>
                   </v-expand-transition>
