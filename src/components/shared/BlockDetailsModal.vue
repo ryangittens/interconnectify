@@ -33,7 +33,6 @@ const { value: block_name } = useField('block_name');
 
 const onSubmit = handleSubmit(async (values) => {
   try {
-    console.log('git here');
     const user = authStore.user; // Get the logged-in user
     const newBlock = {
       block_name: values.block_name,
@@ -43,9 +42,9 @@ const onSubmit = handleSubmit(async (values) => {
     // Include template details if a template is selected
     if (props.selectedTemplate) {
       //select which fields to duplicate from template
-      newProject.drawing = props.selectedTemplate.drawing;
-      newProject.project_svg = props.selectedTemplate.project_svg;
-      newProject.project_description = newProject.project_description;
+      newBlock.drawing = props.selectedTemplate.drawing;
+      newBlock.block_svg = props.selectedTemplate.block_svg;
+      newBlock.project_description = newBlock.project_description;
     }
 
     const { data, error } = await supabase.from('blocks').insert(newBlock).select('*'); // Ensure to select the inserted record
@@ -60,7 +59,7 @@ const onSubmit = handleSubmit(async (values) => {
     if (data && data.length > 0) {
       router.push({ name: 'ProjectView', params: { id: data[0].id, table: 'blocks' } });
     } else {
-      throw new Error('Failed to retrieve the newly created project ID');
+      throw new Error('Failed to retrieve the newly created block ID');
     }
   } catch (error) {
     errors.apiError = error.message;

@@ -77,7 +77,8 @@ const {
   endInteraction,
   addPoint,
   deselectAll,
-  endDrawing
+  endDrawing,
+  handleSvgClick
 } = store;
 
 let panStart = { x: 0, y: 0 };
@@ -233,43 +234,6 @@ const startInteraction = (event) => {
   }
 };
 
-const handleSvgClick = (event) => {
-  if (
-    !store.activeTool &&
-    !event.target.closest('rect') &&
-    !event.target.closest('path') &&
-    !event.target.closest('text') &&
-    !event.target.closest('foreignObject')
-  ) {
-    deselectAll();
-  }
-  if (store.droppedBlock) {
-    store.endBlockDrag();
-  }
-  if (store.isAddingConnectionPoint) {
-    store.addConnectionPoint(event);
-  }
-  if (store.isDrawing) {
-    const coords = getSVGCoordinates(event);
-    addPoint(coords, event.ctrlKey);
-  }
-  if (store.activeTool == 'rectangle' && store.isCreatingRectangle) {
-    endRectangle(event);
-  } else if (store.activeTool == 'rectangle') {
-    startRectangle(event);
-  }
-  if (store.activeTool === 'text') {
-    const coords = getSVGCoordinates(event);
-    let text = store.createText(coords);
-    historyStore.executeCommand(new AddTextCommand(text, store));
-  }
-  if (store.activeTool === 'connectionPoint' && store.selectedBlock) {
-    const coords = getSVGCoordinates(event);
-    let text = store.createText(coords);
-    historyStore.executeCommand(new AddTextCommand(text, store));
-  }
-};
-
 /* Mouse Moves */
 
 const handleBlockMouseMove = (event) => {
@@ -308,23 +272,11 @@ const handleConnectionPointsMouseMove = (event) => {
   }
 };
 
-const startRectangle = (event) => {
-  const coords = getSVGCoordinates(event);
-  const snappedCoords = snapToGrid(coords.x, coords.y);
-  store.startCreatingRectangle(snappedCoords);
-};
-
 const updateRectangle = (event) => {
   if (store.isCreatingRectangle) {
     const coords = getSVGCoordinates(event);
     const snappedCoords = snapToGrid(coords.x, coords.y);
     store.updateCurrentRectangle(snappedCoords);
-  }
-};
-
-const endRectangle = () => {
-  if (store.isCreatingRectangle) {
-    historyStore.executeCommand(new AddRectangleCommand(store.currentRectangle, store));
   }
 };
 

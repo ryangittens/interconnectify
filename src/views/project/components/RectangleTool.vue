@@ -21,7 +21,7 @@
       :fill="rect.color"
       :stroke="rect.stroke"
       :stroke-width="rect.strokeWidth"
-      @click.stop="selectRectangle(rect)"
+      @click.stop="handleRectangleClick(rect, $event)"
     />
   </g>
 </template>
@@ -34,8 +34,12 @@ const store = useSvgStore();
 
 const rectangle = ref(null);
 
-const selectRectangle = (rect) => {
-  store.selectRectangle(rect);
+const handleRectangleClick = (rect, event) => {
+  if (store.activeTool) {
+    store.handleSvgClick(event);
+  } else {
+    store.selectRectangle(rect);
+  }
 };
 
 watchEffect(() => {

@@ -10,7 +10,8 @@ import {
   DeleteTextCommand,
   AddRectangleCommand,
   DeleteRectangleCommand,
-  AddBlockCommand
+  AddBlockCommand,
+  DeleteConnectionPointCommand
 } from '@/commands';
 import { useHistoryStore } from './history';
 
@@ -62,9 +63,62 @@ export const useSvgStore = defineStore('svgStore', {
     currentPoint: { x: 0, y: 0 },
     droppedBlock: false,
     connectionPoints: [],
-    mode: null
+    mode: null,
+    selectedConnectionPoint: null
   }),
   actions: {
+    handleSvgClick(event) {
+      if (
+        !this.activeTool &&
+        !event.target.closest('rect') &&
+        !event.target.closest('path') &&
+        !event.target.closest('text') &&
+        !event.target.closest('circle') &&
+        !event.target.closest('foreignObject')
+      ) {
+        this.deselectAll();
+      }
+      if (this.droppedBlock) {
+        this.endBlockDrag();
+      }
+      if (this.isAddingConnectionPoint) {
+        this.startAddConnectionPoint(event);
+      }
+      if (this.isDrawing) {
+        const coords = this.getSVGCoordinates(event);
+        this.addPoint(coords, event.ctrlKey);
+      }
+      if (this.activeTool == 'rectangle' && this.isCreatingRectangle) {
+        this.endRectangle(event);
+      } else if (this.activeTool == 'rectangle') {
+        this.startRectangle(event);
+      }
+      if (this.activeTool === 'text') {
+        const coords = this.getSVGCoordinates(event);
+        let text = this.createText(coords);
+        historyStore.executeCommand(new AddTextCommand(text, this));
+      }
+      if (this.activeTool === 'connectionPoint' && this.selectedBlock) {
+        const coords = this.getSVGCoordinates(event);
+        let text = this.createText(coords);
+        historyStore.executeCommand(new AddTextCommand(text, this));
+      }
+    },
+    startRectangle(event) {
+      const coords = this.getSVGCoordinates(event);
+      const snappedCoords = this.snapToGrid(coords.x, coords.y);
+      this.startCreatingRectangle(snappedCoords);
+    },
+    endRectangle() {
+      if (this.isCreatingRectangle) {
+        historyStore.executeCommand(new AddRectangleCommand(this.currentRectangle, this));
+      }
+    },
+    selectConnectionPoint(cp) {
+      if (!this.activeTool) {
+        this.selectedConnectionPoint = cp;
+      }
+    },
     setMode(mode) {
       this.mode = mode;
     },
@@ -72,7 +126,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.activeTool = 'connectionPoints';
       this.isAddingConnectionPoint = true;
     },
-    addConnectionPoint(event) {
+    startAddConnectionPoint(event) {
       if (this.mode !== 'block') {
         return;
       }
@@ -83,24 +137,37 @@ export const useSvgStore = defineStore('svgStore', {
       //   x: snappedCoords.x - this.selectedBlock.x,
       //   y: snappedCoords.y - this.selectedBlock.y
       // });
-      const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
+      //const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
+      const snappedCoords = this.snapToGrid(coords.x, coords.y);
       // this.selectedBlock.connectionPoints.push({
       //   id: Date.now().toString(),
       //   x: snappedCoords.x,
       //   y: snappedCoords.y
       // });
-      this.connectionPoints.push({
+
+      let cp = {
+        object: 'connectionPoint',
         id: uuid.v1(),
         x: snappedCoords.x,
         y: snappedCoords.y
-      });
+      };
+      this.addConnectionPoint(cp);
       this.isAddingConnectionPoint = false;
       this.endDrawing();
+    },
+    addConnectionPoint(cp) {
+      this.connectionPoints.push(cp);
     },
     updateCurrentPoint(event) {
       const coords = this.getSVGCoordinates(event);
       const snappedCoords = this.snapToGrid(coords.x, coords.y);
       this.currentPoint = snappedCoords;
+    },
+    deleteConnectionPoint(cp) {
+      this.connectionPoints = this.connectionPoints.filter((c) => c.id !== cp.id);
+      if (this.selectedConnectionPoint && this.selectedConnectionPoint.id === cp.id) {
+        this.selectedConnectionPoint = null;
+      }
     },
     clearAxes() {
       if (this.axesContainer) {
@@ -135,7 +202,9 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     selectText(text) {
-      this.selectedText = text;
+      if (!this.activeTool) {
+        this.selectedText = text;
+      }
     },
     updateTextSize(newSize) {
       if (this.selectedText) {
@@ -162,7 +231,7 @@ export const useSvgStore = defineStore('svgStore', {
         y: start.y,
         width: 0,
         height: 0,
-        color: 'rgba(0, 0, 255, 0.5)',
+        color: 'rgba(240, 240, 240, 0.5)',
         stroke: 'black',
         strokeWidth: 1
       };
@@ -197,7 +266,9 @@ export const useSvgStore = defineStore('svgStore', {
       this.endDrawing();
     },
     selectRectangle(rect) {
-      this.selectedRectangle = rect;
+      if (!this.activeTool) {
+        this.selectedRectangle = rect;
+      }
     },
     cancelCreatingRectangle() {
       this.isCreatingRectangle = false;
@@ -503,6 +574,9 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedRectangle) {
         historyStore.executeCommand(new DeleteRectangleCommand(this.selectedRectangle, this));
       }
+      if (this.selectedConnectionPoint) {
+        historyStore.executeCommand(new DeleteConnectionPointCommand(this.selectedConnectionPoint, this));
+      }
     },
     startLineDrag(line, event) {
       console.log('start line drag');
@@ -700,7 +774,7 @@ export const useSvgStore = defineStore('svgStore', {
       };
     },
     selectBlock(block) {
-      if (!this.isDrawing) {
+      if (!this.activeTool) {
         this.selectedBlock = block;
         this.selectedLine = null; // Deselect line when block is selected
       }
@@ -747,7 +821,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.lineColor = color;
     },
     selectLine(line) {
-      if (!this.isDrawing) {
+      if (!this.activeTool) {
         this.selectedLine = line;
         this.selectedBlock = null; // Deselect block when line is selected
       }
@@ -794,7 +868,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.lines = data?.lines || [];
       this.texts = data?.texts || [];
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
-      this.connectionPoints = data?.connectionPoints;
+      this.connectionPoints = data?.connectionPoints || [];
 
       // Calculate the center of the old viewBox
       const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2;
@@ -861,8 +935,8 @@ export const useSvgStore = defineStore('svgStore', {
         width: block?.width || 80, // Adjust width and height as needed
         height: block?.height || 80,
         color: block?.color || '#f0f0f0', // Default color if not provided
-        content: this.generateSVGContent(elements),
-        connectionPoints: drawing.connectionPoints || []
+        content: this.generateSVGContent(elements, drawing?.connectionPoints).svg,
+        connectionPoints: this.generateSVGContent(elements, drawing?.connectionPoints).connectionPoints || []
       };
 
       this.blocks.push(newBlock);
@@ -894,7 +968,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.droppedBlock = false;
       this.isBlockDragging = false;
     },
-    generateSVGContent(elements) {
+    generateSVGContent(elements, connectionPoints) {
       // Separate the elements by type
       const lines = elements.filter((el) => el.type === 'line');
       const blocks = elements.filter((el) => el.type === 'block');
@@ -925,10 +999,23 @@ export const useSvgStore = defineStore('svgStore', {
         })
         .join('');
 
+      let normalizedConnectionPoints = [];
+      // Normalize the coordinates of connection points
+      if (connectionPoints) {
+        normalizedConnectionPoints = connectionPoints.map((cp) => ({
+          ...cp,
+          x: cp.x - minX,
+          y: cp.y - minY
+        }));
+      }
+
       // Generate the SVG content
       const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}">`;
       const svgFooter = '</svg>';
-      return svgHeader + normalizedElements + svgFooter;
+      return {
+        svg: svgHeader + normalizedElements + svgFooter,
+        connectionPoints: normalizedConnectionPoints
+      };
     },
     setSvgElement(svg) {
       this.svg = svg;
@@ -1038,12 +1125,16 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedRectangle) {
         return this.selectedRectangle;
       }
+      if (this.selectedConnectionPoint) {
+        return this.selectedConnectionPoint;
+      }
     },
     deselectAll() {
       this.selectText(null);
       this.selectBlock(null);
       this.selectLine(null);
       this.selectRectangle(null);
+      this.selectConnectionPoint(null);
     },
     renderGrid() {
       if (!this.svgElement) return;

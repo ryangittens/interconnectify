@@ -15,7 +15,7 @@ import {
   GridPatternIcon,
   CubePlusIcon
 } from 'vue-tabler-icons';
-import { IconSquarePlus2, IconLetterCase } from '@tabler/icons-vue';
+import { IconSquarePlus2, IconLetterCase, IconPointFilled } from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
@@ -59,6 +59,10 @@ const setRectangleTool = () => {
 
 const startTextTool = () => {
   store.startTextTool();
+};
+
+const startConnectionPointsTool = () => {
+  store.startConnectionPointsTool();
 };
 
 const deleteObject = () => {
@@ -216,6 +220,7 @@ const saveDrawingAsBlock = async () => {
       <DownloadIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn
+      v-if="store.mode == 'project'"
       @click="saveDrawing"
       class="text-secondary ml-2"
       color="background"
@@ -230,6 +235,7 @@ const saveDrawingAsBlock = async () => {
     </v-btn>
 
     <v-btn
+      v-if="store.mode == 'block'"
       @click="saveDrawingAsBlock"
       class="text-secondary ml-2"
       color="background"
@@ -257,6 +263,18 @@ const saveDrawingAsBlock = async () => {
       <GridPatternIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
+    <v-btn
+      @click="startConnectionPointsTool"
+      class="text-secondary ml-2"
+      color="background"
+      icon
+      outlined
+      rounded="sm"
+      :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
+      size="small"
+    >
+      <IconPointFilled size="17" stroke-width="1.5" />
+    </v-btn>
     <v-btn
       @click="startTextTool"
       class="text-secondary ml-2"

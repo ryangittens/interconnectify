@@ -1,4 +1,11 @@
 <template>
+  <g>
+    <circle v-for="cp in store.connectionPoints" :key="cp.id" :cx="cp.x" :cy="cp.y" r="5" fill="red" @click="selectConnectionPoint(cp)" />
+    <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="5" fill="blue" />
+  </g>
+</template>
+
+<!-- <template>
   <g v-if="store.selectedBlock">
     <circle
       v-for="cp in store.selectedBlock.connectionPoints"
@@ -11,7 +18,7 @@
     />
     <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="5" fill="blue" />
   </g>
-</template>
+</template> -->
 
 <script setup>
 import { ref, watch } from 'vue';
@@ -23,10 +30,7 @@ const isAdding = ref(false);
 const currentPoint = ref({ x: 0, y: 0 });
 const activeBlock = ref(null);
 
-const startAddingConnectionPoint = (block) => {
-  activeBlock.value = block;
-  isAdding.value = true;
-};
+const { selectConnectionPoint } = store;
 
 const addConnectionPoint = (event) => {
   if (!isAdding.value) return;
@@ -39,10 +43,6 @@ const addConnectionPoint = (event) => {
     y: snappedCoords.y - activeBlock.value.y
   });
   isAdding.value = false;
-};
-
-const removeConnectionPoint = (id) => {
-  activeBlock.value.connectionPoints = activeBlock.value.connectionPoints.filter((cp) => cp.id !== id);
 };
 
 watch(isAdding, (newVal) => {
