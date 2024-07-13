@@ -34,7 +34,12 @@
                   <v-row class="ma-0">
                     <template v-for="(block, i) in filteredBlocks" :key="i">
                       <v-col>
-                        <v-card @click="selectBlock(block)" class="blockCard mx-auto overflow-hidden" max-width="344" min-width="244">
+                        <v-card
+                          @click="selectBlock(block, $event)"
+                          class="blockCard mx-auto overflow-hidden"
+                          max-width="344"
+                          min-width="244"
+                        >
                           <!-- <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img> -->
                           <v-card-actions>
                             <div class="cursorPointer">
@@ -159,8 +164,8 @@ const nextPage = () => {
 
 const totalPages = computed(() => Math.ceil(totalBlocks.value / pageSize.value));
 
-const selectBlock = (block) => {
-  svgStore.importBlock(block);
+const selectBlock = (block, event) => {
+  svgStore.importBlock(block, event);
   emit('closeBlockDialog');
 };
 

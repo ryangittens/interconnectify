@@ -14,6 +14,7 @@ const table = computed(() => route.params?.table || 'projects');
 const project = ref(null);
 const loading = ref(true);
 const error = ref(null);
+const mode = computed(() => (table.value == 'blocks' ? 'block' : 'project'));
 
 const fetchProject = async () => {
   try {
@@ -48,8 +49,8 @@ function closeBlockDialog() {
   <div v-else>
     <!-- <h1>{{ project.name }}</h1>
     <p>{{ project.description }}</p> -->
-    <ProjectPanel :project="project" mode="project" @open-block-dialog="openBlockDialog" />
-    <ProjectCanvas :project="project" mode="project" />
+    <ProjectPanel :project="project" :mode="mode" @open-block-dialog="openBlockDialog" />
+    <ProjectCanvas :project="project" :mode="mode" />
     <BlockDialog :show="blockDialog" @close-block-dialog="closeBlockDialog" />
     <!-- Add more project details here -->
   </div>

@@ -6,8 +6,8 @@
       :width="rectangle.width"
       :height="rectangle.height"
       :fill="rectangle.color"
-      stroke="black"
-      stroke-width="1"
+      :stroke="rectangle.stroke"
+      :stroke-width="rectangle.strokeWidth"
     />
   </g>
   <g>
@@ -19,8 +19,8 @@
       :width="rect.width"
       :height="rect.height"
       :fill="rect.color"
-      stroke="black"
-      stroke-width="1"
+      :stroke="rect.stroke"
+      :stroke-width="rect.strokeWidth"
       @click.stop="selectRectangle(rect)"
     />
   </g>

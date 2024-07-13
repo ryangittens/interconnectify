@@ -9,7 +9,6 @@
       @mousedown="startInteraction"
       @mousemove="handleMouseMove"
       @mouseup="endInteraction"
-      @mouseleave="endInteraction"
       @wheel="zoom"
     >
       <g ref="axesContainer"></g>
@@ -55,8 +54,6 @@ const props = defineProps({
   project: Object || null,
   mode: String || null
 });
-
-console.log(props.project);
 
 const drawing = props.project?.drawing;
 
@@ -135,6 +132,7 @@ const initSVG = () => {
   setAxesContainer(axesContainer.value);
   deserializeState(drawing);
   store.renderGrid();
+  store.setMode(props.mode);
 };
 
 const resizeSVG = () => {
@@ -216,9 +214,10 @@ const startInteraction = (event) => {
     store.dragStart = coords;
     initialBlockPosition = { ...store.movingBlock };
     store.dragging = true;
-
     // Initialize MoveBlockCommand
-    store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
+    if (!store.droppedBlock) {
+      store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
+    }
   } else if (store.selectedLineSegment) {
     store.dragStart = coords;
     store.dragging = true;
@@ -243,6 +242,9 @@ const handleSvgClick = (event) => {
     !event.target.closest('foreignObject')
   ) {
     deselectAll();
+  }
+  if (store.droppedBlock) {
+    store.endBlockDrag();
   }
   if (store.isAddingConnectionPoint) {
     store.addConnectionPoint(event);

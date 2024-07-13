@@ -9,7 +9,8 @@ import {
   StopDrawingCommand,
   DeleteTextCommand,
   AddRectangleCommand,
-  DeleteRectangleCommand
+  DeleteRectangleCommand,
+  AddBlockCommand
 } from '@/commands';
 import { useHistoryStore } from './history';
 
@@ -58,15 +59,21 @@ export const useSvgStore = defineStore('svgStore', {
     texts: [],
     axezContainer: null,
     isAddingConnectionPoint: false,
-    currentPoint: { x: 0, y: 0 }
+    currentPoint: { x: 0, y: 0 },
+    droppedBlock: false,
+    connectionPoints: [],
+    mode: null
   }),
   actions: {
+    setMode(mode) {
+      this.mode = mode;
+    },
     startConnectionPointsTool() {
       this.activeTool = 'connectionPoints';
       this.isAddingConnectionPoint = true;
     },
     addConnectionPoint(event) {
-      if (!this.selectedBlock) {
+      if (this.mode !== 'block') {
         return;
       }
       const coords = this.getSVGCoordinates(event);
@@ -77,8 +84,13 @@ export const useSvgStore = defineStore('svgStore', {
       //   y: snappedCoords.y - this.selectedBlock.y
       // });
       const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
-      this.selectedBlock.connectionPoints.push({
-        id: Date.now().toString(),
+      // this.selectedBlock.connectionPoints.push({
+      //   id: Date.now().toString(),
+      //   x: snappedCoords.x,
+      //   y: snappedCoords.y
+      // });
+      this.connectionPoints.push({
+        id: uuid.v1(),
         x: snappedCoords.x,
         y: snappedCoords.y
       });
@@ -150,7 +162,9 @@ export const useSvgStore = defineStore('svgStore', {
         y: start.y,
         width: 0,
         height: 0,
-        color: 'rgba(0, 0, 255, 0.5)'
+        color: 'rgba(0, 0, 255, 0.5)',
+        stroke: 'black',
+        strokeWidth: 1
       };
     },
     updateCurrentRectangle(end) {
@@ -197,12 +211,16 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     endDrawing() {
-      this.stopDrawing();
       this.activeTool = null;
-      historyStore.executeCommand(new StopDrawingCommand(this));
       this.deselectAll();
-      this.isDrawing = false;
-      this.isAddingConnectionPoint = false;
+      if (this.droppedBlock) {
+        this.cancelBlockDrop();
+      }
+      if (this.isDrawing) {
+        historyStore.executeCommand(new StopDrawingCommand(this));
+        this.isAddingConnectionPoint = false;
+        this.stopDrawing();
+      }
     },
     finishWire() {
       if (this.wireStart && this.wireEnd) {
@@ -252,7 +270,13 @@ export const useSvgStore = defineStore('svgStore', {
     },
     endInteraction() {
       this.panning = false;
-      this.endLineDrag();
+      if (this.isLineDragging) {
+        this.endLineDrag();
+      }
+      if (this.droppedBlock || this.isBlockDragging) {
+        console.log('got here');
+        this.endBlockDrag();
+      }
 
       // Finalize MoveBlockCommand and execute
       if (this.currentMoveBlockCommand) {
@@ -264,11 +288,13 @@ export const useSvgStore = defineStore('svgStore', {
         historyStore.executeCommand(this.currentMoveBlockCommand);
         this.currentMoveBlockCommand = null;
       }
-
       this.clearInteractionStore();
     },
     addBlock(block) {
-      this.blocks.push(block);
+      const blockExists = this.blocks.some((existingBlock) => existingBlock.id === block.id);
+      if (!blockExists) {
+        this.blocks.push(block);
+      }
     },
     moveBlock(block, dx, dy) {
       const index = this.blocks.findIndex((b) => b.id === block.id);
@@ -299,8 +325,13 @@ export const useSvgStore = defineStore('svgStore', {
         });
       }
     },
-    startBlockMove(block) {
+    startBlockMove(block, event) {
       this.movingBlock = block;
+      if (this.droppedBlock) {
+        const coords = this.getSVGCoordinates(event);
+        block.x = coords.x;
+        block.y = coords.y;
+      }
     },
     updateBlockAndLines(block, lines) {
       const blockIndex = this.blocks.findIndex((b) => b.id === block.id);
@@ -743,6 +774,7 @@ export const useSvgStore = defineStore('svgStore', {
         blocks: this.blocks,
         lines: this.lines,
         rectangles: this.rectangles,
+        connectionPoints: this.connectionPoints,
         viewBox: this.viewBox,
         zoomLevel: this.zoomLevel
       });
@@ -762,6 +794,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.lines = data?.lines || [];
       this.texts = data?.texts || [];
       this.zoomLevel = data?.zoomLevel || 1; // Restore the zoom level
+      this.connectionPoints = data?.connectionPoints;
 
       // Calculate the center of the old viewBox
       const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2;
@@ -794,7 +827,8 @@ export const useSvgStore = defineStore('svgStore', {
       });
     },
 
-    importBlock(data) {
+    importBlock(data, event) {
+      this.selectBlock(null);
       const block = data;
       const drawing = JSON.parse(block.drawing);
 
@@ -817,43 +851,84 @@ export const useSvgStore = defineStore('svgStore', {
         })) || [])
       ];
 
+      const coords = this.getSVGCoordinates(event);
+
       const newBlock = {
         object: 'block',
         id: uuid.v1(),
-        x: 40, // Adjust the position as needed
-        y: 40, // Adjust the position as needed
+        x: coords?.x || 40, // Adjust the position as needed
+        y: coords?.y || 40, // Adjust the position as needed
         width: block?.width || 80, // Adjust width and height as needed
         height: block?.height || 80,
         color: block?.color || '#f0f0f0', // Default color if not provided
         content: this.generateSVGContent(elements),
-        connectionPoints: drawing.connectionPoints || [
-          { id: 'cp1', x: 40, y: 0 }, // Top-center
-          { id: 'cp2', x: 40, y: 80 }, // Bottom-center
-          { id: 'cp3', x: 0, y: 40 }, // Left-center
-          { id: 'cp4', x: 80, y: 40 } // Right-center
-        ]
+        connectionPoints: drawing.connectionPoints || []
       };
 
       this.blocks.push(newBlock);
+      this.startBlockDrop(newBlock);
+    },
+    startBlockDrop(newBlock) {
+      //start block dragging
+      this.mouseDown = true;
+      this.mouseDownBlock = newBlock;
+      this.selectBlock(newBlock);
+      this.dragging = true;
+      this.droppedBlock = true;
+    },
+    endBlockDrag() {
+      //start block dragging
+      historyStore.executeCommand(new AddBlockCommand(this.mouseDownBlock, this));
+      this.mouseDown = false;
+      this.mouseDownBlock = null;
+      this.dragging = false;
+      this.droppedBlock = false;
+      this.isBlockDragging = false;
+    },
+    cancelBlockDrop() {
+      //start block dragging
+      this.deleteBlock(this.mouseDownBlock);
+      this.mouseDown = false;
+      this.mouseDownBlock = null;
+      this.dragging = false;
+      this.droppedBlock = false;
+      this.isBlockDragging = false;
     },
     generateSVGContent(elements) {
-      const svgHeader = '<svg xmlns="http://www.w3.org/2000/svg" width="80" height="160.2" viewBox="0 0 800 1602">';
-      const svgFooter = '</svg>';
-      const svgContent = elements
+      // Separate the elements by type
+      const lines = elements.filter((el) => el.type === 'line');
+      const blocks = elements.filter((el) => el.type === 'block');
+      const rectangles = elements.filter((el) => el.type === 'rectangle');
+      const texts = elements.filter((el) => el.type === 'text');
+      const paths = elements.filter((el) => el.type === 'path');
+
+      // Calculate the bounding box for the elements
+      const { minX, minY, maxX, maxY } = calculateBoundingBox(lines, blocks, rectangles, paths, texts);
+
+      // Calculate normalized dimensions and viewBox
+      const width = maxX - minX;
+      const height = maxY - minY;
+      const viewBox = `0 0 ${width} ${height}`;
+
+      // Normalize the coordinates of elements
+      const normalizedElements = elements
         .map((element) => {
           if (element.type === 'rectangle') {
-            return `<rect x="${element.x}" y="${element.y}" width="${element.width}" height="${element.height}" fill="${element.color}" />`;
+            return `<rect x="${element.x - minX}" y="${element.y - minY}" width="${element.width}" height="${element.height}" fill="${element.color}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" />`;
           } else if (element.type === 'text') {
-            return `<text x="${element.x}" y="${element.y}" font-size="${element.fontSize}">${element.content}</text>`;
+            return `<text x="${element.x - minX}" y="${element.y - minY}" font-size="${element.fontSize}">${element.content}</text>`;
           } else if (element.type === 'line') {
-            return `<line x1="${element.points[0].x}" y1="${element.points[0].y}" x2="${element.points[1].x}" y2="${element.points[1].y}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
+            return `<line x1="${element.points[0].x - minX}" y1="${element.points[0].y - minY}" x2="${element.points[1].x - minX}" y2="${element.points[1].y - minY}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
           } else if (element.type === 'path') {
-            return `<path d="${element.d}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
+            return `<path d="${this.normalizePath(element.d, minX, minY)}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
           }
         })
         .join('');
 
-      return svgHeader + svgContent + svgFooter;
+      // Generate the SVG content
+      const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}">`;
+      const svgFooter = '</svg>';
+      return svgHeader + normalizedElements + svgFooter;
     },
     setSvgElement(svg) {
       this.svg = svg;
@@ -1001,11 +1076,12 @@ export const useSvgStore = defineStore('svgStore', {
 });
 
 // Helper function to calculate the bounding box
-const calculateBoundingBox = (lines, blocks, rectangles) => {
+const calculateBoundingBox = (lines, blocks, rectangles, paths, texts) => {
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
+
   lines?.forEach((line) => {
     line?.points?.forEach((point) => {
       if (point.x < minX) minX = point.x;
@@ -1014,17 +1090,159 @@ const calculateBoundingBox = (lines, blocks, rectangles) => {
       if (point.y > maxY) maxY = point.y;
     });
   });
+
   blocks?.forEach((block) => {
     if (block.x < minX) minX = block.x;
     if (block.y < minY) minY = block.y;
     if (block.x + block.width > maxX) maxX = block.x + block.width;
     if (block.y + block.height > maxY) maxY = block.y + block.height;
   });
+
   rectangles?.forEach((rectangle) => {
     if (rectangle.x < minX) minX = rectangle.x;
     if (rectangle.y < minY) minY = rectangle.y;
     if (rectangle.x + rectangle.width > maxX) maxX = rectangle.x + rectangle.width;
     if (rectangle.y + rectangle.height > maxY) maxY = rectangle.y + rectangle.height;
   });
+
+  paths?.forEach((path) => {
+    const pathBox = calculatePathBoundingBox(path.d);
+    if (pathBox.minX < minX) minX = pathBox.minX;
+    if (pathBox.minY < minY) minY = pathBox.minY;
+    if (pathBox.maxX > maxX) maxX = pathBox.maxX;
+    if (pathBox.maxY > maxY) maxY = pathBox.maxY;
+  });
+
+  texts?.forEach((text) => {
+    const textBox = calculateTextBoundingBox(text);
+    if (textBox.minX < minX) minX = textBox.minX;
+    if (textBox.minY < minY) minY = textBox.minY;
+    if (textBox.maxX > maxX) maxX = textBox.maxX;
+    if (textBox.maxY > maxY) maxY = textBox.maxY;
+  });
+
   return { minX, minY, maxX, maxY };
+};
+
+const calculatePathBoundingBox = (d) => {
+  const path = new Path2D(d);
+  const pathBoundingBox = {
+    minX: Infinity,
+    minY: Infinity,
+    maxX: -Infinity,
+    maxY: -Infinity
+  };
+
+  let currentPoint = { x: 0, y: 0 };
+  let startX = 0;
+  let startY = 0;
+
+  const commands = d.match(/[a-df-z][^a-df-z]*/gi);
+  commands.forEach((command) => {
+    const type = command[0];
+    const args = command
+      .slice(1)
+      .trim()
+      .split(/[\s,]+/)
+      .map(Number);
+
+    switch (type) {
+      case 'M':
+        currentPoint = { x: args[0], y: args[1] };
+        startX = currentPoint.x;
+        startY = currentPoint.y;
+        updateBoundingBox(pathBoundingBox, currentPoint);
+        break;
+      case 'L':
+        currentPoint = { x: args[0], y: args[1] };
+        updateBoundingBox(pathBoundingBox, currentPoint);
+        break;
+      case 'H':
+        currentPoint.x = args[0];
+        updateBoundingBox(pathBoundingBox, currentPoint);
+        break;
+      case 'V':
+        currentPoint.y = args[0];
+        updateBoundingBox(pathBoundingBox, currentPoint);
+        break;
+      case 'C':
+        for (let i = 0; i < args.length; i += 6) {
+          const cp1 = { x: args[i], y: args[i + 1] };
+          const cp2 = { x: args[i + 2], y: args[i + 3] };
+          const end = { x: args[i + 4], y: args[i + 5] };
+          updateBoundingBox(pathBoundingBox, cp1, cp2, end);
+          currentPoint = end;
+        }
+        break;
+      case 'S':
+      case 'Q':
+        for (let i = 0; i < args.length; i += 4) {
+          const cp = { x: args[i], y: args[i + 1] };
+          const end = { x: args[i + 2], y: args[i + 3] };
+          updateBoundingBox(pathBoundingBox, cp, end);
+          currentPoint = end;
+        }
+        break;
+      case 'T':
+      case 'A':
+        for (let i = 0; i < args.length; i += 2) {
+          const end = { x: args[i], y: args[i + 1] };
+          updateBoundingBox(pathBoundingBox, end);
+          currentPoint = end;
+        }
+        break;
+      case 'Z':
+        currentPoint = { x: startX, y: startY };
+        updateBoundingBox(pathBoundingBox, currentPoint);
+        break;
+      default:
+        break;
+    }
+  });
+
+  return pathBoundingBox;
+};
+
+const updateBoundingBox = (boundingBox, ...points) => {
+  points.forEach((point) => {
+    if (point.x < boundingBox.minX) boundingBox.minX = point.x;
+    if (point.y < boundingBox.minY) boundingBox.minY = point.y;
+    if (point.x > boundingBox.maxX) boundingBox.maxX = point.x;
+    if (point.y > boundingBox.maxY) boundingBox.maxY = point.y;
+  });
+};
+
+// const calculatePathBoundingBox = (d) => {
+//   const path = new Path2D(d);
+//   const canvas = document.createElement('canvas');
+//   const context = canvas.getContext('2d');
+//   context.stroke(path);
+//   const metrics = context.measureText(path);
+//   return {
+//     minX: metrics.actualBoundingBoxLeft,
+//     minY: metrics.actualBoundingBoxAscent,
+//     maxX: metrics.actualBoundingBoxRight,
+//     maxY: metrics.actualBoundingBoxDescent
+//   };
+// };
+
+const calculateTextBoundingBox = (text) => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+  textElement.setAttribute('x', text.x);
+  textElement.setAttribute('y', text.y);
+  textElement.setAttribute('font-size', text.fontSize);
+  textElement.textContent = text.content;
+  svg.appendChild(textElement);
+  document.body.appendChild(svg); // Append to DOM to getBBox to work
+
+  const bbox = textElement.getBBox();
+  document.body.removeChild(svg); // Remove from DOM after getting bbox
+
+  return {
+    minX: bbox.x,
+    minY: bbox.y,
+    maxX: bbox.x + bbox.width,
+    maxY: bbox.y + bbox.height
+  };
 };
