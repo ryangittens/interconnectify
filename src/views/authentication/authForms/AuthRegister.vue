@@ -8,11 +8,14 @@ import * as yup from 'yup';
 const authStore = useAuthStore();
 const show1 = ref(false);
 
+import { useSnackbarStore } from '@/stores/snackbar';
+const snackbarStore = useSnackbarStore();
+
 const schema = yup.object({
   firstname: yup.string().required('First name is required'),
   lastname: yup.string().required('Last name is required'),
   email: yup.string().email('E-mail must be valid').required('E-mail is required'),
-  password: yup.string().required('Password is required').max(10, 'Password must be less than 10 characters'),
+  password: yup.string().required('Password is required').min(5, 'Password must be more than 5 characters'),
   checkbox: yup.bool().oneOf([true], 'You must agree to continue!')
 });
 
@@ -38,12 +41,13 @@ const onSubmit = handleSubmit(async (values) => {
     await authStore.register(values.email, values.password);
   } catch (error) {
     errors.apiError = error.message;
+    snackbarStore.showSnackbar(error.message, 'error');
   }
 });
 </script>
 
 <template>
-  <v-btn block color="primary" variant="outlined" class="text-lightText googleBtn">
+  <!-- <v-btn block color="primary" variant="outlined" class="text-lightText googleBtn">
     <img :src="Google" alt="google" />
     <span class="ml-2">Sign up with Google</span>
   </v-btn>
@@ -54,7 +58,7 @@ const onSubmit = handleSubmit(async (values) => {
       <v-divider class="custom-devider" />
     </v-col>
   </v-row>
-  <h5 class="text-h5 text-center my-4 mb-8">Sign up with Email address</h5>
+  <h5 class="text-h5 text-center my-4 mb-8">Sign up with Email address</h5> -->
   <Form @submit="onSubmit" class="mt-7 loginForm">
     <v-row>
       <v-col cols="12" sm="6">

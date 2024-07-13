@@ -38,7 +38,7 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <v-btn block color="primary" variant="outlined" class="text-lightText googleBtn">
+  <!-- <v-btn block color="primary" variant="outlined" class="text-lightText googleBtn">
     <img :src="Google" alt="google" />
     <span class="ml-2">Sign in with Google</span>
   </v-btn>
@@ -49,7 +49,7 @@ const onSubmit = handleSubmit(async (values) => {
       <v-divider class="custom-devider" />
     </v-col>
   </v-row>
-  <h5 class="text-h5 text-center my-4 mb-8">Sign in with Email address</h5>
+  <h5 class="text-h5 text-center my-4 mb-8">Sign in with Email address</h5> -->
   <Form @submit="onSubmit" class="mt-7 loginForm">
     <v-text-field
       v-model="email"
