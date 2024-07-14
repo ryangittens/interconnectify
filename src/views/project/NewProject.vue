@@ -36,12 +36,12 @@ function closeProjectDialog() {
   selectTemplate(null);
 }
 
-const deleteProject = async (projectId) => {
+const deleteTemplate = async (projectId) => {
   const confirmed = window.confirm('Are you sure you want to delete this project?');
   if (!confirmed) return;
 
   try {
-    const { error: deleteError } = await supabase.from('projects').delete().eq('id', projectId);
+    const { error: deleteError } = await supabase.from('templates').delete().eq('id', projectId);
 
     if (deleteError) {
       throw deleteError;
@@ -145,7 +145,7 @@ watch([currentPage, searchQuery], fetchProjects);
               <v-col>
                 <v-card class="mx-auto overflow-hidden" max-width="344" min-width="244">
                   <v-img class="align-end" color="lightprimary" height="200px" cover :src="project.project_svg">
-                    <v-btn @click="deleteProject(project.id)" class="deleteProjectIcon" color="error" icon rounded="lg" variant="text">
+                    <v-btn @click="deleteTemplate(project.id)" class="deleteProjectIcon" color="error" icon rounded="lg" variant="text">
                       <TrashIcon stroke-width="1.5" width="25" /> </v-btn
                   ></v-img>
 

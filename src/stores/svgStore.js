@@ -64,7 +64,11 @@ export const useSvgStore = defineStore('svgStore', {
     droppedBlock: false,
     connectionPoints: [],
     mode: null,
-    selectedConnectionPoint: null
+    selectedConnectionPoint: null,
+    pendingFragmentData: null,
+    tempBlock: null,
+    paths: [],
+    droppedFragment: false
   }),
   actions: {
     handleSvgClick(event) {
@@ -80,6 +84,10 @@ export const useSvgStore = defineStore('svgStore', {
       }
       if (this.droppedBlock) {
         this.endBlockDrag();
+      }
+      if (this.droppedFragment) {
+        const coords = this.getSVGCoordinates(event);
+        this.endFragmentDrop(coords);
       }
       if (this.isAddingConnectionPoint) {
         this.startAddConnectionPoint(event);
@@ -345,8 +353,11 @@ export const useSvgStore = defineStore('svgStore', {
         this.endLineDrag();
       }
       if (this.droppedBlock || this.isBlockDragging) {
-        console.log('got here');
         this.endBlockDrag();
+      }
+
+      if (this.droppedFragment || this.isBlockDragging) {
+        this.endFragmentDrop();
       }
 
       // Finalize MoveBlockCommand and execute
@@ -890,15 +901,138 @@ export const useSvgStore = defineStore('svgStore', {
         this.renderGrid();
       }
     },
-    deserializeBlocks(data) {
-      const parsedData = JSON.parse(data);
-      parsedData.forEach((blockData) => {
-        if (blockData.object === 'block') {
-          this.importProjectAsBlock(blockData);
-        } else {
-          this.blocks.push(blockData);
-        }
-      });
+    startImportFragment(fragment, event) {
+      this.selectBlock(null);
+      this.pendingFragmentData = fragment.drawing;
+      const drawing = JSON.parse(fragment.drawing);
+
+      // const svg = fragment.project_svg;
+      // const svgContent = decodeDataUri(svg);
+      // const svgElement = parseSvgContent(svgContent);
+      // const elements = extractElementsFromSvg(svgElement);
+
+      const coords = this.getSVGCoordinates(event);
+      const elements = [
+        ...(drawing.rectangles?.map((rect) => ({
+          ...rect,
+          type: 'rectangle'
+        })) || []),
+        ...(drawing.texts?.map((text) => ({
+          ...text,
+          type: 'text'
+        })) || []),
+        ...(drawing.lines?.map((line) => ({
+          ...line,
+          type: 'line'
+        })) || []),
+        ...(drawing.paths?.map((path) => ({
+          ...path,
+          type: 'path'
+        })) || []),
+        ...(drawing.blocks?.map((block) => ({
+          ...block,
+          type: 'block'
+        })) || [])
+      ];
+      // let blocks = drawing?.blocks;
+
+      // if (blocks && blocks.length) {
+      //   blocks.forEach((block) => {
+      //     console.log(block)
+      //     const blockElements = [
+      //       ...(block.elements
+      //         ?.filter((e) => e.object === 'rectangle')
+      //         ?.map((rect) => ({
+      //           ...rect,
+      //           type: 'rectangle'
+      //         })) || []),
+      //       ...(block.elements
+      //         ?.filter((e) => e.object === 'text')
+      //         ?.map((text) => ({
+      //           ...text,
+      //           type: 'text'
+      //         })) || []),
+      //       ...(block.elements
+      //         ?.filter((e) => e.object === 'line')
+      //         ?.map((line) => ({
+      //           ...line,
+      //           type: 'line'
+      //         })) || []),
+      //       ...(block.elements
+      //         ?.filter((e) => e.object === 'path')
+      //         ?.map((path) => ({
+      //           ...path,
+      //           type: 'path'
+      //         })) || [])
+      //     ];
+      //     elements.push(...blockElements);
+      //   });
+      // }
+
+      const tempBlock = {
+        object: 'block',
+        id: uuid.v1(),
+        x: coords?.x || 40, // Adjust the position as needed
+        y: coords?.y || 40, // Adjust the position as needed
+        width: 80, // Adjust width and height as needed
+        height: 80,
+        color: '#f0f0f0', // Default color if not provided
+        elements: elements,
+        content: this.generateSVGContent(elements, drawing?.connectionPoints).svg,
+        connectionPoints: []
+      };
+
+      this.tempBlock = tempBlock;
+      this.blocks.push(tempBlock);
+      this.startFragmentDrop(tempBlock);
+    },
+    importPendingFragment(coords) {
+      // Parse the fragment data
+      const data = JSON.parse(this.pendingFragmentData);
+
+      // Extract elements from the data
+      const blocks = data?.blocks || [];
+      const rectangles = data?.rectangles || [];
+      const lines = data?.lines || [];
+      const texts = data?.texts || [];
+
+      // Update the UUID of each block
+      const updatedBlocks = blocks.map((block) => ({
+        ...block,
+        id: uuid.v1(), // Generate a new UUID for the block
+        connectionPoints: block.connectionPoints.map((cp) => ({
+          ...cp,
+          id: uuid.v1() // Generate a new UUID for each connection point
+        }))
+      }));
+
+      // Update the UUID of each rectangle
+      const updatedRectangles = rectangles.map((rect) => ({
+        ...rect,
+        id: uuid.v1() // Generate a new UUID for the rectangle
+      }));
+
+      // Update the UUID of each line
+      const updatedLines = lines.map((line) => ({
+        ...line,
+        id: uuid.v1(), // Generate a new UUID for the line
+        points: line.points.map((point) => ({
+          ...point,
+          id: uuid.v1() // Generate a new UUID for each point (if applicable)
+        }))
+      }));
+
+      // Update the UUID of each text
+      const updatedTexts = texts.map((text) => ({
+        ...text,
+        id: uuid.v1() // Generate a new UUID for the text
+      }));
+
+      // Push the updated elements to the state
+      this.blocks.push(...updatedBlocks);
+      this.rectangles.push(...updatedRectangles);
+      this.lines.push(...updatedLines);
+      this.texts.push(...updatedTexts);
     },
 
     importBlock(data, event) {
@@ -935,6 +1069,7 @@ export const useSvgStore = defineStore('svgStore', {
         width: block?.width || 80, // Adjust width and height as needed
         height: block?.height || 80,
         color: block?.color || '#f0f0f0', // Default color if not provided
+        elements: elements,
         content: this.generateSVGContent(elements, drawing?.connectionPoints).svg,
         connectionPoints: this.generateSVGContent(elements, drawing?.connectionPoints).connectionPoints || []
       };
@@ -959,6 +1094,26 @@ export const useSvgStore = defineStore('svgStore', {
       this.droppedBlock = false;
       this.isBlockDragging = false;
     },
+    startFragmentDrop(newBlock) {
+      //start block dragging
+      this.mouseDown = true;
+      this.mouseDownBlock = newBlock;
+      this.selectBlock(newBlock);
+      this.dragging = true;
+      this.droppedFragment = true;
+    },
+    endFragmentDrop(coords) {
+      //start block dragging
+      this.importPendingFragment(coords);
+      this.deleteBlock(this.tempBlock);
+      this.mouseDown = false;
+      this.mouseDownBlock = null;
+      this.dragging = false;
+      this.droppedFragment = false;
+      this.isBlockDragging = false;
+      this.tempBlock = null;
+      this.pendingFragmentData = null;
+    },
     cancelBlockDrop() {
       //start block dragging
       this.deleteBlock(this.mouseDownBlock);
@@ -971,10 +1126,10 @@ export const useSvgStore = defineStore('svgStore', {
     generateSVGContent(elements, connectionPoints) {
       // Separate the elements by type
       const lines = elements.filter((el) => el.type === 'line');
-      const blocks = elements.filter((el) => el.type === 'block');
       const rectangles = elements.filter((el) => el.type === 'rectangle');
       const texts = elements.filter((el) => el.type === 'text');
       const paths = elements.filter((el) => el.type === 'path');
+      const blocks = elements.filter((el) => el.type === 'block');
 
       // Calculate the bounding box for the elements
       const { minX, minY, maxX, maxY } = calculateBoundingBox(lines, blocks, rectangles, paths, texts);
@@ -994,8 +1149,24 @@ export const useSvgStore = defineStore('svgStore', {
           } else if (element.type === 'line') {
             return `<line x1="${element.points[0].x - minX}" y1="${element.points[0].y - minY}" x2="${element.points[1].x - minX}" y2="${element.points[1].y - minY}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
           } else if (element.type === 'path') {
-            return `<path d="${this.normalizePath(element.d, minX, minY)}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
+            return `<path d="${normalizePath(element.d, minX, minY)}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
           }
+        })
+        .join('');
+
+      // Include block contents directly into the SVG
+      const normalizedBlocks = blocks
+        .map((block) => {
+          // Normalize block position
+          const normalizedX = block.x - minX;
+          const normalizedY = block.y - minY;
+
+          // Adjust the block's content position
+          const blockContent = block.content
+            .replace(/<svg [^>]*>/, `<g transform="translate(${normalizedX}, ${normalizedY})">`)
+            .replace(/<\/svg>/, '</g>');
+
+          return blockContent;
         })
         .join('');
 
@@ -1013,7 +1184,7 @@ export const useSvgStore = defineStore('svgStore', {
       const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}">`;
       const svgFooter = '</svg>';
       return {
-        svg: svgHeader + normalizedElements + svgFooter,
+        svg: svgHeader + normalizedElements + normalizedBlocks + svgFooter,
         connectionPoints: normalizedConnectionPoints
       };
     },
@@ -1051,7 +1222,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     fitSVGToExtent() {
-      const { minX, minY, maxX, maxY } = calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.texts);
+      const { minX, minY, maxX, maxY } = calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.paths, this.texts);
 
       if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
         console.error('No elements to fit');
@@ -1167,11 +1338,70 @@ export const useSvgStore = defineStore('svgStore', {
 });
 
 // Helper function to calculate the bounding box
-const calculateBoundingBox = (lines, blocks, rectangles, paths, texts) => {
+function calculateBoundingBox(lines, blocks, rectangles, paths, texts) {
   let minX = Infinity,
     minY = Infinity,
     maxX = -Infinity,
     maxY = -Infinity;
+
+  const parser = new DOMParser();
+
+  let elements = [];
+  if (blocks && blocks.length) {
+    blocks.forEach((block) => {
+      if (block.content) {
+        const svgDoc = parser.parseFromString(block.content, 'image/svg+xml');
+        const svgElement = svgDoc.documentElement;
+
+        // Get the viewBox of the SVG element
+        const viewBox = svgElement.viewBox.baseVal;
+        const blockBox = {
+          x: block.x + viewBox.x,
+          y: block.y + viewBox.y,
+          width: viewBox.width,
+          height: viewBox.height
+        };
+
+        if (blockBox.x < minX) minX = blockBox.x;
+        if (blockBox.y < minY) minY = blockBox.y;
+        if (blockBox.x + blockBox.width > maxX) maxX = blockBox.x + blockBox.width;
+        if (blockBox.y + blockBox.height > maxY) maxY = blockBox.y + blockBox.height;
+      }
+
+      const blockElements = [
+        ...(block.elements
+          ?.filter((e) => e.object === 'rectangle')
+          ?.map((rect) => ({
+            ...rect,
+            type: 'rectangle'
+          })) || []),
+        ...(block.elements
+          ?.filter((e) => e.object === 'text')
+          ?.map((text) => ({
+            ...text,
+            type: 'text'
+          })) || []),
+        ...(block.elements
+          ?.filter((e) => e.object === 'line')
+          ?.map((line) => ({
+            ...line,
+            type: 'line'
+          })) || []),
+        ...(block.elements
+          ?.filter((e) => e.object === 'path')
+          ?.map((path) => ({
+            ...path,
+            type: 'path'
+          })) || [])
+      ];
+      elements.push(...blockElements);
+    });
+  }
+
+  lines.push(...elements.filter((el) => el.type === 'line'));
+  rectangles.push(...elements.filter((el) => el.type === 'rectangle'));
+  texts.push(...elements.filter((el) => el.type === 'text'));
+  paths.push(...elements.filter((el) => el.type === 'path'));
 
   lines?.forEach((line) => {
     line?.points?.forEach((point) => {
@@ -1180,13 +1410,6 @@ const calculateBoundingBox = (lines, blocks, rectangles, paths, texts) => {
       if (point.x > maxX) maxX = point.x;
       if (point.y > maxY) maxY = point.y;
     });
-  });
-
-  blocks?.forEach((block) => {
-    if (block.x < minX) minX = block.x;
-    if (block.y < minY) minY = block.y;
-    if (block.x + block.width > maxX) maxX = block.x + block.width;
-    if (block.y + block.height > maxY) maxY = block.y + block.height;
   });
 
   rectangles?.forEach((rectangle) => {
@@ -1213,7 +1436,7 @@ const calculateBoundingBox = (lines, blocks, rectangles, paths, texts) => {
   });
 
   return { minX, minY, maxX, maxY };
-};
+}
 
 const calculatePathBoundingBox = (d) => {
   const path = new Path2D(d);
@@ -1337,3 +1560,130 @@ const calculateTextBoundingBox = (text) => {
     maxY: bbox.y + bbox.height
   };
 };
+
+function decodeDataUri(dataUri) {
+  // Remove the "data:image/svg+xml;charset=utf-8," part
+  const svgContent = dataUri.replace(/^data:image\/svg\+xml;charset=utf-8,/, '');
+  // Decode the URI-encoded SVG content
+  const decodedContent = decodeURIComponent(svgContent);
+  return decodedContent;
+}
+
+function parseSvgContent(svgContent) {
+  const parser = new DOMParser();
+  const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
+  const svgElements = svgDoc.querySelector('svg');
+  return svgElements;
+}
+
+function extractElementsFromSvg(svgElement) {
+  const elements = [];
+
+  svgElement.querySelectorAll('rect').forEach((rect) => {
+    elements.push({
+      type: 'rectangle',
+      x: parseFloat(rect.getAttribute('x')),
+      y: parseFloat(rect.getAttribute('y')),
+      width: parseFloat(rect.getAttribute('width')),
+      height: parseFloat(rect.getAttribute('height')),
+      color: rect.getAttribute('fill'),
+      stroke: rect.getAttribute('stroke'),
+      strokeWidth: parseFloat(rect.getAttribute('stroke-width'))
+    });
+  });
+
+  svgElement.querySelectorAll('text').forEach((text) => {
+    elements.push({
+      type: 'text',
+      x: parseFloat(text.getAttribute('x')),
+      y: parseFloat(text.getAttribute('y')),
+      fontSize: parseFloat(text.getAttribute('font-size')),
+      content: text.textContent
+    });
+  });
+
+  svgElement.querySelectorAll('line').forEach((line) => {
+    elements.push({
+      type: 'line',
+      points: [
+        { x: parseFloat(line.getAttribute('x1')), y: parseFloat(line.getAttribute('y1')) },
+        { x: parseFloat(line.getAttribute('x2')), y: parseFloat(line.getAttribute('y2')) }
+      ],
+      color: line.getAttribute('stroke'),
+      strokeDasharray: line.getAttribute('stroke-dasharray')
+    });
+  });
+
+  svgElement.querySelectorAll('path').forEach((path) => {
+    elements.push({
+      type: 'path',
+      d: path.getAttribute('d'),
+      stroke: path.getAttribute('stroke'),
+      strokeWidth: parseFloat(path.getAttribute('stroke-width')),
+      fill: path.getAttribute('fill')
+    });
+  });
+
+  return elements;
+}
+
+function normalizePath(d, offsetX, offsetY) {
+  // Split the path data into commands and coordinates
+  const commands = d.match(/[a-z][^a-z]*/gi);
+  if (!commands) return d;
+
+  // Function to normalize a coordinate pair
+  const normalizeCoordinates = (coords, offsetX, offsetY) => {
+    return coords.map((coord, index) => {
+      if (index % 2 === 0) {
+        // Even index: x-coordinate
+        return parseFloat(coord) - offsetX;
+      } else {
+        // Odd index: y-coordinate
+        return parseFloat(coord) - offsetY;
+      }
+    });
+  };
+
+  // Process each command
+  const normalizedCommands = commands.map((command) => {
+    const type = command[0];
+    const args = command
+      .slice(1)
+      .trim()
+      .split(/[\s,]+/)
+      .map(parseFloat);
+    let normalizedArgs;
+
+    switch (type.toLowerCase()) {
+      case 'm': // moveto
+      case 'l': // lineto
+      case 't': // smooth curveto
+        normalizedArgs = normalizeCoordinates(args, offsetX, offsetY);
+        break;
+      case 'h': // horizontal lineto
+        normalizedArgs = args.map((x) => x - offsetX);
+        break;
+      case 'v': // vertical lineto
+        normalizedArgs = args.map((y) => y - offsetY);
+        break;
+      case 'c': // curveto
+      case 's': // smooth curveto
+      case 'q': // quadratic Bézier curve
+      case 'a': // elliptical Arc
+        normalizedArgs = normalizeCoordinates(args, offsetX, offsetY);
+        break;
+      case 'z': // closepath
+        normalizedArgs = [];
+        break;
+      default:
+        normalizedArgs = args;
+        break;
+    }
+
+    return type + normalizedArgs.join(' ');
+  });
+
+  // Join the normalized commands back into a single path data string
+  return normalizedCommands.join(' ');
+}

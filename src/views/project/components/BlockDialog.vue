@@ -9,10 +9,13 @@
               <v-list-item v-for="filter in filters" :key="filter" @click="applyFilter(filter)">
                 <v-list-item-title>{{ filter }}</v-list-item-title>
               </v-list-item>
+              <v-list-item @click="getFragments">
+                <v-list-item-title>Fragments</v-list-item-title>
+              </v-list-item>
             </v-list>
           </perfect-scrollbar>
         </v-navigation-drawer>
-        <v-main style="height: 250px">
+        <v-main style="height: 450px">
           <v-card elevation="0" class="innerCard maxWidth">
             <v-card-text class="pt-0">
               <div class="d-flex align-center justify-space-between">
@@ -29,13 +32,38 @@
                   </template>
                 </v-text-field>
               </div>
-              <div class="d-flex mt-4">
-                <perfect-scrollbar>
+              <div v-if="showFragments" class="d-flex mt-4">
+                <perfect-scrollbar style="height: inherit">
+                  <v-row class="ma-0">
+                    <template v-for="(fragment, i) in fragments" :key="i">
+                      <v-col>
+                        <v-card
+                          @click="importFragment(fragment, $event)"
+                          class="blockCard mx-auto overflow-hidden"
+                          max-width="344"
+                          min-width="244"
+                        >
+                          <!-- <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img> -->
+                          <v-card-actions>
+                            <div class="cursorPointer">
+                              <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
+                                {{ fragment.project_name }}
+                              </h6>
+                            </div>
+                          </v-card-actions>
+                        </v-card>
+                      </v-col>
+                    </template>
+                  </v-row>
+                </perfect-scrollbar>
+              </div>
+              <div v-else class="d-flex mt-4">
+                <perfect-scrollbar style="height: inherit">
                   <v-row class="ma-0">
                     <template v-for="(block, i) in filteredBlocks" :key="i">
                       <v-col>
                         <v-card
-                          @click="selectBlock(block, $event)"
+                          @click="importBlock(block, $event)"
                           class="blockCard mx-auto overflow-hidden"
                           max-width="344"
                           min-width="244"
@@ -100,16 +128,25 @@ const props = defineProps({
 
 const router = useRouter();
 const blocks = ref([]);
+const fragments = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 const totalBlocks = ref(0);
+const totalFragments = ref(0);
 const selectedFilter = ref('All');
 const filters = ['All', 'Category 1', 'Category 2', 'Category 3'];
 
+const showFragments = ref(false);
+
 const svgStore = useSvgStore();
+
+const getFragments = async () => {
+  showFragments.value = true;
+  await fetchFragments();
+};
 
 const fetchBlocks = async () => {
   try {
@@ -139,13 +176,30 @@ const filteredBlocks = computed(() => {
 });
 
 const applyFilter = (filter) => {
+  showFragments.value = false;
   selectedFilter.value = filter;
   currentPage.value = 1;
   fetchBlocks();
 };
 
-const toggleBlockPanel = (blockId) => {
-  show.value[blockId] = !show.value[blockId];
+const fetchFragments = async () => {
+  try {
+    loading.value = true;
+    let { data, error, count } = await supabase
+      .from('templates')
+      .select('*', { count: 'exact' })
+      .ilike('project_name', `%${searchQuery.value}%`)
+      .range((currentPage.value - 1) * pageSize.value, currentPage.value * pageSize.value - 1);
+
+    if (error) throw error;
+
+    fragments.value = data;
+    totalFragments.value = count;
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
 };
 
 const prevPage = () => {
@@ -164,8 +218,13 @@ const nextPage = () => {
 
 const totalPages = computed(() => Math.ceil(totalBlocks.value / pageSize.value));
 
-const selectBlock = (block, event) => {
+const importBlock = (block, event) => {
   svgStore.importBlock(block, event);
+  emit('closeBlockDialog');
+};
+
+const importFragment = (fragment, event) => {
+  svgStore.startImportFragment(fragment, event);
   emit('closeBlockDialog');
 };
 
