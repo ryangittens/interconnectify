@@ -5,7 +5,7 @@
       :key="line.id"
       :d="line.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')"
       :stroke="isLineSelected(line) ? primary : line.color"
-      stroke-width="2"
+      stroke-width="1"
       :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
       fill="none"
       style="cursor: pointer"
@@ -18,7 +18,7 @@
       v-if="store.hoverPoint && store.hoverPoint.x !== null && store.isDrawing && store.currentLine.length"
       :d="`M ${store.currentLine.map((point) => `${point.x},${point.y}`).join(' L ')} L ${store.hoverPoint.x},${store.hoverPoint.y}`"
       :stroke="store.lineColor"
-      stroke-width="2"
+      stroke-width="1"
       :stroke-dasharray="store.lineType === 'dashed' ? '5, 5' : 'none'"
       fill="none"
     ></path>

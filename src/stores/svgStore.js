@@ -11,7 +11,8 @@ import {
   AddRectangleCommand,
   DeleteRectangleCommand,
   AddBlockCommand,
-  DeleteConnectionPointCommand
+  DeleteConnectionPointCommand,
+  AddConnectionPointCommand
 } from '@/commands';
 import { useHistoryStore } from './history';
 
@@ -159,8 +160,7 @@ export const useSvgStore = defineStore('svgStore', {
         x: snappedCoords.x,
         y: snappedCoords.y
       };
-      this.addConnectionPoint(cp);
-      this.isAddingConnectionPoint = false;
+      historyStore.executeCommand(new AddConnectionPointCommand(cp, this));
       this.endDrawing();
     },
     addConnectionPoint(cp) {
@@ -299,6 +299,10 @@ export const useSvgStore = defineStore('svgStore', {
         historyStore.executeCommand(new StopDrawingCommand(this));
         this.isAddingConnectionPoint = false;
         this.stopDrawing();
+      }
+      if (this.isAddingConnectionPoint) {
+        this.isAddingConnectionPoint = false;
+        this.currentPoint = { x: 0, y: 0 };
       }
     },
     finishWire() {
@@ -1087,7 +1091,9 @@ export const useSvgStore = defineStore('svgStore', {
     },
     endBlockDrag() {
       //start block dragging
-      historyStore.executeCommand(new AddBlockCommand(this.mouseDownBlock, this));
+      if (this.droppedBlock) {
+        historyStore.executeCommand(new AddBlockCommand(this.mouseDownBlock, this));
+      }
       this.mouseDown = false;
       this.mouseDownBlock = null;
       this.dragging = false;
@@ -1147,7 +1153,12 @@ export const useSvgStore = defineStore('svgStore', {
           } else if (element.type === 'text') {
             return `<text x="${element.x - minX}" y="${element.y - minY}" font-size="${element.fontSize}">${element.content}</text>`;
           } else if (element.type === 'line') {
-            return `<line x1="${element.points[0].x - minX}" y1="${element.points[0].y - minY}" x2="${element.points[1].x - minX}" y2="${element.points[1].y - minY}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
+            if (element.points.length === 2) {
+              return `<line x1="${element.points[0].x - minX}" y1="${element.points[0].y - minY}" x2="${element.points[1].x - minX}" y2="${element.points[1].y - minY}" stroke="${element.color}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
+            } else {
+              const points = element.points.map((point) => `${point.x - minX},${point.y - minY}`).join(' ');
+              return `<polyline points="${points}" stroke="${element.color}" fill="none" stroke-width="${element.strokeWidth}" stroke-dasharray="${element.type === 'dashed' ? '5,5' : 'none'}" />`;
+            }
           } else if (element.type === 'path') {
             return `<path d="${normalizePath(element.d, minX, minY)}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`;
           }
@@ -1188,6 +1199,7 @@ export const useSvgStore = defineStore('svgStore', {
         connectionPoints: normalizedConnectionPoints
       };
     },
+
     setSvgElement(svg) {
       this.svg = svg;
     },

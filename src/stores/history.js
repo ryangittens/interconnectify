@@ -9,6 +9,7 @@ export const useHistoryStore = defineStore('history', {
   }),
   actions: {
     executeCommand(command) {
+      console.log(this.undoStack, this.redoStack);
       if (typeof command.execute === 'function') {
         command.execute();
         this.undoStack.push(command);
@@ -19,6 +20,7 @@ export const useHistoryStore = defineStore('history', {
       }
     },
     undo() {
+      console.log(this.undoStack, this.redoStack);
       if (this.undoStack.length) {
         const command = this.undoStack.pop();
         if (command && typeof command.undo === 'function') {
@@ -31,6 +33,7 @@ export const useHistoryStore = defineStore('history', {
       }
     },
     redo() {
+      console.log(this.undoStack, this.redoStack);
       if (this.redoStack.length) {
         const command = this.redoStack.pop();
         if (command) {

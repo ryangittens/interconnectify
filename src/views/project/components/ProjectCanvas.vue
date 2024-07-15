@@ -13,9 +13,9 @@
     >
       <g ref="axesContainer"></g>
       <GridLines />
-      <Lines />
       <Blocks />
       <RectangleTool />
+      <Lines />
       <ConnectionPointsTool />
       <TextTool />
     </svg>

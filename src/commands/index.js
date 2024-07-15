@@ -10,3 +10,4 @@ export { DeleteTextCommand } from './DeleteTextCommand';
 export { AddRectangleCommand } from './AddRectangleCommand';
 export { DeleteRectangleCommand } from './DeleteRectangleCommand';
 export { DeleteConnectionPointCommand } from './DeleteConnectionPointCommand';
+export { AddConnectionPointCommand } from './AddConnectionPointCommand';
