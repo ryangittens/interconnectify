@@ -812,7 +812,7 @@ export const useSvgStore = defineStore('svgStore', {
     stopDrawing(line) {
       if (line) {
         this.addLine(line);
-      } else if (this.currentLine.length > 0) {
+      } else if (this.currentLine.length > 1) {
         let newLine = {
           object: 'line',
           id: uuid.v1(),
@@ -823,6 +823,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.addLine(newLine);
         this.currentLine = [];
       }
+      this.currentLine = [];
       this.isDrawing = false;
       this.clearAxes();
     },

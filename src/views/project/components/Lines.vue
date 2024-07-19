@@ -1,11 +1,12 @@
 <template>
   <g ref="linesContainer">
+    <!-- Render the lines -->
     <path
       v-for="line in store.lines"
-      :key="line.id"
+      :key="`path-${line.id}`"
       :d="line.points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ')"
       :stroke="isLineSelected(line) ? primary : line.color"
-      stroke-width="1"
+      stroke-width="2"
       :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
       fill="none"
       style="cursor: pointer"
@@ -13,12 +14,20 @@
       @mouseup="handleLineMouseUp(line, $event)"
       @click="handleLineClick(line)"
     ></path>
+
+    <!-- Render the labels for each line ID -->
+    <template v-for="line in store.lines" :key="line.id">
+      <text :x="getLabelPosition(line).x" :y="getLabelPosition(line).y" class="line-label">
+        {{ line.id }}
+      </text>
+    </template>
+
     <!-- Hover Line for Preview -->
     <path
       v-if="store.hoverPoint && store.hoverPoint.x !== null && store.isDrawing && store.currentLine.length"
       :d="`M ${store.currentLine.map((point) => `${point.x},${point.y}`).join(' L ')} L ${store.hoverPoint.x},${store.hoverPoint.y}`"
       :stroke="store.lineColor"
-      stroke-width="1"
+      stroke-width="2"
       :stroke-dasharray="store.lineType === 'dashed' ? '5, 5' : 'none'"
       fill="none"
     ></path>
@@ -56,4 +65,28 @@ const handleLineClick = (line) => {
 };
 
 const isLineSelected = (line) => store.selectedLine && store.selectedLine.id === line.id;
+
+const getLabelPosition = (line) => {
+  // Calculate the midpoint of the line
+  const midpointIndex = Math.floor(line.points.length / 2);
+  const midpoint = line.points[midpointIndex];
+
+  // If there are only two points, place the label in the middle
+  if (line.points.length === 2) {
+    return {
+      x: (line.points[0].x + line.points[1].x) / 2,
+      y: (line.points[0].y + line.points[1].y) / 2
+    };
+  }
+
+  // Otherwise, return the midpoint of the points
+  return midpoint;
+};
 </script>
+
+<style scoped>
+.line-label {
+  font-size: 10px;
+  fill: red;
+}
+</style>
