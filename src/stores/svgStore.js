@@ -69,7 +69,8 @@ export const useSvgStore = defineStore('svgStore', {
     pendingFragmentData: null,
     tempBlock: null,
     paths: [],
-    droppedFragment: false
+    droppedFragment: false,
+    fragmentDropOffset: { x: 0, y: 0 }
   }),
   actions: {
     handleSvgClick(event) {
@@ -351,7 +352,7 @@ export const useSvgStore = defineStore('svgStore', {
       const updatedPoint = { ...point, ...snappedPoint };
       historyStore.executeCommand(new AddLinePointCommand(this, updatedPoint));
     },
-    endInteraction() {
+    endInteraction(event) {
       this.panning = false;
       if (this.isLineDragging) {
         this.endLineDrag();
@@ -361,7 +362,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
 
       if (this.droppedFragment || this.isBlockDragging) {
-        this.endFragmentDrop();
+        this.endFragmentDrop(event);
       }
 
       // Finalize MoveBlockCommand and execute
@@ -974,6 +975,9 @@ export const useSvgStore = defineStore('svgStore', {
       //   });
       // }
 
+      const { svg, connectionPoints, offset } = this.generateSVGContent(elements, drawing?.connectionPoints);
+      this.fragmentDropOffset = offset;
+
       const tempBlock = {
         object: 'block',
         id: uuid.v1(),
@@ -983,7 +987,7 @@ export const useSvgStore = defineStore('svgStore', {
         height: 80,
         color: '#f0f0f0', // Default color if not provided
         elements: elements,
-        content: this.generateSVGContent(elements, drawing?.connectionPoints).svg,
+        content: svg,
         connectionPoints: []
       };
 
@@ -1008,7 +1012,9 @@ export const useSvgStore = defineStore('svgStore', {
         connectionPoints: block.connectionPoints.map((cp) => ({
           ...cp,
           id: uuid.v1() // Generate a new UUID for each connection point
-        }))
+        })),
+        x: block.x + coords.x,
+        y: block.y + coords.y
       }));
 
       // Update the UUID of each rectangle
@@ -1066,6 +1072,8 @@ export const useSvgStore = defineStore('svgStore', {
 
       const coords = this.getSVGCoordinates(event);
 
+      const { svg, connectionPoints, offset } = this.generateSVGContent(elements, drawing?.connectionPoints);
+
       const newBlock = {
         object: 'block',
         id: uuid.v1(),
@@ -1075,9 +1083,11 @@ export const useSvgStore = defineStore('svgStore', {
         height: block?.height || 80,
         color: block?.color || '#f0f0f0', // Default color if not provided
         elements: elements,
-        content: this.generateSVGContent(elements, drawing?.connectionPoints).svg,
-        connectionPoints: this.generateSVGContent(elements, drawing?.connectionPoints).connectionPoints || []
+        content: svg,
+        connectionPoints: connectionPoints || []
       };
+
+      this.fragmentDropOffset = offset;
 
       this.blocks.push(newBlock);
       this.startBlockDrop(newBlock);
@@ -1109,9 +1119,15 @@ export const useSvgStore = defineStore('svgStore', {
       this.dragging = true;
       this.droppedFragment = true;
     },
-    endFragmentDrop(coords) {
+    endFragmentDrop(event) {
       //start block dragging
-      this.importPendingFragment(coords);
+
+      if (event) {
+        const coords = this.getSVGCoordinates(event);
+        const offset = { x: coords.x - this.fragmentDropOffset.x, y: coords.y - this.fragmentDropOffset.y };
+        this.importPendingFragment(offset);
+      }
+
       this.deleteBlock(this.tempBlock);
       this.mouseDown = false;
       this.mouseDownBlock = null;
@@ -1197,7 +1213,8 @@ export const useSvgStore = defineStore('svgStore', {
       const svgFooter = '</svg>';
       return {
         svg: svgHeader + normalizedElements + normalizedBlocks + svgFooter,
-        connectionPoints: normalizedConnectionPoints
+        connectionPoints: normalizedConnectionPoints,
+        offset: { x: minX, y: minY }
       };
     },
 

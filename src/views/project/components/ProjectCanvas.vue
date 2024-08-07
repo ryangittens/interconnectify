@@ -214,7 +214,12 @@ const startInteraction = (event) => {
   const coords = getSVGCoordinates(event);
   if (store.movingBlock) {
     store.dragStart = coords;
-    initialBlockPosition = { ...store.movingBlock };
+    if (store.droppedFragment) {
+      initialBlockPosition = coords;
+    } else {
+      initialBlockPosition = { ...store.movingBlock };
+    }
+
     store.dragging = true;
     // Initialize MoveBlockCommand
     if (!store.droppedBlock) {
