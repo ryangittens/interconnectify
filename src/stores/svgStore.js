@@ -70,7 +70,8 @@ export const useSvgStore = defineStore('svgStore', {
     tempBlock: null,
     paths: [],
     droppedFragment: false,
-    fragmentDropOffset: { x: 0, y: 0 }
+    fragmentDropOffset: { x: 0, y: 0 },
+    selectedObject: null
   }),
   actions: {
     handleSvgClick(event) {
@@ -127,6 +128,7 @@ export const useSvgStore = defineStore('svgStore', {
     selectConnectionPoint(cp) {
       if (!this.activeTool) {
         this.selectedConnectionPoint = cp;
+        this.selectObject(this.selectedConnectionPoint);
       }
     },
     setMode(mode) {
@@ -159,7 +161,9 @@ export const useSvgStore = defineStore('svgStore', {
         object: 'connectionPoint',
         id: uuid.v1(),
         x: snappedCoords.x,
-        y: snappedCoords.y
+        y: snappedCoords.y,
+        voltage: null,
+        connectionType: null
       };
       historyStore.executeCommand(new AddConnectionPointCommand(cp, this));
       this.endDrawing();
@@ -213,6 +217,7 @@ export const useSvgStore = defineStore('svgStore', {
     selectText(text) {
       if (!this.activeTool) {
         this.selectedText = text;
+        this.selectObject(this.selectedText);
       }
     },
     updateTextSize(newSize) {
@@ -277,6 +282,7 @@ export const useSvgStore = defineStore('svgStore', {
     selectRectangle(rect) {
       if (!this.activeTool) {
         this.selectedRectangle = rect;
+        this.selectObject(this.selectedRectangle);
       }
     },
     cancelCreatingRectangle() {
@@ -792,8 +798,11 @@ export const useSvgStore = defineStore('svgStore', {
     selectBlock(block) {
       if (!this.activeTool) {
         this.selectedBlock = block;
-        this.selectedLine = null; // Deselect line when block is selected
+        this.selectObject(this.selectedBlock);
       }
+    },
+    selectObject(obj) {
+      this.selectedObject = obj;
     },
     deleteBlock(block) {
       this.blocks = this.blocks.filter((b) => b.id !== block.id);
@@ -840,7 +849,7 @@ export const useSvgStore = defineStore('svgStore', {
     selectLine(line) {
       if (!this.activeTool) {
         this.selectedLine = line;
-        this.selectedBlock = null; // Deselect block when line is selected
+        this.selectObject(this.selectedLine);
       }
     },
     deleteLine(line) {
@@ -1313,22 +1322,23 @@ export const useSvgStore = defineStore('svgStore', {
         this.renderGrid();
       }
     },
-    selectedObject() {
-      if (this.selectedBlock) {
-        return this.selectedBlock;
-      }
-      if (this.selectedLine) {
-        return this.selectedLine;
-      }
-      if (this.selectedText) {
-        return this.selectedText;
-      }
-      if (this.selectedRectangle) {
-        return this.selectedRectangle;
-      }
-      if (this.selectedConnectionPoint) {
-        return this.selectedConnectionPoint;
-      }
+    getSelectedObject() {
+      return this.selectedObject;
+      // if (this.selectedBlock) {
+      //   return this.selectedBlock;
+      // }
+      // if (this.selectedLine) {
+      //   return this.selectedLine;
+      // }
+      // if (this.selectedText) {
+      //   return this.selectedText;
+      // }
+      // if (this.selectedRectangle) {
+      //   return this.selectedRectangle;
+      // }
+      // if (this.selectedConnectionPoint) {
+      //   return this.selectedConnectionPoint;
+      // }
     },
     deselectAll() {
       this.selectText(null);
