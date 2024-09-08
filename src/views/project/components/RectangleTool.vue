@@ -21,7 +21,9 @@
       :fill="rect.color"
       :stroke="rect.stroke"
       :stroke-width="rect.strokeWidth"
-      @click.stop="handleRectangleClick(rect, $event)"
+      @mousedown.stop="handleRectangleMouseDown(rect, $event)"
+      @mouseup="handleRectangleMouseUp(rect, $event)"
+      @click="handleRectangleClick(rect, $event)"
     />
   </g>
 </template>
@@ -32,6 +34,8 @@ import { useSvgStore } from '@/stores/svgStore';
 
 const store = useSvgStore();
 
+const { selectRectangle, endInteraction } = store;
+
 const rectangle = ref(null);
 
 const handleRectangleClick = (rect, event) => {
@@ -41,6 +45,20 @@ const handleRectangleClick = (rect, event) => {
     store.selectRectangle(rect);
   }
 };
+
+const primary = ref('rgb(var(--v-theme-primary))');
+const secondary = ref('rgb(var(--v-theme-secondary))');
+
+const handleRectangleMouseDown = (rect, event) => {
+  store.mouseDown = true; // Set mouseDown flag to true
+  store.mouseDownRect = rect; // Store the line being dragged
+  store.isRectDragging = false; // Reset dragging flag
+};
+const handleRectangleMouseUp = (rect, event) => {
+  endInteraction(event);
+  store.mouseDown = false; // Reset mouseDown flag
+};
+const isRectSelected = (rect) => store.selectedRect && store.selectedRect.id === rect.id;
 
 watchEffect(() => {
   if (store.isCreatingRectangle) {

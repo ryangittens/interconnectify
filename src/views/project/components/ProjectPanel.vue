@@ -345,10 +345,12 @@ const saveDrawingAsBlock = async () => {
       variant="flat"
       size="small"
     >
-      <Category2Icon size="17" stroke-width="1.5" />
+      <CubePlusIcon size="17" stroke-width="1.5" />
     </v-btn>
+    <!-- 
     <v-btn @click="addNewBlock" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
       <CubePlusIcon size="17" stroke-width="1.5" />
     </v-btn>
+    -->
   </v-toolbar>
 </template>

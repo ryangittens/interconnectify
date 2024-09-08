@@ -45,7 +45,8 @@ import {
   MoveBlockCommand,
   DragLineSegmentCommand,
   AddTextCommand,
-  AddRectangleCommand
+  AddRectangleCommand,
+  MoveRectangleCommand
 } from '@/commands';
 
 const store = useSvgStore();
@@ -79,11 +80,14 @@ const {
   addPoint,
   deselectAll,
   endDrawing,
-  handleSvgClick
+  handleSvgClick,
+  startRectMove,
+  moveRect
 } = store;
 
 let panStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
+let initialRectPosition = { x: 0, y: 0 };
 const zoomFactor = 0.04;
 const minZoomLevel = 0.5;
 const maxZoomLevel = 2;
@@ -184,13 +188,14 @@ const beforeUnloadHandler = (event) => {
 
 const handleMouseMove = (event) => {
   handleBlockMouseMove(event);
+  handleRectangleMouseMove(event);
   handleLineMouseMove(event);
   handleConnectionPointsMouseMove(event);
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
     store.hoverPoint = coords;
     drawHoverLine(coords.x, coords.y, event.ctrlKey);
-  } else if (store.panning && !store.movingBlock) {
+  } else if (store.panning && !store.dragging) {
     pan(event);
   } else if (store.dragging && store.movingBlock) {
     const coords = getSVGCoordinates(event);
@@ -207,6 +212,12 @@ const handleMouseMove = (event) => {
     //store.dragStart = coords; // Update drag start for smooth dragging
   } else if (store.activeTool == 'rectangle' && store.isCreatingRectangle) {
     updateRectangle(event);
+  } else if (store.dragging && store.movingRect) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - store.dragStart.x;
+    const dy = coords.y - store.dragStart.y;
+    const snappedCoords = snapToGrid(initialRectPosition.x + dx, initialRectPosition.y + dy);
+    moveRect(store.movingRect, snappedCoords.x - store.movingRect.x, snappedCoords.y - store.movingRect.y, store);
   }
 };
 
@@ -224,6 +235,15 @@ const startInteraction = (event) => {
     // Initialize MoveBlockCommand
     if (!store.droppedBlock) {
       store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
+    }
+  } else if (store.movingRect) {
+    store.dragStart = coords;
+    initialRectPosition = { ...store.movingRect };
+
+    store.dragging = true;
+    // Initialize MoveBlockCommand
+    if (!store.droppedRect) {
+      store.currentMoveRectCommand = new MoveRectangleCommand(store.movingRect, 0, 0, store);
     }
   } else if (store.selectedLineSegment) {
     store.dragStart = coords;
@@ -250,6 +270,20 @@ const handleBlockMouseMove = (event) => {
         store.isBlockDragging = true;
         store.isDragging = true;
         startBlockMove(store.mouseDownBlock, event);
+        startInteraction(event);
+      }
+    }
+  }
+};
+
+const handleRectangleMouseMove = (event) => {
+  if (store.mouseDown) {
+    if (!store.isRectDragging) {
+      if (store.mouseDownRect) {
+        // If dragging hasn't started yet, start it now
+        store.isRectDragging = true;
+        store.isDragging = true;
+        startRectMove(store.mouseDownRect, event);
         startInteraction(event);
       }
     }

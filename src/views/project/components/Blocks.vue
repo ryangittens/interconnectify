@@ -48,10 +48,6 @@ const handleBlockMouseDown = (block, event) => {
   store.isBlockDragging = false; // Reset dragging flag
 };
 const handleBlockMouseUp = (block, event) => {
-  if (!store.isBlockDragging.value) {
-    // It's a click event, not a drag
-    //handleBlockClick(block);
-  }
   endInteraction(event);
   store.mouseDown = false; // Reset mouseDown flag
   store.mouseDownLine = null; // Reset the line being dragged

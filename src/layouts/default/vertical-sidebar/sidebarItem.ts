@@ -37,6 +37,11 @@ const sidebarItem: menu[] = [
     title: 'Interconnection',
     icon: PlugConnectedIcon,
     to: '/tools/interconnection'
+  },
+  {
+    title: 'Load Schedule',
+    icon: PlugConnectedIcon,
+    to: '/tools/interconnection'
   }
 
   // {
