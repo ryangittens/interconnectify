@@ -46,7 +46,9 @@ import {
   DragLineSegmentCommand,
   AddTextCommand,
   AddRectangleCommand,
-  MoveRectangleCommand
+  MoveRectangleCommand,
+  MoveConnectionPointCommand,
+  MoveTextCommand
 } from '@/commands';
 
 const store = useSvgStore();
@@ -82,12 +84,15 @@ const {
   endDrawing,
   handleSvgClick,
   startRectMove,
-  moveRect
+  moveRect,
+  startCPMove,
+  moveCP,
+  startTextMove,
+  moveText
 } = store;
 
 let panStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
-let initialRectPosition = { x: 0, y: 0 };
 const zoomFactor = 0.04;
 const minZoomLevel = 0.5;
 const maxZoomLevel = 2;
@@ -191,6 +196,7 @@ const handleMouseMove = (event) => {
   handleRectangleMouseMove(event);
   handleLineMouseMove(event);
   handleConnectionPointsMouseMove(event);
+  handleTextMouseMove(event);
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
     store.hoverPoint = coords;
@@ -216,8 +222,20 @@ const handleMouseMove = (event) => {
     const coords = getSVGCoordinates(event);
     const dx = coords.x - store.dragStart.x;
     const dy = coords.y - store.dragStart.y;
-    const snappedCoords = snapToGrid(initialRectPosition.x + dx, initialRectPosition.y + dy);
+    const snappedCoords = snapToGrid(store.initialRectPosition.x + dx, store.initialRectPosition.y + dy);
     moveRect(store.movingRect, snappedCoords.x - store.movingRect.x, snappedCoords.y - store.movingRect.y, store);
+  } else if (store.dragging && store.movingCP) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - store.dragStart.x;
+    const dy = coords.y - store.dragStart.y;
+    const snappedCoords = snapToGrid(store.initialCPPosition.x + dx, store.initialCPPosition.y + dy);
+    moveCP(store.movingCP, snappedCoords.x - store.movingCP.x, snappedCoords.y - store.movingCP.y, store);
+  } else if (store.dragging && store.movingText) {
+    const coords = getSVGCoordinates(event);
+    const dx = coords.x - store.dragStart.x;
+    const dy = coords.y - store.dragStart.y;
+    const snappedCoords = snapToGrid(store.initialTextPosition.x + dx, store.initialTextPosition.y + dy);
+    moveText(store.movingText, snappedCoords.x - store.movingText.x, snappedCoords.y - store.movingText.y, store);
   }
 };
 
@@ -233,17 +251,35 @@ const startInteraction = (event) => {
 
     store.dragging = true;
     // Initialize MoveBlockCommand
-    if (!store.droppedBlock) {
-      store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
-    }
+    // if (!store.droppedBlock) {
+    //   store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
+    // }
   } else if (store.movingRect) {
     store.dragStart = coords;
-    initialRectPosition = { ...store.movingRect };
+    store.initialRectPosition = { ...store.movingRect };
 
     store.dragging = true;
     // Initialize MoveBlockCommand
-    if (!store.droppedRect) {
-      store.currentMoveRectCommand = new MoveRectangleCommand(store.movingRect, 0, 0, store);
+    // if (!store.droppedRect) {
+    //   store.currentMoveRectCommand = new MoveRectangleCommand(store.movingRect, 0, 0, store);
+    // }
+  } else if (store.movingCP) {
+    store.dragStart = coords;
+    store.initialCPPosition = { ...store.movingCP };
+
+    store.dragging = true;
+    // Initialize MoveBlockCommand
+    // if (!store.droppedCP) {
+    //   store.currentMoveCPCommand = new MoveConnectionPointCommand(store.movingCP, 0, 0, store);
+    // }
+  } else if (store.movingText) {
+    store.dragStart = coords;
+    store.initialTextPosition = { ...store.movingText };
+
+    store.dragging = true;
+    // Initialize MoveBlockCommand
+    if (!store.droppedText) {
+      store.currentMoveTextCommand = new MoveTextCommand(store.movingText, 0, 0, store);
     }
   } else if (store.selectedLineSegment) {
     store.dragStart = coords;
@@ -290,6 +326,20 @@ const handleRectangleMouseMove = (event) => {
   }
 };
 
+const handleTextMouseMove = (event) => {
+  if (store.mouseDown) {
+    if (!store.isTextDragging) {
+      if (store.mouseDownText) {
+        // If dragging hasn't started yet, start it now
+        store.isTextDragging = true;
+        store.isDragging = true;
+        startTextMove(store.mouseDownText, event);
+        startInteraction(event);
+      }
+    }
+  }
+};
+
 const handleLineMouseMove = (event) => {
   if (store.mouseDown) {
     if (!store.isLineDragging) {
@@ -309,6 +359,16 @@ const handleConnectionPointsMouseMove = (event) => {
     const coords = store.getSVGCoordinates(event);
     const snappedCoords = store.snapToGrid(coords.x, coords.y);
     store.currentPoint = snappedCoords;
+  } else if (store.mouseDown) {
+    if (!store.isCPDragging) {
+      if (store.mouseDownCP) {
+        // If dragging hasn't started yet, start it now
+        store.isCPDragging = true;
+        store.isDragging = true;
+        startCPMove(store.mouseDownCP, event);
+        startInteraction(event);
+      }
+    }
   }
 };
 

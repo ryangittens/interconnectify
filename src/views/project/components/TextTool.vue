@@ -6,8 +6,10 @@
       :x="text.x"
       :y="text.y"
       :font-size="text.fontSize"
-      @click.stop="selectText(text)"
-      style="cursor: pointer"
+      @mousedown.stop="handleTextMouseDown(text, $event)"
+      @mouseup="handleTextMouseUp(text, $event)"
+      @click="handleTextClick(text, $event)"
+      style="cursor: pointer; user-select: none"
     >
       {{ text.content }}
     </text>
@@ -37,6 +39,8 @@ import { useSvgStore } from '@/stores/svgStore';
 const store = useSvgStore();
 const textInput = ref(null);
 
+const { endInteraction } = store;
+
 const selectText = (text) => {
   store.selectText(text);
 };
@@ -48,6 +52,28 @@ const updateTextContent = (event) => {
 const deselectText = () => {
   store.selectText(null);
 };
+
+const handleTextClick = (text, event) => {
+  if (store.activeTool) {
+    store.handleSvgClick(event);
+  } else {
+    selectText(text);
+  }
+};
+
+const primary = ref('rgb(var(--v-theme-primary))');
+const secondary = ref('rgb(var(--v-theme-secondary))');
+
+const handleTextMouseDown = (text, event) => {
+  store.mouseDown = true; // Set mouseDown flag to true
+  store.mouseDownText = text; // Store the line being dragged
+  store.isTextDragging = false; // Reset dragging flag
+};
+const handleTextMouseUp = (text, event) => {
+  endInteraction(event);
+  store.mouseDown = false; // Reset mouseDown flag
+};
+const isTextSelected = (text) => store.selectedText && store.selectedText.id === text.id;
 
 onMounted(() => {});
 </script>

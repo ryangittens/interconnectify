@@ -13,7 +13,12 @@
 
     <v-list density="compact" nav>
       <v-list-item v-for="(field, index) in drawerFields" :key="index">
-        <v-text-field v-model="selectedObject[field.key]" :label="field.label" :value="selectedObject[field.key]"></v-text-field>
+        <v-text-field
+          :rounded="false"
+          v-model="selectedObject[field.key]"
+          :label="field.label"
+          :value="selectedObject[field.key]"
+        ></v-text-field>
       </v-list-item>
     </v-list>
   </v-navigation-drawer>
@@ -42,6 +47,9 @@ const drawerFields = computed(() => {
       { label: 'Voltage', key: 'voltage' },
       { label: 'Connection Type', key: 'connectionType' }
     ];
+  }
+  if (selectedObject.value?.object === 'text') {
+    return [{ label: 'Content', key: 'content' }];
   }
   // Add other conditions for different object types if necessary
   return [];

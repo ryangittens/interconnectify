@@ -13,7 +13,10 @@ import {
   AddBlockCommand,
   DeleteConnectionPointCommand,
   AddConnectionPointCommand,
-  AddTextCommand
+  AddTextCommand,
+  MoveRectangleCommand,
+  MoveTextCommand,
+  MoveConnectionPointCommand
 } from '@/commands'
 import { useHistoryStore } from './history'
 
@@ -77,7 +80,23 @@ export const useSvgStore = defineStore('svgStore', {
     droppedFragment: false,
     fragmentDropOffset: { x: 0, y: 0 },
     selectedObject: null,
-    currentMoveRectCommand: null
+    currentMoveRectCommand: null,
+    mouseDownCP: null,
+    isCPDragging: false,
+    selectedCP: null,
+    droppedCP: null,
+    movingCP: null,
+    currentMoveCPCommand: null,
+    movingCP: null,
+    isTextDragging: false,
+    selectedText: null,
+    droppedText: null,
+    movingText: null,
+    currentMoveTextCommand: null,
+    movingText: null,
+    initialRectPosition: { x: 0, y: 0 },
+    initialCPPosition: { x: 0, y: 0 },
+    initialTextPosition: { x: 0, y: 0 },
   }),
   actions: {
     handleSvgClick(event) {
@@ -177,6 +196,32 @@ export const useSvgStore = defineStore('svgStore', {
     addConnectionPoint(cp) {
       this.connectionPoints.push(cp)
     },
+    moveCP(cp, dx, dy) {
+      const index = this.connectionPoints.findIndex((c) => c.id === cp.id)
+      if (index !== -1) {
+        // Update the block position
+        this.connectionPoints[index].x += dx
+        this.connectionPoints[index].y += dy
+      }
+    },
+    startCPMove(cp, event) {
+      this.movingCP = cp
+      if (this.droppedCP) {
+        const coords = this.getSVGCoordinates(event)
+        cp.x = coords.x
+        cp.y = coords.y
+      }
+    },
+    endCPDrag() {
+      historyStore.executeCommand(new MoveConnectionPointCommand(this.movingCP, this.movingCP.x - this.initialCPPosition.x, this.movingCP.y - this.initialCPPosition.y, this))
+
+      //start rect dragging
+      this.mouseDown = false
+      this.mouseDownCP = null
+      this.dragging = false
+      this.isCPDragging = false
+      this.movingCP = null
+    },
     updateCurrentPoint(event) {
       const coords = this.getSVGCoordinates(event)
       const snappedCoords = this.snapToGrid(coords.x, coords.y)
@@ -226,6 +271,32 @@ export const useSvgStore = defineStore('svgStore', {
         this.selectObject(this.selectedText)
       }
     },
+    moveText(text, dx, dy) {
+      const index = this.texts.findIndex((t) => t.id === text.id)
+      if (index !== -1) {
+        // Update the block position
+        this.texts[index].x += dx
+        this.texts[index].y += dy
+      }
+    },
+    startTextMove(text, event) {
+      this.movingText = text
+      if (this.droppedText) {
+        const coords = this.getSVGCoordinates(event)
+        text.x = coords.x
+        text.y = coords.y
+      }
+    },
+    endTextDrag() {
+      historyStore.executeCommand(new MoveTextCommand(this.movingText, this.movingText.x - this.initialTextPosition.x, this.movingText.y - this.initialTextPosition.y, this))
+
+      //start rect dragging
+      this.mouseDown = false
+      this.mouseDownText = null
+      this.dragging = false
+      this.isTextDragging = false
+      this.movingText = null
+    },
     updateTextSize(newSize) {
       if (this.selectedText) {
         this.selectedText.fontSize = newSize
@@ -265,10 +336,9 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     endRectDrag() {
-      if (this.currentMoveRectCommand) {
-        historyStore.executeCommand(this.currentMoveRectCommand)
-        this.currentMoveRectCommand = null
-      }
+
+      historyStore.executeCommand(new MoveRectangleCommand(this.movingRect, this.movingRect.x - this.initialRectPosition.x, this.movingRect.y - this.initialRectPosition.y, this))
+
 
       //start rect dragging
       this.mouseDown = false
@@ -278,7 +348,8 @@ export const useSvgStore = defineStore('svgStore', {
       this.movingRect = null
     },
     updateRect(rect) {
-      const rectIndex = this.rectangles.findIndex((b) => b.id === rect.id)
+      console.log("got here")
+      const rectIndex = this.rectangles.findIndex((r) => r.id === rect.id)
       if (rectIndex !== -1) {
         this.rectangles[rectIndex] = rect
       }
@@ -412,6 +483,14 @@ export const useSvgStore = defineStore('svgStore', {
         this.endRectDrag()
       }
 
+      if (this.isCPDragging) {
+        this.endCPDrag()
+      }
+
+      if (this.isTextDragging) {
+        this.endTextDrag()
+      }
+
       if (this.droppedFragment || this.isBlockDragging) {
         this.endFragmentDrop(event)
       }
@@ -462,7 +541,7 @@ export const useSvgStore = defineStore('svgStore', {
         block.y = coords.y
       }
     },
-
+    //I think what this does is replace the objects with the stored objects, not just update their props
     updateBlockAndLines(block, lines) {
       const blockIndex = this.blocks.findIndex((b) => b.id === block.id)
       if (blockIndex !== -1) {

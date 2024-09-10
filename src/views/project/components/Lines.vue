@@ -88,5 +88,6 @@ const getLabelPosition = (line) => {
 .line-label {
   font-size: 10px;
   fill: red;
+  user-select: none;
 }
 </style>
