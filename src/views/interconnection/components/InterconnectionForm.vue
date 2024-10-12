@@ -1,7 +1,7 @@
 <template>
   <v-card @keyup.enter="goToNextGroup" tabindex="0" elevation="0" class="innerCard maxWidth">
     <v-card-text>
-      <perfect-scrollbar>
+      <perfect-scrollbar class="perfectScroll">
         <v-row class="ma-0 question" v-for="(question, index) in currentGroupQuestions" :key="index">
           <v-col cols="12">
             <div class="text-h3 text-medium-emphasis font-weight-bold cursorPointer">
@@ -138,3 +138,10 @@ const getQuestionComponent = (type) => {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.perfectScroll {
+  width: 100%;
+  height: calc(100vh - 310px);
+}
+</style>

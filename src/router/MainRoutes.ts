@@ -35,6 +35,11 @@ const MainRoutes = {
       name: 'Interconnection',
       path: '/tools/interconnection',
       component: () => import('@/views/interconnection/InterconnectionTool.vue')
+    },
+    {
+      name: 'Load Calculation',
+      path: '/tools/loadCalculation',
+      component: () => import('@/views/loadCalculation/LoadCalculation.vue')
     }
   ]
 };

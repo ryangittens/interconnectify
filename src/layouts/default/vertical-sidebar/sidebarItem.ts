@@ -39,9 +39,9 @@ const sidebarItem: menu[] = [
     to: '/tools/interconnection'
   },
   {
-    title: 'Load Schedule',
+    title: 'Load Calculation',
     icon: PlugConnectedIcon,
-    to: '/tools/interconnection'
+    to: '/tools/loadCalculation'
   }
 
   // {
