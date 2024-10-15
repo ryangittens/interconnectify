@@ -478,13 +478,13 @@
 </template>
 
 <script>
-import pdfMake from 'pdfmake/build/pdfmake';
-import pdfFonts from 'pdfmake/build/vfs_fonts';
+import * as pdfFonts from 'pdfmake/build/vfs_fonts.js'; // <-- vfs_fonts has to be imported before pdfmake
+import pdfMake from 'pdfmake';
+pdfMake.vfs = pdfFonts.pdfMake.vfs;
 import { useSnackbarStore } from '@/stores/snackbar';
 
 const snackbarStore = useSnackbarStore();
 
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
 export default {
   data() {
     return {
