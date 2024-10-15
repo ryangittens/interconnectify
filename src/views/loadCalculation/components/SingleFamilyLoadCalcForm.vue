@@ -13,12 +13,12 @@
               <v-divider></v-divider>
               <v-card-text>
                 <v-row>
-                  <v-col cols="12" class="pa-0">
+                  <v-col cols="12" class="py-0">
                     <v-text-field class="mr-3" label="Property Address" v-model="address" variant="outlined"></v-text-field>
                   </v-col>
                 </v-row>
                 <v-row>
-                  <v-col cols="12" md="6" class="pa-0">
+                  <v-col cols="12" md="6" class="py-0">
                     <v-select
                       class="mr-3"
                       :items="voltageOptions"
@@ -27,7 +27,7 @@
                       variant="outlined"
                     ></v-select>
                   </v-col>
-                  <v-col cols="12" md="6" class="pa-0">
+                  <v-col cols="12" md="6" class="py-0">
                     <v-text-field
                       class="mr-3"
                       label="Living Floor Area (sqft)"
@@ -89,7 +89,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-end align-center px-0">
+                    <v-col cols="12" class="d-flex justify-end align-center">
                       <!-- <v-btn small color="primary" variant="tonal" @click="addGeneralLoadItem">Add Item</v-btn> -->
                       <p class="font-weight-bold">Total General Load: {{ calculateGeneralLoad() }} VA</p>
                     </v-col>
@@ -132,7 +132,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-space-between align-center px-0">
+                    <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Fixed Appliance')">Add Appliance</v-btn>
                       <p class="font-weight-bold">Total Fixed Appliances Load: {{ calculateFixedAppliancesLoad() }} VA</p>
                     </v-col>
@@ -180,7 +180,7 @@
                     </v-col>
                   </v-row>
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-space-between align-center px-0">
+                    <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Dryer')">Add Dryer</v-btn>
                       <p class="font-weight-bold">Total Dryer Load: {{ calculateDryerLoad() }} VA</p>
                     </v-col>
@@ -229,7 +229,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-space-between align-center px-0">
+                    <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Cooking Equipment')">Add Equipment</v-btn>
                       <p class="font-weight-bold">Cooking Equipment Load: {{ calculateCookingEquipmentLoad() }} VA</p>
                     </v-col>
@@ -273,7 +273,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-space-between align-center px-0">
+                    <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('HVAC')">Add Equipment</v-btn>
                       <p class="font-weight-bold">Total HVAC Load: {{ calculateHVACLoad() }} VA</p>
                     </v-col>
@@ -317,7 +317,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-space-between align-center px-0">
+                    <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Other')">Add Equipment</v-btn>
                       <p class="font-weight-bold">Total Other Loads: {{ calculateOtherLoads() }} VA</p>
                     </v-col>
@@ -347,7 +347,7 @@
                   </v-row>
 
                   <v-row>
-                    <v-col cols="12" class="d-flex justify-end align-center px-0">
+                    <v-col cols="12" class="d-flex justify-end align-center">
                       <p class="font-weight-bold">Largest Motor Load (25%): {{ calculateLargestMotorLoad() }} VA</p>
                     </v-col>
                   </v-row>

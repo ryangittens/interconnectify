@@ -48,10 +48,30 @@ const questionGroups = [
         label: 'Select your service type:',
         key: 'serviceType',
         options: [
-          { label: 'Meter Main Combo', value: 'meterMainCombo', imageUrl: 'https://picsum.photos/200/300?random=1' },
-          { label: 'Separate Meter', value: 'separateMeter', imageUrl: 'https://picsum.photos/200/300?random=2' },
-          { label: 'Separate Disconnect', value: 'separateDisconnect', imageUrl: 'https://picsum.photos/200/300?random=3' },
-          { label: 'Meter Main Disconnect', value: 'meterMainDisconnect', imageUrl: 'https://picsum.photos/200/300?random=4' }
+          {
+            label: 'Meter Main Combo',
+            value: 'meterMainCombo',
+            imageUrl:
+              'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/meter_main_combo.png?t=2024-10-15T05%3A50%3A19.656Z'
+          },
+          {
+            label: 'Separate Meter',
+            value: 'separateMeter',
+            imageUrl:
+              'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/separate_meter.png?t=2024-10-15T05%3A51%3A15.662Z'
+          },
+          {
+            label: 'Separate Disconnect',
+            value: 'separateDisconnect',
+            imageUrl:
+              'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/separate_disconnect.png?t=2024-10-15T05%3A50%3A56.222Z'
+          },
+          {
+            label: 'Meter Main Disconnect',
+            value: 'meterMainDisconnect',
+            imageUrl:
+              'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/meter_main_disconnect.png?t=2024-10-15T05%3A50%3A38.310Z'
+          }
         ]
       }
     ],
@@ -97,6 +117,7 @@ const currentGroupQuestions = computed(() => currentGroup.value.questions);
 
 const handleAnswer = ({ key, value }) => {
   answers.value[key] = value;
+  goToNextGroup();
 };
 
 const goToNextGroup = () => {
@@ -143,5 +164,6 @@ const getQuestionComponent = (type) => {
 .perfectScroll {
   width: 100%;
   height: calc(100vh - 310px);
+  min-height: 1077px;
 }
 </style>

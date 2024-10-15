@@ -1,5 +1,5 @@
 <template>
-  <v-text-field :label="question.label" v-model="inputValue" />
+  <v-text-field :label="question.label" v-model="inputValue" variant="outlined" />
 </template>
 
 <script setup>
