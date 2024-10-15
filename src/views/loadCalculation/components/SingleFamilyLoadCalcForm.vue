@@ -1387,7 +1387,7 @@ export default {
             ],
             [
               { text: 'Main Breaker Size:', style: 'tableHeader' },
-              { text: this.getStandardBreakerSize(this.calculateAmperage()) + ' A', style: 'tableHeader' }
+              { text: this.mainBreakerSize + ' A', style: 'tableHeader' }
             ]
           ]
         }
