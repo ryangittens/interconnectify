@@ -478,9 +478,18 @@
 </template>
 
 <script>
-import * as pdfFonts from 'pdfmake/build/vfs_fonts.js'; // <-- vfs_fonts has to be imported before pdfmake
-import pdfMake from 'pdfmake';
-pdfMake.vfs = pdfFonts.pdfMake.vfs;
+import * as pdfMake from 'pdfmake/build/pdfmake';
+
+// PDF Fonts
+const pdfFonts = {
+  // download default Roboto font from cdnjs.com
+  Roboto: {
+    normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf',
+    bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf',
+    italics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Italic.ttf',
+    bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-MediumItalic.ttf'
+  }
+};
 import { useSnackbarStore } from '@/stores/snackbar';
 
 const snackbarStore = useSnackbarStore();
@@ -1299,7 +1308,7 @@ export default {
       };
 
       // Generate and download the PDF
-      pdfMake.createPdf(docDefinition).download('Load_Calculation.pdf');
+      pdfMake.createPdf(docDefinition, null, pdfFonts).download('Load_Calculation.pdf');
     },
 
     // Helper method to create a table
