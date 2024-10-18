@@ -592,9 +592,9 @@ export default {
         { title: 'Cooktop', va: 7000, isMotor: false, category: 'Cooking Equipment', type: 'Cooktop', size: [] },
 
         // HVAC
-        { title: 'Small Heat Pump', va: 6000, isMotor: false, category: 'HVAC', type: 'Heat Pump', size: ['small'] },
-        { title: 'Medium Heat Pump', va: 10000, isMotor: false, category: 'HVAC', type: 'Heat Pump', size: ['medium'] },
-        { title: 'Large Heat Pump', va: 14000, isMotor: false, category: 'HVAC', type: 'Heat Pump', size: ['large'] },
+        { title: 'Small Heat Pump', va: 6000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['small'] },
+        { title: 'Medium Heat Pump', va: 10000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['medium'] },
+        { title: 'Large Heat Pump', va: 14000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['large'] },
 
         // Other Loads
         { title: 'EV Charger Level 1', va: 1440, isMotor: false, category: 'Other', type: 'EV Charger', size: ['medium'] },
@@ -823,7 +823,9 @@ export default {
               this.hvacLoadOptions.push({
                 name: appliance.title,
                 quantity: 1,
-                va: appliance.va
+                va: appliance.va,
+                heating: appliance?.heating,
+                cooling: appliance?.cooling
               });
               break;
             case 'Other':
@@ -977,6 +979,7 @@ export default {
     },
     calculateHVACLoad() {
       const heatingItems = this.hvacLoadOptions.filter((item) => item?.heating);
+      console.log(this.hvacLoadOptions);
       const coolingItems = this.hvacLoadOptions.filter((item) => item?.cooling);
 
       const heatingLoad = heatingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
