@@ -15,7 +15,7 @@ import {
   GridPatternIcon,
   CubePlusIcon
 } from 'vue-tabler-icons';
-import { IconSquarePlus2, IconLetterCase, IconPointFilled } from '@tabler/icons-vue';
+import { IconSquarePlus2, IconLetterCase, IconPointFilled, IconFileTypeSvg, IconFileTypePdf } from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
@@ -36,32 +36,38 @@ const project = props.project;
 const error = ref(null);
 
 const setSolidBlackLine = () => {
+  store.endDrawing();
   store.setLineType('solid');
   store.setLineColor('black');
   store.startDrawing();
 };
 
 const setSolidGreenLine = () => {
+  store.endDrawing();
   store.setLineType('solid');
   store.setLineColor('#11dd01');
   store.startDrawing();
 };
 
 const setDashedLine = () => {
+  store.endDrawing();
   store.setLineType('dashed');
   store.setLineColor('#636363');
   store.startDrawing();
 };
 
 const setRectangleTool = () => {
+  store.endDrawing();
   store.startRectangleTool();
 };
 
 const startTextTool = () => {
+  store.endDrawing();
   store.startTextTool();
 };
 
 const startConnectionPointsTool = () => {
+  store.endDrawing();
   store.startConnectionPointsTool();
 };
 
@@ -147,6 +153,14 @@ const centerSvg = () => {
   return store.centerSVG();
 };
 
+const downloadSVG = () => {
+  return store.downloadSVG();
+};
+
+const downloadPDF = () => {
+  return store.downloadPDF();
+};
+
 const fitSVGToExtent = () => {
   return store.fitSVGToExtent();
 };
@@ -216,9 +230,29 @@ const saveDrawingAsBlock = async () => {
 
 <template>
   <v-toolbar elevation="0" height="40" class="mt-n3" style="z-index: 1; background: transparent">
-    <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <DownloadIcon size="17" stroke-width="1.5" />
+    <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small" @click="downloadSVG">
+      <IconFileTypeSvg size="17" stroke-width="1.5" />
     </v-btn>
+    <v-btn class="text-secondary ml-2 mr-6" color="background" icon outlined rounded="sm" variant="flat" size="small" @click="downloadPDF">
+      <IconFileTypePdf size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-divider vertical></v-divider>
+    <!-- <v-menu>
+      <template v-slot:activator="{ props }">
+        <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small" v-bind="props">
+          <DownloadIcon size="17" stroke-width="1.5" />
+        </v-btn>
+      </template>
+
+      <v-list>
+        <v-list-item @click="downloadSVG">
+          <IconFileTypeSvg size="24" stroke-width="1.5" />
+        </v-list-item>
+        <v-list-item @click="downloadSVG">
+          <IconFileTypePdf size="24" stroke-width="1.5" />
+        </v-list-item>
+      </v-list>
+    </v-menu> -->
     <v-btn
       v-if="store.mode == 'project'"
       @click="saveDrawing"

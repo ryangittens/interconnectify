@@ -979,7 +979,7 @@ export default {
     },
     calculateHVACLoad() {
       const heatingItems = this.hvacLoadOptions.filter((item) => item?.heating);
-      console.log(this.hvacLoadOptions);
+
       const coolingItems = this.hvacLoadOptions.filter((item) => item?.cooling);
 
       const heatingLoad = heatingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);

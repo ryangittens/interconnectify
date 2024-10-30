@@ -15,11 +15,19 @@
       @click="handleLineClick(line)"
     ></path>
 
-    <!-- Render the labels for each line ID -->
-    <template v-for="line in store.lines" :key="line.id">
-      <text :x="getLabelPosition(line).x" :y="getLabelPosition(line).y" class="line-label">
-        {{ line.id }}
-      </text>
+    <!-- Render the labels for each line ID inside a circle -->
+    <template v-for="line in store.lines" :key="`label-${line.id}`">
+      <g
+        style="cursor: pointer; pointer-events: all"
+        @mousedown.stop="handleLineMouseDown(line, $event)"
+        @mouseup="handleLineMouseUp(line, $event)"
+        @click="handleLineClick(line)"
+      >
+        <circle :cx="getLabelPosition(line).x" :cy="getLabelPosition(line).y" :r="12" fill="white" stroke="black" stroke-width="2"></circle>
+        <text :x="getLabelPosition(line).x" :y="getLabelPosition(line).y + 4" class="line-label" text-anchor="middle">
+          {{ line.alias }}
+        </text>
+      </g>
     </template>
 
     <!-- Hover Line for Preview -->
@@ -44,21 +52,19 @@ const primary = ref('rgb(var(--v-theme-primary))');
 const { selectLine, endLineDrag, endInteraction } = store;
 
 const handleLineMouseDown = (line, event) => {
-  store.mouseDown = true; // Set mouseDown flag to true
-  store.mouseDownLine = line; // Store the line being dragged
-  store.isLineDragging = false; // Reset dragging flag
+  store.mouseDown = true;
+  store.mouseDownLine = line;
+  store.isLineDragging = false;
 };
 const handleLineMouseUp = (line, event) => {
   if (!store.isLineDragging) {
     // It's a click event, not a drag
-    //handleLineClick(line);
   } else {
-    // If it was a drag, end the drag interaction
     endLineDrag(line, event);
   }
   endInteraction(event);
-  store.mouseDown = false; // Reset mouseDown flag
-  store.mouseDownLine = null; // Reset the line being dragged
+  store.mouseDown = false;
+  store.mouseDownLine = null;
 };
 const handleLineClick = (line) => {
   selectLine(line);
@@ -68,26 +74,42 @@ const isLineSelected = (line) => store.selectedLine && store.selectedLine.id ===
 
 const getLabelPosition = (line) => {
   // Calculate the midpoint of the line
-  const midpointIndex = Math.floor(line.points.length / 2);
-  const midpoint = line.points[midpointIndex];
+  let totalLength = 0;
+  const segmentLengths = [];
 
-  // If there are only two points, place the label in the middle
-  if (line.points.length === 2) {
-    return {
-      x: (line.points[0].x + line.points[1].x) / 2,
-      y: (line.points[0].y + line.points[1].y) / 2
-    };
+  for (let i = 0; i < line.points.length - 1; i++) {
+    const dx = line.points[i + 1].x - line.points[i].x;
+    const dy = line.points[i + 1].y - line.points[i].y;
+    const length = Math.hypot(dx, dy);
+    segmentLengths.push(length);
+    totalLength += length;
   }
 
-  // Otherwise, return the midpoint of the points
-  return midpoint;
+  let distance = totalLength / 2;
+  let accumulatedLength = 0;
+  let index = 0;
+
+  while (index < segmentLengths.length && accumulatedLength + segmentLengths[index] < distance) {
+    accumulatedLength += segmentLengths[index];
+    index++;
+  }
+
+  if (index >= line.points.length - 1) {
+    index = line.points.length - 2;
+  }
+
+  const t = (distance - accumulatedLength) / segmentLengths[index];
+  const x = line.points[index].x + t * (line.points[index + 1].x - line.points[index].x);
+  const y = line.points[index].y + t * (line.points[index + 1].y - line.points[index].y);
+
+  return { x, y };
 };
 </script>
 
 <style scoped>
 .line-label {
-  font-size: 10px;
-  fill: red;
+  font-size: 14px;
+  fill: black;
   user-select: none;
 }
 </style>

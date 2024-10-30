@@ -142,7 +142,6 @@ const initSVG = () => {
   setSvgElement(svg.value);
   setAxesContainer(axesContainer.value);
   deserializeState(drawing);
-  store.renderGrid();
   store.setMode(props.mode);
 };
 
@@ -154,7 +153,6 @@ const resizeSVG = () => {
     svg.value.setAttribute('height', container.clientHeight);
     svg.value.style.left = `${-containerPaddingLeft}px`;
     store.setViewBox(0, 0, container.clientWidth, container.clientHeight);
-    store.renderGrid();
   }
 };
 

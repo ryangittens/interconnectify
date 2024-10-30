@@ -1,6 +1,17 @@
 // src/stores/svgStore.js
 import { defineStore } from 'pinia'
 import { uuid } from 'vue-uuid'
+import * as pdfMake from 'pdfmake/build/pdfmake'
+// PDF Fonts
+const pdfFonts = {
+  // download default Roboto font from cdnjs.com
+  Roboto: {
+    normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf',
+    bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf',
+    italics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Italic.ttf',
+    bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-MediumItalic.ttf'
+  }
+}
 import {
   DragLineSegmentCommand,
   DeleteBlockCommand,
@@ -97,6 +108,19 @@ export const useSvgStore = defineStore('svgStore', {
     initialRectPosition: { x: 0, y: 0 },
     initialCPPosition: { x: 0, y: 0 },
     initialTextPosition: { x: 0, y: 0 },
+    conductorTableHeadings: [
+      { title: 'alias', key: 'alias', editable: false, width: '60px' },
+      { title: 'run', key: 'run', editable: false, width: '60px' },
+      { title: 'voltage', key: 'voltage', editable: false, width: '80px' },
+      { title: 'current', key: 'current', editable: true, width: '80px' },
+      { title: 'vd', key: 'vd', editable: false, width: '60px' },
+      { title: 'ccc', key: 'ccc', editable: false, width: '60px' },
+      { title: 'egc', key: 'egc', editable: false, width: '60px' },
+      { title: 'ocpd', key: 'ocpd', editable: false, width: '60px' },
+      { title: 'size', key: 'size', editable: false, width: '80px' },
+      { title: 'conductor', key: 'conductor', editable: false, width: '100px' },
+      { title: 'ohms', key: 'ohms', editable: false, width: '80px' },
+    ]
   }),
   actions: {
     handleSvgClick(event) {
@@ -471,6 +495,7 @@ export const useSvgStore = defineStore('svgStore', {
       historyStore.executeCommand(new AddLinePointCommand(this, updatedPoint))
     },
     endInteraction(event) {
+
       this.panning = false
       if (this.isLineDragging) {
         this.endLineDrag()
@@ -534,6 +559,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     startBlockMove(block, event) {
+      console.log('start block move')
       this.movingBlock = block
       if (this.droppedBlock) {
         const coords = this.getSVGCoordinates(event)
@@ -822,8 +848,8 @@ export const useSvgStore = defineStore('svgStore', {
           if (snappedStartPoint.y !== startPoint.y) {
             if (line.points.length == 2) {
               //  console.log('got here 2');
-              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' })
-              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' })
+              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: '' })
+              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: '' })
               this.selectedLineSegment.index = 1
             }
             if (line.points.length == 4) {
@@ -858,8 +884,8 @@ export const useSvgStore = defineStore('svgStore', {
 
           if (snappedStartPoint.x !== startPoint.x) {
             if (line.points.length == 2) {
-              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: 'fuck' })
-              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: 'fuck2' })
+              line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: '' })
+              line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: '' })
             }
             if (line.points.length == 4) {
               line.points[1] = snappedStartPoint
@@ -895,7 +921,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
     clearInteractionStore() {
       this.selectedLineSegment = this.draggingLine = this.movingBlock = null
-      this.dragging = false
+      this.dragging = this.mouseDownBlock = false
     },
     resetEndPointsToOriginal(line, originalFirstPoint, originalLastPoint) {
       if (originalFirstPoint.blockId && originalFirstPoint.connectionPointId) {
@@ -935,23 +961,45 @@ export const useSvgStore = defineStore('svgStore', {
         this.lines.push(line)
       }
     },
+    generateAlias(index) {
+      let alias = ''
+      while (index >= 0) {
+        alias = String.fromCharCode((index % 26) + 65) + alias
+        index = Math.floor(index / 26) - 1
+      }
+      return alias
+    },
+    updateAliases() {
+      this.lines.forEach((line, index) => {
+        line.alias = this.generateAlias(index)
+      })
+    },
     stopDrawing(line) {
       if (line) {
         this.addLine(line)
       } else if (this.currentLine.length > 1) {
+        // Calculate the index for the new line
+        const index = this.lines.length
+
+        // Generate the alias using the index
+        const alias = this.generateAlias(index)
+
         let newLine = {
           object: 'line',
           id: uuid.v1(),
+          alias: alias,
           type: this.lineType,
           color: this.lineColor,
-          points: [...this.currentLine]
+          points: [...this.currentLine],
         }
+
         this.addLine(newLine)
         this.currentLine = []
       }
       this.currentLine = []
       this.isDrawing = false
       this.clearAxes()
+      this.endInteraction()
     },
     addLinePoint(point) {
       this.currentLine.push(point)
@@ -1026,11 +1074,6 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Update the viewBox in the store
       this.setViewBox(newX, newY, newWidth, newHeight)
-
-      // Re-render the grid if it is enabled
-      if (this.showGrid) {
-        this.renderGrid()
-      }
     },
     startImportFragment(fragment, event) {
       this.selectBlock(null)
@@ -1439,14 +1482,9 @@ export const useSvgStore = defineStore('svgStore', {
       const scaleY = oldViewBoxHeight / finalHeight
       this.zoomLevel = Math.min(scaleX, scaleY) * this.zoomLevel // Adjust the zoom level accordingly
 
-      // Draw the gridlines over the whole SVG
-      this.renderGrid()
     },
     toggleGrid() {
       this.showGrid = !this.showGrid
-      if (this.svgElement) {
-        this.renderGrid()
-      }
     },
     getSelectedObject() {
       return this.selectedObject
@@ -1473,35 +1511,146 @@ export const useSvgStore = defineStore('svgStore', {
       this.selectRectangle(null)
       this.selectConnectionPoint(null)
     },
-    renderGrid() {
-      if (!this.svgElement) return
+    downloadSVG() {
+      if (!this.svg) return
 
-      const gridContainer = this.svgElement.querySelector('.grid-container')
-      if (gridContainer) {
-        gridContainer.innerHTML = ''
-      } else {
-        const newGridContainer = document.createElementNS('http://www.w3.org/2000/svg', 'g')
-        newGridContainer.classList.add('grid-container')
-        this.svgElement.prepend(newGridContainer)
+      // Serialize the SVG content
+      const svgContent = this.getCleanedSVGMarkup()
+
+      // Create a Blob with SVG content
+      const blob = new Blob([svgContent], { type: 'image/svg+xml' })
+      const url = URL.createObjectURL(blob)
+
+      // Create a downloadable link and trigger download
+      const link = document.createElement('a')
+      link.href = url
+      link.download = 'drawing.svg'
+      document.body.appendChild(link)
+      link.click()
+
+      // Clean up
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    },
+    getSVGMarkup() {
+      if (!this.svg) return ''
+      return new XMLSerializer().serializeToString(this.svg)
+    },
+    getCleanedSVGMarkup() {
+      if (!this.svg) return ''
+
+      // Clone the SVG element
+      const clonedSvgElement = this.svg.cloneNode(true)
+
+      // Remove any other elements you don't want
+      // For example, if you have an element with a specific class or ID
+      const backgroundElement = clonedSvgElement.querySelector('.grid-container')
+      if (backgroundElement) {
+        backgroundElement.parentNode.removeChild(backgroundElement)
       }
 
-      if (this.showGrid) {
-        const { width, height } = this.viewBox
-        const gridLines = []
+      // Serialize the modified SVG
+      return new XMLSerializer().serializeToString(clonedSvgElement)
+    },
+    downloadPDF() {
+      const svgMarkup = this.getCleanedSVGMarkup()
 
-        for (let x = 0; x <= width; x += this.gridSize) {
-          gridLines.push(`<line x1="${x}" y1="0" x2="${x}" y2="${height}" stroke="lightgray" stroke-width="0.5" />`)
-        }
+      // Define the PDF document with SVG content and the conductor schedule table
+      const docDefinition = {
+        content: [
+          { text: 'SVG to PDF Example', style: 'header' },
+          {
+            svg: svgMarkup,
+            width: 500, // Adjust the width or use 'fit' to control size
+          },
+          { text: 'Conductor Schedule', style: 'sectionHeader', margin: [0, 10, 0, 5] },
+          this.createConductorScheduleTable(),
+        ],
+        styles: {
+          header: {
+            fontSize: 18,
+            bold: true,
+            margin: [0, 0, 0, 10],
+          },
+          sectionHeader: {
+            fontSize: 12,
+            bold: true,
+            color: '#2a8899',
+            margin: [0, 8, 0, 5],
+          },
+          tableHeader: {
+            bold: true,
+            fillColor: '#eefaff',
+            alignment: 'left',
+            fontSize: 10,
+          },
+          tableCell: {
+            margin: [0, 2, 0, 2],
+            fontSize: 9,
+          },
+          tableExample: {
+            margin: [0, 5, 0, 15],
+          },
+        },
+        defaultStyle: {
+          fontSize: 10,
+        },
+        pageMargins: [20, 20, 20, 20],
+      }
+      // Download the PDF
+      pdfMake.createPdf(docDefinition, null, pdfFonts).download('drawing.pdf')
+    },
+    createConductorScheduleTable() {
+      // Build table body
+      const body = []
 
-        for (let y = 0; y <= height; y += this.gridSize) {
-          gridLines.push(`<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="lightgray" stroke-width="0.5" />`)
-        }
+      // Add header row using conductorTableHeadings
+      const headerRow = this.conductorTableHeadings.map((heading) => ({
+        text: heading.title.toUpperCase(),
+        style: 'tableHeader',
+      }))
+      body.push(headerRow)
+      // Add data rows
+      if (this.lines.length > 0) {
+        this.lines.forEach((line) => {
+          const dataRow = this.conductorTableHeadings.map((heading) => {
+            return {
+              text:
+                line[heading.key] !== undefined && line[heading.key] !== null
+                  ? String(line[heading.key])
+                  : 'N/A',
+              style: 'tableCell',
+            }
+          })
+          body.push(dataRow)
+        })
+      } else {
+        // No lines, add a row indicating empty data
+        const emptyRow = this.conductorTableHeadings.map(() => ({
+          text: 'N/A',
+          style: 'tableCell',
+        }))
+        body.push(emptyRow)
+      }
 
-        this.svgElement.querySelector('.grid-container').innerHTML = gridLines.join('')
+      // Set column widths to distribute evenly
+      const columnWidths = this.conductorTableHeadings.map(() => '*')
+
+      return {
+        style: 'tableExample',
+        table: {
+          headerRows: 1,
+          widths: columnWidths,
+          body: body,
+        },
+        layout: 'lightHorizontalLines', // Optional: Add horizontal lines between rows
       }
     }
-  }
+  },
+
 })
+
+
 
 // Helper function to calculate the bounding box
 function calculateBoundingBox(lines, blocks, rectangles, paths, texts) {
@@ -1705,6 +1854,7 @@ const updateBoundingBox = (boundingBox, ...points) => {
 //     maxY: metrics.actualBoundingBoxDescent
 //   };
 // };
+
 
 const calculateTextBoundingBox = (text) => {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')

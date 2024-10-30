@@ -1,46 +1,44 @@
-<!-- <template>
-  <v-expansion-panels class="conductorSchedulePanel">
-    <v-expansion-panel title="Conductor Schedule">
-      <v-expansion-panel-text>
-        <perfect-scrollbar class="conductorScheduleTable">
-          <v-data-table-virtual :headers="conductorTableHeadings" :items="store.lines" item-value="name"></v-data-table-virtual>
-        </perfect-scrollbar>
-      </v-expansion-panel-text>
-    </v-expansion-panel>
-  </v-expansion-panels>
-</template> -->
-
 <template>
   <v-expansion-panels class="conductorSchedulePanel">
     <v-expansion-panel title="Conductor Schedule">
       <v-expansion-panel-text>
-        <v-row>
-          <v-col md="auto" v-for="heading in conductorTableHeadings" color="primary">
-            <div class="text-h6">{{ heading.title }}</div>
-            <!-- <v-text-field
-                density="dense"
-                v-model="conductor[heading.key]"
-                class="conductorTableInput editable"
-                v-for="conductor in testData"
-              ></v-text-field> -->
-            <ContentEditable
-              v-for="conductor in store.lines"
-              v-model="conductor[heading.key]"
-              :editable="heading.editable"
-              :customClass="['conductorTableInput', { selected: isSelected(conductor) }]"
-            />
-          </v-col>
-        </v-row>
+        <table class="conductorTable">
+          <thead>
+            <tr>
+              <th></th>
+              <!-- Empty header for drag handle -->
+              <th v-for="heading in store.conductorTableHeadings" :key="heading.key">
+                {{ heading.title.toUpperCase() }}
+              </th>
+            </tr>
+          </thead>
+          <draggable v-model="store.lines" @end="onDragEnd" tag="tbody" :options="{ handle: '.drag-handle', animation: 150 }" item-key="id">
+            <template #item="{ element }">
+              <tr :class="{ selected: isSelected(element) }">
+                <!-- Drag Handle -->
+                <td class="drag-handle" style="cursor: move">
+                  <v-icon small>mdi-drag</v-icon>
+                </td>
+                <!-- Table Data -->
+                <td v-for="heading in store.conductorTableHeadings" :key="heading.key">
+                  <ContentEditable v-model="element[heading.key]" :editable="heading.editable" :customClass="['conductorTableInput']" />
+                </td>
+              </tr>
+            </template>
+          </draggable>
+        </table>
       </v-expansion-panel-text>
     </v-expansion-panel>
   </v-expansion-panels>
 </template>
 
 <script setup>
+import { ref, computed } from 'vue';
+import draggable from 'vuedraggable';
 import { useSvgStore } from '@/stores/svgStore';
-const store = useSvgStore();
 import ContentEditable from './ContentEditable.vue';
-import { computed, ref } from 'vue';
+
+const store = useSvgStore();
 
 const selectedLine = computed(() => store.selectedLine);
 
@@ -48,37 +46,41 @@ const isSelected = (line) => {
   return selectedLine.value && line.id === selectedLine.value.id;
 };
 
-const conductorTableHeadings = [
-  { title: 'RUN', key: 'id', editable: false },
-  { title: 'RUN', key: 'run', editable: false },
-  { title: 'VOLTAGE', key: 'voltage', editable: false },
-  { title: 'CURRENT', key: 'current', editable: true },
-  { title: 'VD', key: 'vd', editable: false },
-  { title: 'CCC', key: 'ccc', editable: false },
-  { title: 'EGC', key: 'egc', editable: false },
-  { title: 'OCPD', key: 'ocpd', editable: false },
-  { title: 'SIZE', key: 'size', editable: false },
-  { title: 'CONDUCTOR', key: 'conductor', editable: false },
-  { title: 'OHMS', key: 'ohms', editable: false }
-];
-
-const testData = [
-  { run: 1232334, voltage: 120, current: 20, vd: 1, ccc: 3, egc: 10, ocpd: 20, size: 0.25, conductor: 35, ohms: 0.24 },
-  { run: 123, voltage: 120, current: 20, vd: 1, ccc: 3, egc: 10, ocpd: 20, size: 0.25, conductor: 35, ohms: 0.24 },
-  { run: 123, voltage: 120, current: 20, vd: 1, ccc: 3, egc: 10, ocpd: 20, size: 0.25, conductor: 35, ohms: 0.24 },
-  { run: 123, voltage: 120, current: 20, vd: 1, ccc: 3, egc: 10, ocpd: 20, size: 0.25, conductor: 35, ohms: 0.24 },
-  { run: 123, voltage: 120, current: 20, vd: 1, ccc: 3, egc: 10, ocpd: 20, size: 0.25, conductor: 35, ohms: 0.24 }
-];
+const onDragEnd = () => {
+  store.updateAliases();
+};
 </script>
 
 <style scoped>
-/* Add your custom styles here */
-.conductorTableInput {
-  border: 1px solid #ccc;
-  padding: 4px;
-  display: flex;
+.conductorTable {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed; /* Ensures columns are fixed width */
 }
-.editable {
-  background-color: #f9f9f9;
+
+.conductorTable th,
+.conductorTable td {
+  border: 1px solid #ccc;
+  padding: 8px;
+  text-align: left;
+  overflow: hidden; /* Hide overflow if content is too big */
+}
+
+.conductorTable th {
+  background-color: #f5f5f5;
+}
+
+.conductorTableInput {
+  width: 100%; /* Input fields take up full width of the cell */
+}
+
+.drag-handle {
+  cursor: move;
+  text-align: center;
+  width: 40px;
+}
+
+.selected {
+  background-color: #e0f7fa;
 }
 </style>
