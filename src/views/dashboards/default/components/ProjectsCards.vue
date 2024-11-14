@@ -53,6 +53,8 @@ const deleteProject = async (projectId) => {
       throw deleteError;
     }
 
+    console.log('got here');
+
     projects.value = projects.value.filter((project) => project.id !== projectId);
     totalProjects.value = projects.value.length;
   } catch (err) {

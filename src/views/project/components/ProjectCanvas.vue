@@ -248,10 +248,10 @@ const startInteraction = (event) => {
     }
 
     store.dragging = true;
-    // Initialize MoveBlockCommand
-    // if (!store.droppedBlock) {
-    //   store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
-    // }
+    //Initialize MoveBlockCommand
+    if (!store.droppedBlock) {
+      store.currentMoveBlockCommand = new MoveBlockCommand(store.movingBlock, 0, 0, store);
+    }
   } else if (store.movingRect) {
     store.dragStart = coords;
     store.initialRectPosition = { ...store.movingRect };
