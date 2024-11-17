@@ -153,12 +153,12 @@ const centerSvg = () => {
   return store.centerSVG();
 };
 
-const downloadSVG = () => {
-  return store.downloadSVG();
+const downloadSVG = async () => {
+  return await store.downloadSVG();
 };
 
-const downloadPDF = () => {
-  return store.downloadPDF();
+const downloadPDF = async () => {
+  return await store.downloadPDF();
 };
 
 const fitSVGToExtent = () => {

@@ -2,6 +2,7 @@
 import { defineStore } from 'pinia'
 import { uuid } from 'vue-uuid'
 import * as pdfMake from 'pdfmake/build/pdfmake'
+import { nextTick } from 'vue'
 // PDF Fonts
 const pdfFonts = {
   // download default Roboto font from cdnjs.com
@@ -30,6 +31,7 @@ import {
   MoveConnectionPointCommand
 } from '@/commands'
 import { useHistoryStore } from './history'
+import { addTable, createTblock, exportImage } from '@/views/project/pdf/pdfFunctions'
 
 const historyStore = useHistoryStore()
 
@@ -127,7 +129,9 @@ export const useSvgStore = defineStore('svgStore', {
       { title: 'size', key: 'size', editable: false, width: '80px' },
       { title: 'conductor', key: 'conductor', editable: false, width: '100px' },
       { title: 'ohms', key: 'ohms', editable: false, width: '80px' },
-    ]
+    ],
+    minZoomLevel: 0.5,
+    maxZoomLevel: 2,
   }),
   actions: {
     handleSvgClick(event) {
@@ -1608,10 +1612,22 @@ export const useSvgStore = defineStore('svgStore', {
         this.viewBox.y = 0
       }
     },
-    fitSVGToExtent() {
-      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.paths, this.texts)
+    fitSVGToExtent(maxZoomLevel) {
+      maxZoomLevel = maxZoomLevel || this.maxZoomLevel
+      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(
+        this.lines,
+        this.blocks,
+        this.rectangles,
+        this.paths,
+        this.texts
+      )
 
-      if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
+      if (
+        minX === Infinity ||
+        minY === Infinity ||
+        maxX === -Infinity ||
+        maxY === -Infinity
+      ) {
         console.error('No elements to fit')
         return
       }
@@ -1656,12 +1672,36 @@ export const useSvgStore = defineStore('svgStore', {
       this.viewBox.width = finalWidth
       this.viewBox.height = finalHeight
 
-      // Calculate the new zoom level based on the ratio of the old viewBox dimensions to the new ones
-      const scaleX = oldViewBoxWidth / finalWidth
-      const scaleY = oldViewBoxHeight / finalHeight
-      this.zoomLevel = Math.min(scaleX, scaleY) * this.zoomLevel // Adjust the zoom level accordingly
+      // Calculate the new zoom level based on the ratio of the initial viewBox dimensions to the new ones
+      const newZoomLevel = this.initialViewBox.width / finalWidth
 
+      // Apply the maxZoomLevel and minZoomLevel constraints
+      this.zoomLevel = Math.max(
+        this.minZoomLevel,
+        Math.min(maxZoomLevel, newZoomLevel)
+      )
+
+      // If the zoom level was constrained, adjust the viewBox accordingly
+      if (this.zoomLevel !== newZoomLevel) {
+        const adjustedWidth = this.initialViewBox.width / this.zoomLevel
+        const adjustedHeight = this.initialViewBox.height / this.zoomLevel
+
+        // Adjust the viewBox dimensions based on the constrained zoom level
+        this.viewBox.width = adjustedWidth
+        this.viewBox.height = adjustedHeight
+
+        // Recalculate offsets with the adjusted dimensions
+        const adjustedOffsetX = (adjustedWidth - width - 2 * padding) / 2
+        const adjustedOffsetY = (adjustedHeight - height - 2 * padding) / 2
+
+        this.viewBox.x = minX - padding - adjustedOffsetX
+        this.viewBox.y = minY - padding - adjustedOffsetY
+      }
+
+      // Update the viewBox in the store or directly on the SVG element
+      // Example: this.svg.setAttribute('viewBox', `${this.viewBox.x} ${this.viewBox.y} ${this.viewBox.width} ${this.viewBox.height}`);
     },
+
     toggleGrid() {
       this.showGrid = !this.showGrid
     },
@@ -1690,24 +1730,30 @@ export const useSvgStore = defineStore('svgStore', {
       this.selectRectangle(null)
       this.selectConnectionPoint(null)
     },
-    downloadSVG() {
+    async downloadSVG() {
       if (!this.svg) return
+
+      // Apply the fit to extent adjustment
+      this.fitSVGToExtent()
+
+      // Wait for the DOM to update after the fitSVGToExtent call
+      await nextTick()
 
       // Serialize the SVG content
       const svgContent = this.getCleanedSVGMarkup()
 
-      // Create a Blob with SVG content
+      // Create a Blob with the SVG content
       const blob = new Blob([svgContent], { type: 'image/svg+xml' })
       const url = URL.createObjectURL(blob)
 
-      // Create a downloadable link and trigger download
+      // Create a downloadable link and trigger the download
       const link = document.createElement('a')
       link.href = url
       link.download = 'drawing.svg'
       document.body.appendChild(link)
       link.click()
 
-      // Clean up
+      // Clean up by removing the link and revoking the object URL
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     },
@@ -1731,100 +1777,143 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Serialize the modified SVG
       return new XMLSerializer().serializeToString(clonedSvgElement)
-    },
-    downloadPDF() {
-      const svgMarkup = this.getCleanedSVGMarkup()
+    }, createDocument() {
+      var doc = new PDFDocument({
+        margin: 0,
+        layout: "landscape",
+        size: [792, 1224], // 11inx17in (72 pdf points = 1in)
+        bufferPages: true,
+      })
+      doc.fontSize(9)
 
-      // Define the PDF document with SVG content and the conductor schedule table
-      const docDefinition = {
-        content: [
-          { text: 'SVG to PDF Example', style: 'header' },
-          {
-            svg: svgMarkup,
-            width: 500, // Adjust the width or use 'fit' to control size
-          },
-          { text: 'Conductor Schedule', style: 'sectionHeader', margin: [0, 10, 0, 5] },
-          this.createConductorScheduleTable(),
-        ],
-        styles: {
-          header: {
-            fontSize: 18,
-            bold: true,
-            margin: [0, 0, 0, 10],
-          },
-          sectionHeader: {
-            fontSize: 12,
-            bold: true,
-            color: '#2a8899',
-            margin: [0, 8, 0, 5],
-          },
-          tableHeader: {
-            bold: true,
-            fillColor: '#eefaff',
-            alignment: 'left',
-            fontSize: 10,
-          },
-          tableCell: {
-            margin: [0, 2, 0, 2],
-            fontSize: 9,
-          },
-          tableExample: {
-            margin: [0, 5, 0, 15],
-          },
-        },
-        defaultStyle: {
-          fontSize: 10,
-        },
-        pageMargins: [20, 20, 20, 20],
+      return doc
+    },
+    async downloadPDF() {
+      // First, apply the fit to extent to adjust the SVG
+      this.fitSVGToExtent()
+
+      // Wait for the DOM to update after the fitSVGToExtent changes
+      await nextTick()
+
+      // Get the updated SVG markup
+      const svgMarkup = this.getCleanedSVGMarkup()
+      if (!svgMarkup) {
+        console.error('No SVG content to convert to PDF')
+        return
       }
-      // Download the PDF
-      pdfMake.createPdf(docDefinition, null, pdfFonts).download('drawing.pdf')
+
+      //example projectdata
+
+      let projectData = {
+        "name": "AUSTIN DANIELS",
+        "id": "10182024-4340",
+        "versions": [
+          {
+            "initials": "RG",
+            "date": "11.17.24",
+            "desc": "INITIAL DESIGN"
+          }
+        ],
+        "address": "4340 TIDEWATER DRIVE ORLANDO FLORIDA 32812 UNITED STATES",
+        "coordinates": "28.4890048,-81.3381642",
+        "county": "ORANGE COUNTY",
+        "jurisdiction": "Un-incorporated Orange",
+        "codes": {
+          "version": "FBC 2023",
+          "state": "Florida",
+          "current": true,
+          "building": "FBC 2023/ASCE 7-22",
+          "electrical": "NEC 2020",
+          "fire": "FFPC, 8th ed. (2023)/NFPA 1 2021 ed."
+        },
+        "snow": 0,
+        "wind": 140,
+        "exp": "C",
+        "engineer": {
+          "name": "Ryan S Gittens",
+          "license": "PE90605",
+          "ca": "CA33343",
+          "company": "ECUIP ENGINEERING",
+          "address": "1646 W SNOW AVE 9 TAMPA, FL 33606",
+          "color": "#019DDD",
+          "logo": "https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/org-files/2/logo/Ecuip_2_ENG.png"
+        },
+        "engineeringCompany": "ECUIP ENGINEERING",
+        "engineerAddress": "1646 W SNOW AVE 9 TAMPA, FL 33606",
+        "pathwaysRequired": null,
+        "engineerLogo": "https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/org-files/2/logo/Ecuip_2_ENG.png",
+        "client": {
+          "client_id": 49,
+          "org_id": 2,
+          "client_name": "Ecuip Engineering",
+          "client_license": "PE90605",
+          "client_address": "",
+          "client_phone": "",
+          "client_logo": "https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/org-files/2/clients/49/ECUIP%20Logo-blue%20acc%20png.png",
+          "created_at": "2023-12-05T19:29:44.210038+00:00",
+          "client_color": "#019DDD"
+        },
+        "clientLogo": "https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/org-files/2/clients/49/ECUIP%20Logo-blue%20acc%20png.png",
+        "hvhz": null,
+        "showPlacard": false,
+        "projectScale": "residential",
+        "hazardousLocation": null,
+        "state": "Florida"
+      }
+
+
+      // Preload images
+      //const images = await preloadImages(projectData)
+
+      let documentObj = this.createDocument()
+
+      // Create header content using the modified `createTitleBlock` function
+      await createTblock(documentObj, projectData)
+
+      documentObj.addSVG(svgMarkup, 54, 54, { width: documentObj.page.width - 108 })
+      let conductorScheduleTable = this.createConductorScheduleTable()
+      addTable(documentObj, conductorScheduleTable)
+      const stream = documentObj.pipe(blobStream())
+
+      const a = document.createElement("a")
+      document.body.appendChild(a)
+      a.style = "display: none"
+      let filename = projectData?.name
+
+      exportImage(documentObj, stream, a, filename)
+
     },
     createConductorScheduleTable() {
-      // Build table body
-      const body = []
+
+      let conductorScheduleTable = {
+        heading: "row",
+        columnWidths: [],
+        x: 60,
+        y: 340,
+        data: [
+        ],
+      }
 
       // Add header row using conductorTableHeadings
-      const headerRow = this.conductorTableHeadings.map((heading) => ({
-        text: heading.title.toUpperCase(),
-        style: 'tableHeader',
-      }))
-      body.push(headerRow)
+      const headerRow = this.conductorTableHeadings.map((heading) => heading.title.toUpperCase())
+      conductorScheduleTable.data.push(headerRow)
       // Add data rows
       if (this.lines.length > 0) {
         this.lines.forEach((line) => {
           const dataRow = this.conductorTableHeadings.map((heading) => {
-            return {
-              text:
-                line[heading.key] !== undefined && line[heading.key] !== null
-                  ? String(line[heading.key])
-                  : 'N/A',
-              style: 'tableCell',
-            }
+            return line[heading.key] !== undefined && line[heading.key] !== null
+              ? String(line[heading.key])
+              : 'N/A'
           })
-          body.push(dataRow)
+          conductorScheduleTable.data.push(dataRow)
         })
       } else {
         // No lines, add a row indicating empty data
-        const emptyRow = this.conductorTableHeadings.map(() => ({
-          text: 'N/A',
-          style: 'tableCell',
-        }))
-        body.push(emptyRow)
+        const emptyRow = this.conductorTableHeadings.map(() => 'N/A')
+        conductorScheduleTable.data.push(emptyRow)
       }
 
-      // Set column widths to distribute evenly
-      const columnWidths = this.conductorTableHeadings.map(() => '*')
-
-      return {
-        style: 'tableExample',
-        table: {
-          headerRows: 1,
-          widths: columnWidths,
-          body: body,
-        },
-        layout: 'lightHorizontalLines', // Optional: Add horizontal lines between rows
-      }
+      return conductorScheduleTable
     },
     calculateBoundingBox(lines, blocks, rectangles, paths, texts) {
       let minX = Infinity,

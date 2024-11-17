@@ -88,14 +88,14 @@ const {
   startCPMove,
   moveCP,
   startTextMove,
-  moveText
+  moveText,
+  maxZoomLevel,
+  minZoomLevel
 } = store;
 
 let panStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
 const zoomFactor = 0.04;
-const minZoomLevel = 0.5;
-const maxZoomLevel = 2;
 
 /* SETUP */
 
