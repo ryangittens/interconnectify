@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router'; // Import useRouter for navigation guards
 import { supabase } from '@/utils/supabaseClient';
+import { useHistoryStore } from '@/stores/history'; // Import useHistoryStore
 
-// imported components
+// Imported components
 import ProjectCanvas from './components/ProjectCanvas.vue';
 import ProjectPanel from './components/ProjectPanel.vue';
 import BlockSearchDialog from './components/BlockSearchDialog.vue';
 import ImportSvgDialog from './components/ImportSvgDialog.vue';
 
 const route = useRoute();
+const router = useRouter(); // Initialize useRouter
+
+const historyStore = useHistoryStore(); // Use the history store
+
 const projectId = route.params.id;
 const table = computed(() => route.params?.table || 'projects');
 const project = ref(null);
@@ -33,8 +38,26 @@ const fetchProject = async () => {
   }
 };
 
-onMounted(fetchProject);
+onMounted(() => {
+  fetchProject();
+});
 
+// Handle navigation guard
+router.beforeEach((to, from, next) => {
+  if (!historyStore.saved) {
+    const confirmLeave = window.confirm('You have unsaved changes. Do you really want to leave?');
+    if (!confirmLeave) {
+      return next(false); // Cancel navigation if user chooses not to leave
+    }
+  }
+
+  // Clear history on route change
+  historyStore.clearHistory();
+
+  next(); // Proceed with navigation if there are no unsaved changes
+});
+
+// Dialog handling
 const blockSearchDialog = ref(false);
 function openBlockSearchDialog() {
   blockSearchDialog.value = true;
@@ -56,8 +79,6 @@ function closeImportSvgDialog() {
   <div v-if="loading">Loading...</div>
   <div v-else-if="error">{{ error }}</div>
   <div v-else>
-    <!-- <h1>{{ project.name }}</h1>
-    <p>{{ project.description }}</p> -->
     <ProjectPanel
       :project="project"
       :mode="mode"
@@ -67,6 +88,5 @@ function closeImportSvgDialog() {
     <ProjectCanvas :project="project" :mode="mode" />
     <BlockSearchDialog :show="blockSearchDialog" @close-block-dialog="closeBlockSearchDialog" />
     <ImportSvgDialog :show="importSvgDialog" @close-import-svg-dialog="closeImportSvgDialog" />
-    <!-- Add more project details here -->
   </div>
 </template>

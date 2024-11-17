@@ -5,11 +5,10 @@ export const useHistoryStore = defineStore('history', {
   state: () => ({
     undoStack: [],
     redoStack: [],
-    saved: true // Add this state to track if changes are saved
+    saved: true, // Track if changes are saved
   }),
   actions: {
     executeCommand(command) {
-      //console.log(this.undoStack, this.redoStack);
       if (typeof command.execute === 'function') {
         command.execute()
         this.undoStack.push(command)
@@ -20,7 +19,6 @@ export const useHistoryStore = defineStore('history', {
       }
     },
     undo() {
-      //console.log(this.undoStack, this.redoStack);
       if (this.undoStack.length) {
         const command = this.undoStack.pop()
         if (command && typeof command.undo === 'function') {
@@ -33,7 +31,6 @@ export const useHistoryStore = defineStore('history', {
       }
     },
     redo() {
-      //console.log(this.undoStack, this.redoStack);
       if (this.redoStack.length) {
         const command = this.redoStack.pop()
         if (command) {
@@ -52,6 +49,11 @@ export const useHistoryStore = defineStore('history', {
     },
     markSaved() {
       this.saved = true // Mark changes as saved
-    }
-  }
+    },
+    clearHistory() {
+      this.undoStack = []
+      this.redoStack = []
+      this.markSaved() // Mark changes as saved
+    },
+  },
 })

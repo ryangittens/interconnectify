@@ -379,7 +379,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.movingRect = null
     },
     updateRect(rect) {
-      console.log("got here")
+
       const rectIndex = this.rectangles.findIndex((r) => r.id === rect.id)
       if (rectIndex !== -1) {
         this.rectangles[rectIndex] = rect
@@ -539,12 +539,29 @@ export const useSvgStore = defineStore('svgStore', {
     scaleBlock(block, scale) {
       const index = this.blocks.findIndex((b) => b.id === block.id)
       if (index !== -1) {
-        let svgContent = this.blocks[index].content
-        let scaledSvgContent = this.scaleSvgContent(svgContent, scale)
-        this.blocks[index].content = scaledSvgContent
-        this.blocks[index].width *= scale
-        this.blocks[index].height *= scale
-        this.blocks[index].scale = scale
+        const currentBlock = this.blocks[index]
+
+        // Store original dimensions and content if not already stored
+        if (currentBlock.originalWidth == null) {
+          currentBlock.originalWidth = currentBlock.width
+        }
+        if (currentBlock.originalHeight == null) {
+          currentBlock.originalHeight = currentBlock.height
+        }
+        if (currentBlock.originalContent == null) {
+          currentBlock.originalContent = currentBlock.content
+        }
+
+        // Update the block's scale
+        currentBlock.scale = scale
+
+        // Scale the SVG content based on the original content
+        let scaledSvgContent = this.scaleSvgContent(currentBlock.originalContent, scale)
+        currentBlock.content = scaledSvgContent
+
+        // Compute new width and height based on original dimensions
+        currentBlock.width = currentBlock.originalWidth * scale
+        currentBlock.height = currentBlock.originalHeight * scale
       }
     },
     moveBlock(block, dx, dy) {
@@ -598,29 +615,89 @@ export const useSvgStore = defineStore('svgStore', {
         }
       })
     },
+
     scaleSvgContent(svgContent, scaleFactor) {
       const parser = new DOMParser()
       const serializer = new XMLSerializer()
       const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml')
       const svgElement = svgDoc.documentElement
 
-      // Adjust width and height attributes
-      const adjustDimension = (dimension) => {
-        const dimAttr = svgElement.getAttribute(dimension)
-        if (dimAttr) {
-          const unitRegex = /^([0-9.]+)([a-z%]*)$/i
-          const match = unitRegex.exec(dimAttr)
+      // Adjust the viewBox
+      const viewBoxAttr = svgElement.getAttribute('viewBox')
+      if (viewBoxAttr) {
+        const viewBoxValues = viewBoxAttr.split(' ').map(parseFloat)
+        const [minX, minY, width, height] = viewBoxValues
+        const newViewBox = `${minX} ${minY} ${width * scaleFactor} ${height * scaleFactor}`
+        svgElement.setAttribute('viewBox', newViewBox)
+      }
+
+      // Scale the width and height attributes
+      ['width', 'height'].forEach(attr => {
+        if (svgElement.hasAttribute(attr)) {
+          const value = svgElement.getAttribute(attr)
+          // Extract numerical value and unit (e.g., '16.361509mm' -> 16.361509, 'mm')
+          const match = value.match(/^([\d.]+)([a-z%]*)$/)
           if (match) {
-            const value = parseFloat(match[1])
-            const unit = match[2]
-            const newValue = value * scaleFactor
+            const numericValue = parseFloat(match[1]) * scaleFactor
+            const unit = match[2] || ''
+            svgElement.setAttribute(attr, `${numericValue}${unit}`)
+          }
+        }
+      })
+
+      // Create a new <g> element with the scaling transform
+      const gElement = svgDoc.createElementNS('http://www.w3.org/2000/svg', 'g')
+      const scaleValue = scaleFactor
+      gElement.setAttribute('transform', `scale(${scaleValue})`)
+
+      // Move all children of the SVG element into the <g> element
+      while (svgElement.firstChild) {
+        gElement.appendChild(svgElement.firstChild)
+      }
+
+      // Append the <g> element back into the SVG element
+      svgElement.appendChild(gElement)
+
+      // Do not adjust viewBox or width/height in this case
+
+      // Serialize the modified SVG back to a string
+      return serializer.serializeToString(svgDoc)
+    },
+
+    scaleSvgContent_unused(svgContent, scaleFactor) {
+      const parser = new DOMParser()
+      const serializer = new XMLSerializer()
+
+      // Extract original width and height from the SVG string
+      const widthMatch = svgContent.match(/<svg[^>]*\swidth="([^"]*)"/)
+      const heightMatch = svgContent.match(/<svg[^>]*\sheight="([^"]*)"/)
+
+      const originalWidth = widthMatch ? widthMatch[1] : null
+      const originalHeight = heightMatch ? heightMatch[1] : null
+
+
+
+      // Parse the SVG content
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml')
+      const svgElement = svgDoc.documentElement
+
+      // Function to adjust a dimension attribute (width or height)
+      const adjustDimension = (dimension, originalValue) => {
+        if (originalValue) {
+          const unitRegex = /^([0-9.]+)([a-z%]*)$/i
+          const match = unitRegex.exec(originalValue)
+          if (match) {
+            const number = parseFloat(match[1])
+            const unit = match[2] || ''
+            const newValue = number * scaleFactor
             svgElement.setAttribute(dimension, `${newValue}${unit}`)
           }
         }
       }
 
-      adjustDimension('width')
-      adjustDimension('height')
+      // Adjust width and height using the original values converted to pixels
+      adjustDimension('width', originalWidth)
+      adjustDimension('height', originalHeight)
 
       // Adjust the viewBox
       const viewBoxAttr = svgElement.getAttribute('viewBox')
@@ -632,11 +709,11 @@ export const useSvgStore = defineStore('svgStore', {
         svgElement.setAttribute('viewBox', newViewBox)
       }
 
-      // Do not scale individual elements to avoid double scaling
-
       // Serialize the modified SVG back to a string
       return serializer.serializeToString(svgDoc)
     },
+
+
 
     updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
       if (line.points.length < 2) return
@@ -799,7 +876,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     startLineDrag(line, event) {
-      console.log('start line drag')
+
       const coords = this.getSVGCoordinates(event)
       const segment = this.findLineSegment(line, coords)
       if (segment) {
@@ -903,7 +980,7 @@ export const useSvgStore = defineStore('svgStore', {
 
           if (snappedStartPoint.y !== startPoint.y) {
             if (line.points.length == 2) {
-              //  console.log('got here 2');
+
               line.points.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: '' })
               line.points.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: '' })
               this.selectedLineSegment.index = 1
@@ -1174,6 +1251,8 @@ export const useSvgStore = defineStore('svgStore', {
         y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
         width: width || 80, // Adjust width and height as needed
         height: height || 80,
+        originalWidth: width,
+        originalHeight: height,
         color: '#f0f0f0', // Default color if not provided
         elements: elements,
         content: svg,
@@ -1236,10 +1315,10 @@ export const useSvgStore = defineStore('svgStore', {
     },
 
     importBlock(data, event) {
+
       this.selectBlock(null)
       const block = data
       const drawing = JSON.parse(block.drawing)
-      console.log(block)
       const elements = []
 
       for (const { prop, type } of this.elementTypes) {
@@ -1269,6 +1348,8 @@ export const useSvgStore = defineStore('svgStore', {
         y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
         width: width || 80, // Adjust width and height as needed
         height: height || 80,
+        originalWidth: width,
+        originalHeight: height,
         color: block?.color || '#f0f0f0', // Default color if not provided
         elements: elements,
         content: svg,
@@ -1276,7 +1357,6 @@ export const useSvgStore = defineStore('svgStore', {
       }
 
       this.templateDropOffset = offset
-      console.log(newBlock)
       this.blocks.push(newBlock)
       this.startBlockDrop(newBlock)
     },
@@ -1339,6 +1419,8 @@ export const useSvgStore = defineStore('svgStore', {
         y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
         width: width || 80, // Use extracted width or default
         height: height || 80, // Use extracted height or default
+        originalWidth: width,
+        originalHeight: height,
         color: '#f0f0f0',
         elements: null,
         content: svgContent,
@@ -1448,6 +1530,7 @@ export const useSvgStore = defineStore('svgStore', {
         })
         .join('')
 
+
       // Include block contents directly into the SVG
       const normalizedBlocks = blocks
         .map((block) => {
@@ -1455,12 +1538,19 @@ export const useSvgStore = defineStore('svgStore', {
           const normalizedX = block.x - minX
           const normalizedY = block.y - minY
 
-          // Adjust the block's content position
-          const blockContent = block.content
-            .replace(/<svg [^>]*>/, `<g transform="translate(${normalizedX}, ${normalizedY})">`)
-            .replace(/<\/svg>/, '</g>')
+          // Parse the block's content into a DOM
+          const parser = new DOMParser()
+          const svgDoc = parser.parseFromString(block.content, 'image/svg+xml')
+          const svgElement = svgDoc.documentElement
 
-          return blockContent
+          // Set x and y attributes to position the nested SVG
+          svgElement.setAttribute('x', normalizedX)
+          svgElement.setAttribute('y', normalizedY)
+
+          // Serialize back to string
+          const serializer = new XMLSerializer()
+          const svgString = serializer.serializeToString(svgElement)
+          return svgString
         })
         .join('')
 
@@ -1621,6 +1711,7 @@ export const useSvgStore = defineStore('svgStore', {
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
     },
+
     getSVGMarkup() {
       if (!this.svg) return ''
       return new XMLSerializer().serializeToString(this.svg)
