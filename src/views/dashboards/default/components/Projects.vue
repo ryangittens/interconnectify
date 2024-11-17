@@ -60,7 +60,7 @@ onMounted(fetchProjects);
 watch([currentPage, searchQuery], fetchProjects);
 
 const goToProject = (projectId) => {
-  router.push({ name: 'ProjectView', params: { id: projectId } });
+  router.push({ name: 'ProjectDesignView', params: { id: projectId } });
 };
 </script>
 

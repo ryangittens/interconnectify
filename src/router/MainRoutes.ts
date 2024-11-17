@@ -27,9 +27,9 @@ const MainRoutes = {
       component: () => import('@/views/project/NewBlock.vue')
     },
     {
-      name: 'ProjectView',
+      name: 'ProjectDesignView',
       path: '/project/:id/:table',
-      component: () => import('@/views/project/ProjectView.vue')
+      component: () => import('@/views/project/ProjectDesignView.vue')
     },
     {
       name: 'Interconnection',

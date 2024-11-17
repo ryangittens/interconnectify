@@ -14,7 +14,7 @@ import {
   FolderPlusIcon
 } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
-import ProjectDetailsModal from '@/components/shared/ProjectDetailsModal.vue';
+import CreateProjectModal from '@/components/shared/CreateProjectModal.vue';
 
 import { useSnackbarStore } from '@/stores/snackbar';
 
@@ -36,7 +36,6 @@ const projectDialog = ref(false);
 
 function openProjectDialog() {
   projectDialog.value = true;
-  console.log('got here');
 }
 function closeProjectDialog() {
   projectDialog.value = false;
@@ -52,8 +51,6 @@ const deleteProject = async (projectId) => {
     if (deleteError) {
       throw deleteError;
     }
-
-    console.log('got here');
 
     projects.value = projects.value.filter((project) => project.id !== projectId);
     totalProjects.value = projects.value.length;
@@ -144,12 +141,12 @@ fetchProjects();
 watch([currentPage, searchQuery], fetchProjects);
 
 const goToProject = (projectId) => {
-  router.push({ name: 'ProjectView', params: { id: projectId, table: 'projects' } });
+  router.push({ name: 'ProjectDesignView', params: { id: projectId, table: 'projects' } });
 };
 </script>
 
 <template>
-  <ProjectDetailsModal :show="projectDialog" @close-project-dialog="closeProjectDialog" />
+  <CreateProjectModal :show="projectDialog" @close-project-dialog="closeProjectDialog" />
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <div class="d-flex align-center justify-space-between">

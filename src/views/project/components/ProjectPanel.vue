@@ -15,7 +15,7 @@ import {
   GridPatternIcon,
   CubePlusIcon
 } from 'vue-tabler-icons';
-import { IconSquarePlus2, IconLetterCase, IconPointFilled, IconFileTypeSvg, IconFileTypePdf } from '@tabler/icons-vue';
+import { IconSquarePlus2, IconLetterCase, IconPointFilled, IconFileTypeSvg, IconFileTypePdf, IconFileArrowLeft } from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
@@ -29,7 +29,7 @@ const snackbarStore = useSnackbarStore();
 const store = useSvgStore();
 const historyStore = useHistoryStore();
 
-defineEmits(['openBlockDialog']);
+defineEmits(['openBlockDialog', 'openImportSvgDialog']);
 const props = defineProps(['project']);
 const project = props.project;
 
@@ -380,6 +380,18 @@ const saveDrawingAsBlock = async () => {
       size="small"
     >
       <CubePlusIcon size="17" stroke-width="1.5" />
+    </v-btn>
+    <v-btn
+      @click="$emit('openImportSvgDialog')"
+      class="text-secondary ml-2"
+      color="background"
+      icon
+      outlined
+      rounded="sm"
+      variant="flat"
+      size="small"
+    >
+      <IconFileArrowLeft size="17" stroke-width="1.5" />
     </v-btn>
     <!-- 
     <v-btn @click="addNewBlock" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">

@@ -7,6 +7,9 @@
     @mouseup="handleBlockMouseUp(block, $event)"
     @click="handleBlockClick(block)"
   >
+    <!-- Add this transparent rectangle to capture clicks -->
+    <rect :x="0" :y="0" :width="block.width" :height="block.height" fill="transparent" style="cursor: pointer" />
+    <!-- Existing content -->
     <rect
       v-if="!block.content"
       :x="0"
@@ -16,7 +19,6 @@
       :fill="block.color"
       :stroke="isBlockSelected(block) ? primary : 'black'"
       :stroke-width="isBlockSelected(block) ? 2 : 1"
-      style="cursor: pointer"
     />
     <g v-else v-html="block.content"></g>
     <circle

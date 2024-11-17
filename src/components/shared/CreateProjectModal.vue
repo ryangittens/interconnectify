@@ -16,81 +16,81 @@ const authStore = useAuthStore();
 
 const props = defineProps(['show', 'selectedTemplate']);
 
-const emit = defineEmits(['closeBlockDialog']);
+const emit = defineEmits(['closeProjectDialog']);
 
 const schema = yup.object({
-  block_name: yup.string().required('Block Name is required')
+  project_name: yup.string().required('Project Name is required')
 });
 
 const { handleSubmit, errors, isSubmitting } = useForm({
   validationSchema: schema,
   initialValues: {
-    block_name: ''
+    project_name: ''
   }
 });
 
-const { value: block_name } = useField('block_name');
+const { value: project_name } = useField('project_name');
 
 const onSubmit = handleSubmit(async (values) => {
   try {
     const user = authStore.user; // Get the logged-in user
-    const newBlock = {
-      block_name: values.block_name,
+    const newProject = {
+      project_name: values.project_name,
       user_id: user.id
     };
 
     // Include template details if a template is selected
     if (props.selectedTemplate) {
       //select which fields to duplicate from template
-      newBlock.drawing = props.selectedTemplate.drawing;
-      newBlock.block_svg = props.selectedTemplate.block_svg;
-      newBlock.project_description = newBlock.project_description;
+      newProject.drawing = props.selectedTemplate.drawing;
+      newProject.project_svg = props.selectedTemplate.project_svg;
+      newProject.project_description = newProject.project_description;
     }
 
-    const { data, error } = await supabase.from('blocks').insert(newBlock).select('*'); // Ensure to select the inserted record
+    const { data, error } = await supabase.from('projects').insert(newProject).select('*'); // Ensure to select the inserted record
 
     if (error) {
       throw error;
     }
 
-    console.log('Inserted block:', data); // Log the inserted data for debugging
+    console.log('Inserted project:', data); // Log the inserted data for debugging
 
     // Navigate to the new project's detail page
     if (data && data.length > 0) {
-      router.push({ name: 'ProjectView', params: { id: data[0].id, table: 'blocks' } });
+      router.push({ name: 'ProjectDesignView', params: { id: data[0].id, table: 'projects' } });
     } else {
-      throw new Error('Failed to retrieve the newly created block ID');
+      throw new Error('Failed to retrieve the newly created project ID');
     }
   } catch (error) {
     errors.apiError = error.message;
-    snackbarStore.showSnackbar('Error Creating Block', 'error');
+    snackbarStore.showSnackbar('Error Creating Project', 'error');
   }
 });
 </script>
 
 <template>
-  <v-dialog :model-value="show" @update:model-value="$emit('closeBlockDialog')" width="500">
+  <v-dialog :model-value="show" @update:model-value="$emit('closeProjectDialog')" width="500">
     <v-card elevation="0" class="innerCard maxWidth">
       <v-card-text>
         <div class="d-flex align-center">
           <h4 v-if="selectedTemplate" class="text-h4 mt-1">Start With Template: {{ selectedTemplate.project_name }}</h4>
-          <h4 v-else class="text-h4 mt-1">New Block</h4>
+          <h4 v-else class="text-h4 mt-1">New Blank Project</h4>
         </div>
         <div class="mt-4">
           <Form @submit="onSubmit" class="mt-7 projectForm">
             <v-text-field
-              v-model="block_name"
-              label="New Block Name"
+              v-model="project_name"
+              label="New Project Name"
               required
               density="comfortable"
               hide-details="auto"
               variant="outlined"
               color="primary"
-              :error-messages="errors.block_name"
+              :error-messages="errors.project_name"
               class="mt-4 mb-8"
             ></v-text-field>
             <v-btn color="primary" :loading="isSubmitting" block class="mt-2" variant="flat" size="large" type="submit">
-              Create Block
+              Create Project
             </v-btn>
             <div v-if="errors.apiError" class="mt-2">
               <v-alert color="error">{{ errors.apiError }}</v-alert>

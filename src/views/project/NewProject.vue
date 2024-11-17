@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ChevronRightIcon, ChevronLeftIcon, DotsIcon, PlusIcon, HeartFilledIcon } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
 
-import ProjectDetailsModal from '@/components/shared/ProjectDetailsModal.vue';
+import ProjectDetailsModal from '@/components/shared/CreateProjectModal.vue';
 
 import { useSnackbarStore } from '@/stores/snackbar';
 

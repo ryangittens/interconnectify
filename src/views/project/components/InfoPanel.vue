@@ -15,9 +15,11 @@
       <v-list-item v-for="(field, index) in drawerFields" :key="index">
         <v-text-field
           :rounded="false"
-          v-model="selectedObject[field.key]"
           :label="field.label"
-          :value="selectedObject[field.key]"
+          :modelValue="selectedObject[field.key]"
+          :type="field.type"
+          @input="handleInput(field, $event)"
+          :step="field?.step"
         ></v-text-field>
       </v-list-item>
     </v-list>
@@ -29,9 +31,10 @@ import { useSvgStore } from '@/stores/svgStore';
 import { computed } from 'vue';
 import { TrashXIcon } from 'vue-tabler-icons';
 import { useHistoryStore } from '@/stores/history';
-import { DeleteBlockCommand, DeleteLineCommand } from '@/commands';
+import { DeleteBlockCommand, DeleteLineCommand, ScaleBlockCommand } from '@/commands';
 
 const historyStore = useHistoryStore();
+
 const store = useSvgStore();
 const { deleteObject } = store;
 
@@ -41,15 +44,36 @@ const drawer = computed(() => {
 
 const selectedObject = computed(() => store.getSelectedObject());
 
+const scaleBlock = (value) => {
+  const newScale = value;
+  historyStore.executeCommand(new ScaleBlockCommand(selectedObject.value, newScale, store));
+};
+
+const handleInput = (field, event) => {
+  const oldValue = selectedObject.value[field.key];
+  const newValue = event.target.value;
+
+  // Call the onUpdate function if it exists
+  if (field.onUpdate) {
+    field.onUpdate(newValue, oldValue);
+  } else {
+    // Update the value in selectedObject
+    selectedObject.value[field.key] = newValue;
+  }
+};
+
 const drawerFields = computed(() => {
   if (selectedObject.value?.object === 'connectionPoint') {
     return [
-      { label: 'Voltage', key: 'voltage' },
-      { label: 'Connection Type', key: 'connectionType' }
+      { label: 'Voltage', key: 'voltage', type: 'number', step: 0.01 },
+      { label: 'Connection Type', key: 'connectionType', type: 'text' }
     ];
   }
   if (selectedObject.value?.object === 'text') {
-    return [{ label: 'Content', key: 'content' }];
+    return [{ label: 'Content', key: 'content', type: 'text' }];
+  }
+  if (selectedObject.value?.object === 'block') {
+    return [{ label: 'Scale', key: 'scale', type: 'number', step: 0.01, onUpdate: scaleBlock }];
   }
   // Add other conditions for different object types if necessary
   return [];

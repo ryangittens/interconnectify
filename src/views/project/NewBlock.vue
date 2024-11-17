@@ -5,7 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { ChevronRightIcon, ChevronLeftIcon, DotsIcon, PlusIcon, HeartFilledIcon } from 'vue-tabler-icons';
 import { useRouter } from 'vue-router';
 
-import BlockDetailsModal from '@/components/shared/BlockDetailsModal.vue';
+import CreateBlockModal from '@/components/shared/CreateBlockModal.vue';
 
 import { useSnackbarStore } from '@/stores/snackbar';
 
@@ -113,7 +113,7 @@ watch([currentPage, searchQuery], fetchBlocks);
 </script>
 
 <template>
-  <BlockDetailsModal :show="blockDialog" :selectedTemplate="selectedTemplate" @close-block-dialog="closeBlockDialog" />
+  <CreateBlockModal :show="blockDialog" :selectedTemplate="selectedTemplate" @close-block-dialog="closeBlockDialog" />
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <div class="d-flex align-center justify-space-between">

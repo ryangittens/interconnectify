@@ -9,8 +9,8 @@
               <v-list-item v-for="filter in filters" :key="filter" @click="applyFilter(filter)">
                 <v-list-item-title>{{ filter }}</v-list-item-title>
               </v-list-item>
-              <v-list-item @click="getFragments">
-                <v-list-item-title>Fragments</v-list-item-title>
+              <v-list-item @click="getTemplates">
+                <v-list-item-title>Templates</v-list-item-title>
               </v-list-item>
             </v-list>
           </perfect-scrollbar>
@@ -32,13 +32,13 @@
                   </template>
                 </v-text-field>
               </div>
-              <div v-if="showFragments" class="d-flex mt-4">
+              <div v-if="showTemplates" class="d-flex mt-4">
                 <perfect-scrollbar style="height: inherit">
                   <v-row class="ma-0">
-                    <template v-for="(fragment, i) in fragments" :key="i">
+                    <template v-for="(template, i) in templates" :key="i">
                       <v-col>
                         <v-card
-                          @click="importFragment(fragment, $event)"
+                          @click="importTemplate(template, $event)"
                           class="blockCard mx-auto overflow-hidden"
                           max-width="344"
                           min-width="244"
@@ -47,7 +47,7 @@
                           <v-card-actions>
                             <div class="cursorPointer">
                               <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
-                                {{ fragment.project_name }}
+                                {{ template.project_name }}
                               </h6>
                             </div>
                           </v-card-actions>
@@ -128,24 +128,24 @@ const props = defineProps({
 
 const router = useRouter();
 const blocks = ref([]);
-const fragments = ref([]);
+const templates = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const searchQuery = ref('');
 const currentPage = ref(1);
 const pageSize = ref(10);
 const totalBlocks = ref(0);
-const totalFragments = ref(0);
+const totalTemplates = ref(0);
 const selectedFilter = ref('All');
 const filters = ['All', 'Category 1', 'Category 2', 'Category 3'];
 
-const showFragments = ref(false);
+const showTemplates = ref(false);
 
 const svgStore = useSvgStore();
 
-const getFragments = async () => {
-  showFragments.value = true;
-  await fetchFragments();
+const getTemplates = async () => {
+  showTemplates.value = true;
+  await fetchTemplates();
 };
 
 const fetchBlocks = async () => {
@@ -176,13 +176,13 @@ const filteredBlocks = computed(() => {
 });
 
 const applyFilter = (filter) => {
-  showFragments.value = false;
+  showTemplates.value = false;
   selectedFilter.value = filter;
   currentPage.value = 1;
   fetchBlocks();
 };
 
-const fetchFragments = async () => {
+const fetchTemplates = async () => {
   try {
     loading.value = true;
     let { data, error, count } = await supabase
@@ -193,8 +193,8 @@ const fetchFragments = async () => {
 
     if (error) throw error;
 
-    fragments.value = data;
-    totalFragments.value = count;
+    templates.value = data;
+    totalTemplates.value = count;
   } catch (err) {
     error.value = err.message;
   } finally {
@@ -223,8 +223,8 @@ const importBlock = (block, event) => {
   emit('closeBlockDialog');
 };
 
-const importFragment = (fragment, event) => {
-  svgStore.startImportFragment(fragment, event);
+const importTemplate = (template, event) => {
+  svgStore.startImportTemplate(template, event);
   emit('closeBlockDialog');
 };
 

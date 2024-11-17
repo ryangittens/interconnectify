@@ -1,5 +1,6 @@
 export { AddBlockCommand } from './AddBlockCommand'
 export { DeleteBlockCommand } from './DeleteBlockCommand'
+export { ScaleBlockCommand } from './ScaleBlockCommand'
 export { DeleteLineCommand } from './DeleteLineCommand'
 export { MoveBlockCommand } from './MoveBlockCommand'
 export { MoveRectangleCommand } from './MoveRectangleCommand'

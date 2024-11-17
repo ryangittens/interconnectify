@@ -6,7 +6,8 @@ import { supabase } from '@/utils/supabaseClient';
 // imported components
 import ProjectCanvas from './components/ProjectCanvas.vue';
 import ProjectPanel from './components/ProjectPanel.vue';
-import BlockDialog from './components/BlockDialog.vue';
+import BlockSearchDialog from './components/BlockSearchDialog.vue';
+import ImportSvgDialog from './components/ImportSvgDialog.vue';
 
 const route = useRoute();
 const projectId = route.params.id;
@@ -34,12 +35,20 @@ const fetchProject = async () => {
 
 onMounted(fetchProject);
 
-const blockDialog = ref(false);
-function openBlockDialog() {
-  blockDialog.value = true;
+const blockSearchDialog = ref(false);
+function openBlockSearchDialog() {
+  blockSearchDialog.value = true;
 }
-function closeBlockDialog() {
-  blockDialog.value = false;
+function closeBlockSearchDialog() {
+  blockSearchDialog.value = false;
+}
+
+const importSvgDialog = ref(false);
+function openImportSvgDialog() {
+  importSvgDialog.value = true;
+}
+function closeImportSvgDialog() {
+  importSvgDialog.value = false;
 }
 </script>
 
@@ -49,9 +58,15 @@ function closeBlockDialog() {
   <div v-else>
     <!-- <h1>{{ project.name }}</h1>
     <p>{{ project.description }}</p> -->
-    <ProjectPanel :project="project" :mode="mode" @open-block-dialog="openBlockDialog" />
+    <ProjectPanel
+      :project="project"
+      :mode="mode"
+      @open-block-dialog="openBlockSearchDialog"
+      @open-import-svg-dialog="openImportSvgDialog"
+    />
     <ProjectCanvas :project="project" :mode="mode" />
-    <BlockDialog :show="blockDialog" @close-block-dialog="closeBlockDialog" />
+    <BlockSearchDialog :show="blockSearchDialog" @close-block-dialog="closeBlockSearchDialog" />
+    <ImportSvgDialog :show="importSvgDialog" @close-import-svg-dialog="closeImportSvgDialog" />
     <!-- Add more project details here -->
   </div>
 </template>

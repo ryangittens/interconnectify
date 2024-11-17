@@ -35,6 +35,13 @@ const historyStore = useHistoryStore()
 
 export const useSvgStore = defineStore('svgStore', {
   state: () => ({
+    elementTypes: [
+      { prop: 'rectangles', type: 'rectangle' },
+      { prop: 'texts', type: 'text' },
+      { prop: 'lines', type: 'line' },
+      { prop: 'paths', type: 'path' },
+      { prop: 'blocks', type: 'block' },
+    ],
     blocks: [],
     lines: [],
     selectedBlock: null,
@@ -85,11 +92,11 @@ export const useSvgStore = defineStore('svgStore', {
     connectionPoints: [],
     mode: null,
     selectedConnectionPoint: null,
-    pendingFragmentData: null,
+    pendingTemplateData: null,
     tempBlock: null,
     paths: [],
-    droppedFragment: false,
-    fragmentDropOffset: { x: 0, y: 0 },
+    droppedTemplate: false,
+    templateDropOffset: { x: 0, y: 0 },
     selectedObject: null,
     currentMoveRectCommand: null,
     mouseDownCP: null,
@@ -137,9 +144,9 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.droppedBlock) {
         this.endBlockDrag()
       }
-      if (this.droppedFragment) {
+      if (this.droppedTemplate) {
         const coords = this.getSVGCoordinates(event)
-        this.endFragmentDrop(coords)
+        this.endTemplateDrop(coords)
       }
       if (this.isAddingConnectionPoint) {
         this.startAddConnectionPoint(event)
@@ -516,8 +523,8 @@ export const useSvgStore = defineStore('svgStore', {
         this.endTextDrag()
       }
 
-      if (this.droppedFragment || this.isBlockDragging) {
-        this.endFragmentDrop(event)
+      if (this.droppedTemplate || this.isBlockDragging) {
+        this.endTemplateDrop(event)
       }
 
 
@@ -527,6 +534,17 @@ export const useSvgStore = defineStore('svgStore', {
       const blockExists = this.blocks.some((existingBlock) => existingBlock.id === block.id)
       if (!blockExists) {
         this.blocks.push(block)
+      }
+    },
+    scaleBlock(block, scale) {
+      const index = this.blocks.findIndex((b) => b.id === block.id)
+      if (index !== -1) {
+        let svgContent = this.blocks[index].content
+        let scaledSvgContent = this.scaleSvgContent(svgContent, scale)
+        this.blocks[index].content = scaledSvgContent
+        this.blocks[index].width *= scale
+        this.blocks[index].height *= scale
+        this.blocks[index].scale = scale
       }
     },
     moveBlock(block, dx, dy) {
@@ -559,7 +577,6 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     startBlockMove(block, event) {
-      console.log('start block move')
       this.movingBlock = block
       if (this.droppedBlock) {
         const coords = this.getSVGCoordinates(event)
@@ -580,6 +597,45 @@ export const useSvgStore = defineStore('svgStore', {
           this.lines[lineIndex].points = updatedLine.points
         }
       })
+    },
+    scaleSvgContent(svgContent, scaleFactor) {
+      const parser = new DOMParser()
+      const serializer = new XMLSerializer()
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml')
+      const svgElement = svgDoc.documentElement
+
+      // Adjust width and height attributes
+      const adjustDimension = (dimension) => {
+        const dimAttr = svgElement.getAttribute(dimension)
+        if (dimAttr) {
+          const unitRegex = /^([0-9.]+)([a-z%]*)$/i
+          const match = unitRegex.exec(dimAttr)
+          if (match) {
+            const value = parseFloat(match[1])
+            const unit = match[2]
+            const newValue = value * scaleFactor
+            svgElement.setAttribute(dimension, `${newValue}${unit}`)
+          }
+        }
+      }
+
+      adjustDimension('width')
+      adjustDimension('height')
+
+      // Adjust the viewBox
+      const viewBoxAttr = svgElement.getAttribute('viewBox')
+      if (viewBoxAttr) {
+        const [minX, minY, width, height] = viewBoxAttr
+          .split(/[\s,]+/)
+          .map(parseFloat)
+        const newViewBox = `${minX} ${minY} ${width * scaleFactor} ${height * scaleFactor}`
+        svgElement.setAttribute('viewBox', newViewBox)
+      }
+
+      // Do not scale individual elements to avoid double scaling
+
+      // Serialize the modified SVG back to a string
+      return serializer.serializeToString(svgDoc)
     },
 
     updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
@@ -1075,84 +1131,49 @@ export const useSvgStore = defineStore('svgStore', {
       // Update the viewBox in the store
       this.setViewBox(newX, newY, newWidth, newHeight)
     },
-    startImportFragment(fragment, event) {
+    startImportTemplate(template, event) {
       this.selectBlock(null)
-      this.pendingFragmentData = fragment.drawing
-      const drawing = JSON.parse(fragment.drawing)
+      this.pendingTemplateData = template.drawing
+      const drawing = JSON.parse(template.drawing)
 
-      // const svg = fragment.project_svg;
+      // const svg = template.project_svg;
       // const svgContent = decodeDataUri(svg);
       // const svgElement = parseSvgContent(svgContent);
       // const elements = extractElementsFromSvg(svgElement);
 
       const coords = this.getSVGCoordinates(event)
-      const elements = [
-        ...(drawing.rectangles?.map((rect) => ({
-          ...rect,
-          type: 'rectangle'
-        })) || []),
-        ...(drawing.texts?.map((text) => ({
-          ...text,
-          type: 'text'
-        })) || []),
-        ...(drawing.lines?.map((line) => ({
-          ...line,
-          type: 'line'
-        })) || []),
-        ...(drawing.paths?.map((path) => ({
-          ...path,
-          type: 'path'
-        })) || []),
-        ...(drawing.blocks?.map((block) => ({
-          ...block,
-          type: 'block'
-        })) || [])
-      ]
-      // let blocks = drawing?.blocks;
+      const elements = []
 
-      // if (blocks && blocks.length) {
-      //   blocks.forEach((block) => {
-      //     console.log(block)
-      //     const blockElements = [
-      //       ...(block.elements
-      //         ?.filter((e) => e.object === 'rectangle')
-      //         ?.map((rect) => ({
-      //           ...rect,
-      //           type: 'rectangle'
-      //         })) || []),
-      //       ...(block.elements
-      //         ?.filter((e) => e.object === 'text')
-      //         ?.map((text) => ({
-      //           ...text,
-      //           type: 'text'
-      //         })) || []),
-      //       ...(block.elements
-      //         ?.filter((e) => e.object === 'line')
-      //         ?.map((line) => ({
-      //           ...line,
-      //           type: 'line'
-      //         })) || []),
-      //       ...(block.elements
-      //         ?.filter((e) => e.object === 'path')
-      //         ?.map((path) => ({
-      //           ...path,
-      //           type: 'path'
-      //         })) || [])
-      //     ];
-      //     elements.push(...blockElements);
-      //   });
-      // }
 
-      const { svg, connectionPoints, offset } = this.generateSVGContent(elements, drawing?.connectionPoints)
-      this.fragmentDropOffset = offset
+      for (const { prop, type } of this.elementTypes) {
+        // Check if block.elements exists and has the property
+        if (drawing && Array.isArray(drawing[prop])) {
+          const items = drawing[prop]
+          elements.push(
+            ...items.map((item) => ({
+              ...item,
+              type,
+            }))
+          )
+        }
+      }
+
+      const { svg, connectionPoints, offset, boundingBox } = this.generateSVGContent(elements, drawing?.connectionPoints)
+      this.templateDropOffset = offset
+
+      let svgCenter = this.getSvgCenter()
+
+      let width = Math.abs(boundingBox.minX - boundingBox.maxX)
+      let height = Math.abs(boundingBox.minY - boundingBox.maxY)
 
       const tempBlock = {
         object: 'block',
+        scale: template?.scale || 1,
         id: uuid.v1(),
-        x: coords?.x || 40, // Adjust the position as needed
-        y: coords?.y || 40, // Adjust the position as needed
-        width: 80, // Adjust width and height as needed
-        height: 80,
+        x: coords?.x || svgCenter?.x || 40, // Adjust the position as needed
+        y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
+        width: width || 80, // Adjust width and height as needed
+        height: height || 80,
         color: '#f0f0f0', // Default color if not provided
         elements: elements,
         content: svg,
@@ -1161,11 +1182,11 @@ export const useSvgStore = defineStore('svgStore', {
 
       this.tempBlock = tempBlock
       this.blocks.push(tempBlock)
-      this.startFragmentDrop(tempBlock)
+      this.startTemplateDrop(tempBlock)
     },
-    importPendingFragment(coords) {
-      // Parse the fragment data
-      const data = JSON.parse(this.pendingFragmentData)
+    importPendingTemplate(coords) {
+      // Parse the template data
+      const data = JSON.parse(this.pendingTemplateData)
 
       // Extract elements from the data
       const blocks = data?.blocks || []
@@ -1218,44 +1239,111 @@ export const useSvgStore = defineStore('svgStore', {
       this.selectBlock(null)
       const block = data
       const drawing = JSON.parse(block.drawing)
+      console.log(block)
+      const elements = []
 
-      const elements = [
-        ...(drawing.rectangles?.map((rect) => ({
-          ...rect,
-          type: 'rectangle'
-        })) || []),
-        ...(drawing.texts?.map((text) => ({
-          ...text,
-          type: 'text'
-        })) || []),
-        ...(drawing.lines?.map((line) => ({
-          ...line,
-          type: 'line'
-        })) || []),
-        ...(drawing.paths?.map((path) => ({
-          ...path,
-          type: 'path'
-        })) || [])
-      ]
+      for (const { prop, type } of this.elementTypes) {
+        // Check if block.elements exists and has the property
+        if (drawing && Array.isArray(drawing[prop])) {
+          const items = drawing[prop]
+          elements.push(
+            ...items.map((item) => ({
+              ...item,
+              type,
+            }))
+          )
+        }
+      }
 
       const coords = this.getSVGCoordinates(event)
 
-      const { svg, connectionPoints, offset } = this.generateSVGContent(elements, drawing?.connectionPoints)
-
+      const { svg, connectionPoints, offset, boundingBox } = this.generateSVGContent(elements, drawing?.connectionPoints)
+      let svgCenter = this.getSvgCenter()
+      let width = Math.abs(boundingBox.minX - boundingBox.maxX)
+      let height = Math.abs(boundingBox.minY - boundingBox.maxY)
       const newBlock = {
         object: 'block',
+        scale: block?.scale || 1,
         id: uuid.v1(),
-        x: coords?.x || 40, // Adjust the position as needed
-        y: coords?.y || 40, // Adjust the position as needed
-        width: block?.width || 80, // Adjust width and height as needed
-        height: block?.height || 80,
+        x: coords?.x || svgCenter?.x || 40, // Adjust the position as needed
+        y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
+        width: width || 80, // Adjust width and height as needed
+        height: height || 80,
         color: block?.color || '#f0f0f0', // Default color if not provided
         elements: elements,
         content: svg,
         connectionPoints: connectionPoints || []
       }
 
-      this.fragmentDropOffset = offset
+      this.templateDropOffset = offset
+      console.log(newBlock)
+      this.blocks.push(newBlock)
+      this.startBlockDrop(newBlock)
+    },
+    getSvgCenter() {
+      if (this?.svg) {
+        const bbox = this.svg.getBBox()
+        const centerX = bbox.x + bbox.width / 2
+        const centerY = bbox.y + bbox.height / 2
+        return { x: centerX, y: centerY }
+      }
+    },
+    convertToPixels(value) {
+      const unitRegex = /([0-9.]+)([a-z%]*)/i
+      const match = unitRegex.exec(value)
+      if (!match) return parseFloat(value)
+
+      const number = parseFloat(match[1])
+      const unit = match[2]
+
+      switch (unit) {
+        case 'mm':
+          return (number * 96) / 25.4 // Convert millimeters to pixels
+        case 'cm':
+          return (number * 96) / 2.54 // Convert centimeters to pixels
+        case 'in':
+          return number * 96 // Convert inches to pixels
+        case 'pt':
+          return (number * 96) / 72 // Convert points to pixels
+        case 'pc':
+          return (number * 96) / 6 // Convert picas to pixels
+        case 'em':
+        case 'ex':
+        case 'px':
+        default:
+          return number // Assume pixels if unit is 'px' or unknown
+      }
+    },
+    importSvgAsBlock(svgContent, event) {
+      const coords = this.getSVGCoordinates(event)
+
+      // Create a temporary DOM parser to parse the SVG content
+      const parser = new DOMParser()
+      const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml')
+      const svgElement = svgDoc.documentElement
+
+      // Extract the width and height attributes
+      let widthAttr = svgElement.getAttribute('width')
+      let heightAttr = svgElement.getAttribute('height')
+
+
+      // Convert width and height to pixels
+      const width = this.convertToPixels(widthAttr || '0')
+      const height = this.convertToPixels(heightAttr || '0')
+      let svgCenter = this.getSvgCenter()
+      const newBlock = {
+        object: 'block',
+        scale: 1,
+        id: uuid.v1(),
+        x: coords?.x || svgCenter?.x || 40, // Adjust the position as needed
+        y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
+        width: width || 80, // Use extracted width or default
+        height: height || 80, // Use extracted height or default
+        color: '#f0f0f0',
+        elements: null,
+        content: svgContent,
+        connectionPoints: [],
+      }
 
       this.blocks.push(newBlock)
       this.startBlockDrop(newBlock)
@@ -1289,31 +1377,31 @@ export const useSvgStore = defineStore('svgStore', {
       this.droppedBlock = false
       this.isBlockDragging = false
     },
-    startFragmentDrop(newBlock) {
+    startTemplateDrop(newBlock) {
       //start block dragging
       this.mouseDown = true
       this.mouseDownBlock = newBlock
       this.selectBlock(newBlock)
       this.dragging = true
-      this.droppedFragment = true
+      this.droppedTemplate = true
     },
-    endFragmentDrop(event) {
+    endTemplateDrop(event) {
       //start block dragging
 
       if (event) {
         const coords = this.getSVGCoordinates(event)
-        const offset = { x: coords.x - this.fragmentDropOffset.x, y: coords.y - this.fragmentDropOffset.y }
-        this.importPendingFragment(offset)
+        const offset = { x: coords.x - this.templateDropOffset.x, y: coords.y - this.templateDropOffset.y }
+        this.importPendingTemplate(offset)
       }
 
       this.deleteBlock(this.tempBlock)
       this.mouseDown = false
       this.mouseDownBlock = null
       this.dragging = false
-      this.droppedFragment = false
+      this.droppedTemplate = false
       this.isBlockDragging = false
       this.tempBlock = null
-      this.pendingFragmentData = null
+      this.pendingTemplateData = null
     },
     cancelBlockDrop() {
       //start block dragging
@@ -1333,7 +1421,7 @@ export const useSvgStore = defineStore('svgStore', {
       const blocks = elements.filter((el) => el.type === 'block')
 
       // Calculate the bounding box for the elements
-      const { minX, minY, maxX, maxY } = calculateBoundingBox(lines, blocks, rectangles, paths, texts)
+      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(lines, blocks, rectangles, paths, texts)
 
       // Calculate normalized dimensions and viewBox
       const width = maxX - minX
@@ -1392,7 +1480,8 @@ export const useSvgStore = defineStore('svgStore', {
       return {
         svg: svgHeader + normalizedElements + normalizedBlocks + svgFooter,
         connectionPoints: normalizedConnectionPoints,
-        offset: { x: minX, y: minY }
+        offset: { x: minX, y: minY },
+        boundingBox: { minX, minY, maxX, maxY }
       }
     },
 
@@ -1430,7 +1519,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     fitSVGToExtent() {
-      const { minX, minY, maxX, maxY } = calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.paths, this.texts)
+      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(this.lines, this.blocks, this.rectangles, this.paths, this.texts)
 
       if (minX === Infinity || minY === Infinity || maxX === -Infinity || maxY === -Infinity) {
         console.error('No elements to fit')
@@ -1645,113 +1734,110 @@ export const useSvgStore = defineStore('svgStore', {
         },
         layout: 'lightHorizontalLines', // Optional: Add horizontal lines between rows
       }
+    },
+    calculateBoundingBox(lines, blocks, rectangles, paths, texts) {
+      let minX = Infinity,
+        minY = Infinity,
+        maxX = -Infinity,
+        maxY = -Infinity
+
+      const parser = new DOMParser()
+
+      let elements = []
+      if (blocks && blocks.length) {
+        blocks.forEach((block) => {
+          if (block.content) {
+            const svgDoc = parser.parseFromString(block.content, 'image/svg+xml')
+            const svgElement = svgDoc.documentElement
+
+            // Get the viewBox of the SVG element
+            const viewBox = svgElement?.viewBox?.baseVal
+
+            // Convert width and height attributes to pixels if they exist
+            let widthAttr = svgElement.getAttribute('width')
+            let heightAttr = svgElement.getAttribute('height')
+            const width = widthAttr ? this.convertToPixels(widthAttr) : (viewBox?.width || 40)
+            const height = heightAttr ? this.convertToPixels(heightAttr) : (viewBox?.height || 40)
+
+            const blockBox = {
+              x: block.x + viewBox.x,
+              y: block.y + viewBox.y,
+              width: width,
+              height: height,
+            }
+
+            if (blockBox.x < minX) minX = blockBox.x
+            if (blockBox.y < minY) minY = blockBox.y
+            if (blockBox.x + blockBox.width > maxX) maxX = blockBox.x + blockBox.width
+            if (blockBox.y + blockBox.height > maxY) maxY = blockBox.y + blockBox.height
+          }
+
+          const blockElements = []
+
+          let drawing = block.elements
+
+          for (const { prop, type } of this.elementTypes) {
+            // Check if block.elements exists and has the property
+            if (drawing && Array.isArray(drawing[prop])) {
+              const items = drawing[prop]
+              elements.push(
+                ...items.map((item) => ({
+                  ...item,
+                  type,
+                }))
+              )
+            }
+          }
+
+
+          elements.push(...blockElements)
+        })
+      }
+
+      lines.push(...elements.filter((el) => el.type === 'line'))
+      rectangles.push(...elements.filter((el) => el.type === 'rectangle'))
+      texts.push(...elements.filter((el) => el.type === 'text'))
+      paths.push(...elements.filter((el) => el.type === 'path'))
+
+      lines?.forEach((line) => {
+        line?.points?.forEach((point) => {
+          if (point.x < minX) minX = point.x
+          if (point.y < minY) minY = point.y
+          if (point.x > maxX) maxX = point.x
+          if (point.y > maxY) maxY = point.y
+        })
+      })
+
+      rectangles?.forEach((rectangle) => {
+        if (rectangle.x < minX) minX = rectangle.x
+        if (rectangle.y < minY) minY = rectangle.y
+        if (rectangle.x + rectangle.width > maxX) maxX = rectangle.x + rectangle.width
+        if (rectangle.y + rectangle.height > maxY) maxY = rectangle.y + rectangle.height
+      })
+
+      paths?.forEach((path) => {
+        const pathBox = calculatePathBoundingBox(path.d)
+        if (pathBox.minX < minX) minX = pathBox.minX
+        if (pathBox.minY < minY) minY = pathBox.minY
+        if (pathBox.maxX > maxX) maxX = pathBox.maxX
+        if (pathBox.maxY > maxY) maxY = pathBox.maxY
+      })
+
+      texts?.forEach((text) => {
+        const textBox = calculateTextBoundingBox(text)
+        if (textBox.minX < minX) minX = textBox.minX
+        if (textBox.minY < minY) minY = textBox.minY
+        if (textBox.maxX > maxX) maxX = textBox.maxX
+        if (textBox.maxY > maxY) maxY = textBox.maxY
+      })
+
+      return { minX, minY, maxX, maxY }
     }
   },
 
 })
 
 
-
-// Helper function to calculate the bounding box
-function calculateBoundingBox(lines, blocks, rectangles, paths, texts) {
-  let minX = Infinity,
-    minY = Infinity,
-    maxX = -Infinity,
-    maxY = -Infinity
-
-  const parser = new DOMParser()
-
-  let elements = []
-  if (blocks && blocks.length) {
-    blocks.forEach((block) => {
-      if (block.content) {
-        const svgDoc = parser.parseFromString(block.content, 'image/svg+xml')
-        const svgElement = svgDoc.documentElement
-
-        // Get the viewBox of the SVG element
-        const viewBox = svgElement.viewBox.baseVal
-        const blockBox = {
-          x: block.x + viewBox.x,
-          y: block.y + viewBox.y,
-          width: viewBox.width,
-          height: viewBox.height
-        }
-
-        if (blockBox.x < minX) minX = blockBox.x
-        if (blockBox.y < minY) minY = blockBox.y
-        if (blockBox.x + blockBox.width > maxX) maxX = blockBox.x + blockBox.width
-        if (blockBox.y + blockBox.height > maxY) maxY = blockBox.y + blockBox.height
-      }
-
-      const blockElements = [
-        ...(block.elements
-          ?.filter((e) => e.object === 'rectangle')
-          ?.map((rect) => ({
-            ...rect,
-            type: 'rectangle'
-          })) || []),
-        ...(block.elements
-          ?.filter((e) => e.object === 'text')
-          ?.map((text) => ({
-            ...text,
-            type: 'text'
-          })) || []),
-        ...(block.elements
-          ?.filter((e) => e.object === 'line')
-          ?.map((line) => ({
-            ...line,
-            type: 'line'
-          })) || []),
-        ...(block.elements
-          ?.filter((e) => e.object === 'path')
-          ?.map((path) => ({
-            ...path,
-            type: 'path'
-          })) || [])
-      ]
-      elements.push(...blockElements)
-    })
-  }
-
-  lines.push(...elements.filter((el) => el.type === 'line'))
-  rectangles.push(...elements.filter((el) => el.type === 'rectangle'))
-  texts.push(...elements.filter((el) => el.type === 'text'))
-  paths.push(...elements.filter((el) => el.type === 'path'))
-
-  lines?.forEach((line) => {
-    line?.points?.forEach((point) => {
-      if (point.x < minX) minX = point.x
-      if (point.y < minY) minY = point.y
-      if (point.x > maxX) maxX = point.x
-      if (point.y > maxY) maxY = point.y
-    })
-  })
-
-  rectangles?.forEach((rectangle) => {
-    if (rectangle.x < minX) minX = rectangle.x
-    if (rectangle.y < minY) minY = rectangle.y
-    if (rectangle.x + rectangle.width > maxX) maxX = rectangle.x + rectangle.width
-    if (rectangle.y + rectangle.height > maxY) maxY = rectangle.y + rectangle.height
-  })
-
-  paths?.forEach((path) => {
-    const pathBox = calculatePathBoundingBox(path.d)
-    if (pathBox.minX < minX) minX = pathBox.minX
-    if (pathBox.minY < minY) minY = pathBox.minY
-    if (pathBox.maxX > maxX) maxX = pathBox.maxX
-    if (pathBox.maxY > maxY) maxY = pathBox.maxY
-  })
-
-  texts?.forEach((text) => {
-    const textBox = calculateTextBoundingBox(text)
-    if (textBox.minX < minX) minX = textBox.minX
-    if (textBox.minY < minY) minY = textBox.minY
-    if (textBox.maxX > maxX) maxX = textBox.maxX
-    if (textBox.maxY > maxY) maxY = textBox.maxY
-  })
-
-  return { minX, minY, maxX, maxY }
-}
 
 const calculatePathBoundingBox = (d) => {
   const path = new Path2D(d)
