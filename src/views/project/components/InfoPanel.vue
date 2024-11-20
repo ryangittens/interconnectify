@@ -18,7 +18,7 @@
           :label="field.label"
           :modelValue="selectedObject[field.key]"
           :type="field.type"
-          @input="handleInput(field, $event)"
+          @input="handleInput(field, $event.target.value)"
           :step="field?.step"
         ></v-text-field>
       </v-list-item>
@@ -36,7 +36,7 @@ import { DeleteBlockCommand, DeleteLineCommand, ScaleBlockCommand } from '@/comm
 const historyStore = useHistoryStore();
 
 const store = useSvgStore();
-const { deleteObject } = store;
+const { deleteObject, onLinePropertyChange } = store;
 
 const drawer = computed(() => {
   return !store.isDrawing && selectedObject.value ? true : false;
@@ -44,21 +44,24 @@ const drawer = computed(() => {
 
 const selectedObject = computed(() => store.getSelectedObject());
 
-const scaleBlock = (value) => {
-  const newScale = value;
-  historyStore.executeCommand(new ScaleBlockCommand(selectedObject.value, newScale, store));
+const scaleBlock = (element, key, newValue) => {
+  historyStore.executeCommand(new ScaleBlockCommand(element, newValue, store));
 };
 
-const handleInput = (field, event) => {
-  const oldValue = selectedObject.value[field.key];
-  const newValue = event.target.value;
+const updateLine = (element, key, newValue) => {
+  onLinePropertyChange(element, key, newValue);
+};
+
+const handleInput = (field, newValue) => {
+  const element = selectedObject.value;
+  const key = field.key;
 
   // Call the onUpdate function if it exists
   if (field.onUpdate) {
-    field.onUpdate(newValue, oldValue);
+    field.onUpdate(element, key, newValue);
   } else {
     // Update the value in selectedObject
-    selectedObject.value[field.key] = newValue;
+    element[key] = newValue;
   }
 };
 
@@ -71,6 +74,12 @@ const drawerFields = computed(() => {
   }
   if (selectedObject.value?.object === 'text') {
     return [{ label: 'Content', key: 'content', type: 'text' }];
+  }
+  if (selectedObject.value?.object === 'line') {
+    return [
+      { label: 'Voltage', key: 'voltage', type: 'text', onUpdate: updateLine },
+      { label: 'Current', key: 'current', type: 'text', onUpdate: updateLine }
+    ];
   }
   if (selectedObject.value?.object === 'block') {
     return [{ label: 'Scale', key: 'scale', type: 'number', step: 0.01, onUpdate: scaleBlock }];

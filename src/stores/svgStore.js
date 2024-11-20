@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { uuid } from 'vue-uuid'
 import * as pdfMake from 'pdfmake/build/pdfmake'
 import { nextTick } from 'vue'
+import { UpdateLineCommand } from '@/commands'
 // PDF Fonts
 const pdfFonts = {
   // download default Roboto font from cdnjs.com
@@ -118,22 +119,55 @@ export const useSvgStore = defineStore('svgStore', {
     initialCPPosition: { x: 0, y: 0 },
     initialTextPosition: { x: 0, y: 0 },
     conductorTableHeadings: [
-      { title: 'alias', key: 'alias', editable: false, width: '60px' },
-      { title: 'run', key: 'run', editable: false, width: '60px' },
-      { title: 'voltage', key: 'voltage', editable: false, width: '80px' },
-      { title: 'current', key: 'current', editable: true, width: '80px' },
-      { title: 'vd', key: 'vd', editable: false, width: '60px' },
-      { title: 'ccc', key: 'ccc', editable: false, width: '60px' },
-      { title: 'egc', key: 'egc', editable: false, width: '60px' },
-      { title: 'ocpd', key: 'ocpd', editable: false, width: '60px' },
-      { title: 'size', key: 'size', editable: false, width: '80px' },
-      { title: 'conductor', key: 'conductor', editable: false, width: '100px' },
-      { title: 'ohms', key: 'ohms', editable: false, width: '80px' },
+      { title: 'alias', key: 'alias', editable: false },
+      { title: 'run', key: 'run', editable: false },
+      { title: 'voltage', key: 'voltage', editable: true },
+      { title: 'current', key: 'current', editable: true },
+      { title: 'vd', key: 'vd', editable: false },
+      { title: 'len', key: 'len', editable: false },
+      { title: 'ccc', key: 'ccc', editable: false },
+      { title: 'egc', key: 'egc', editable: false },
+      { title: 'ocpd', key: 'ocpd', editable: false },
+      { title: 'size', key: 'size', editable: false },
+      { title: 'conductor', key: 'conductor', editable: false },
+      { title: 'ohms', key: 'ohms', editable: false },
     ],
     minZoomLevel: 0.5,
     maxZoomLevel: 2,
   }),
   actions: {
+    onLinePropertyChange(line, key, newValue) {
+      const oldValue = line[key]
+      if (oldValue !== newValue) {
+        const oldValues = { [key]: oldValue }
+        const newValues = { [key]: newValue }
+        // If there's an ongoing command for this line, update it
+        if (line.pendingCommand) {
+          Object.assign(line.pendingCommand.newValues, newValues)
+          Object.assign(line.pendingCommand.oldValues, oldValues)
+        } else {
+          // Create a new command
+          const command = new UpdateLineCommand(line, newValues, oldValues, this)
+          line.pendingCommand = command
+          historyStore.executeCommand(command)
+          delete line.pendingCommand
+        }
+      }
+    },
+    recalculateLine(line) {
+      console.log(line.voltage, line.current)
+      line.ccc = this.calculateCcc(line.voltage, line.current)
+      line.size = this.calculateWireSize(line.voltage, line.current)
+      // Recalculate other dependent fields if necessary
+    },
+    calculateWireSize(voltage, current) {
+      //watch located in conductor schedule component
+      return (voltage * current) / 1000 // Replace with your actual logic
+    },
+    calculateCcc(voltage, current) {
+      console.log('Calculating ccc')
+      return voltage * current * 3 // Replace with your actual logic
+    },
     handleSvgClick(event) {
       if (
         !this.activeTool &&
@@ -1128,6 +1162,7 @@ export const useSvgStore = defineStore('svgStore', {
           type: this.lineType,
           color: this.lineColor,
           points: [...this.currentLine],
+          voltage: 240
         }
 
         this.addLine(newLine)
@@ -2014,6 +2049,7 @@ export const useSvgStore = defineStore('svgStore', {
       return { minX, minY, maxX, maxY }
     }
   },
+
 
 })
 

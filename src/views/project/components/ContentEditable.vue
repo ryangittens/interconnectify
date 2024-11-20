@@ -44,6 +44,6 @@ const onBlur = () => {
   background-color: rgba(var(--v-theme-primary), var(--v-activated-opacity));
 }
 .tableValue {
-  height: 34px;
+  display: block;
 }
 </style>
