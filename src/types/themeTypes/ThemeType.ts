@@ -32,5 +32,7 @@ export type ThemeTypes = {
     primary200?: string;
     secondary200?: string;
     ground?: string;
+    conductor?: string;
+    neutral?: string;
   };
 };

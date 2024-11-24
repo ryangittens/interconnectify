@@ -26,6 +26,7 @@
                     :modelValue="element[heading.key]"
                     :editable="heading.editable"
                     :customClass="['conductorTableInput']"
+                    :items="heading.items"
                   />
                 </td>
               </tr>

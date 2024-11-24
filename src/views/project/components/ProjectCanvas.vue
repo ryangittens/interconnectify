@@ -8,14 +8,16 @@
       :viewBox="`${store.viewBox.x} ${store.viewBox.y} ${store.viewBox.width} ${store.viewBox.height}`"
       @mousedown="startInteraction"
       @mousemove="handleMouseMove"
-      @mouseup="endInteraction"
+      @mouseup="endCanvasInteraction($event)"
       @wheel="zoom"
+      @dblclick="handleDoubleClick"
     >
       <g ref="axesContainer"></g>
       <GridLines />
 
-      <Lines />
-      <Blocks />
+      <!-- Pass a ref to the Lines component -->
+      <Lines ref="linesRef" />
+      <Blocks @startWire="handleStartWire" />
       <RectangleTool />
       <ConnectionPointsTool />
       <TextTool />
@@ -65,39 +67,40 @@ const svg = ref(null);
 
 const axesContainer = ref(null);
 
-const {
-  getSVGCoordinates,
-  startLineDrag,
-  deserializeState,
-  selectBlock,
-  stopDrawing,
-  setSvgElement,
-  setAxesContainer,
-  dragSegment,
-  snapToGrid,
-  moveBlock,
-  deleteObject,
-  startBlockMove,
-  endInteraction,
-  addPoint,
-  deselectAll,
-  endDrawing,
-  handleSvgClick,
-  startRectMove,
-  moveRect,
-  startCPMove,
-  moveCP,
-  startTextMove,
-  moveText,
-  maxZoomLevel,
-  minZoomLevel
-} = store;
+// Reference to the Lines component
+const linesRef = ref(null);
 
+// Local variables for line drawing
+let isPanning = false;
 let panStart = { x: 0, y: 0 };
+let viewBoxStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
 const zoomFactor = 0.04;
 
+function endCanvasInteraction(event) {
+  if (isPanning) {
+    isPanning = false;
+    // Update the reactive state once at the end
+    const viewBoxValues = svg.value.getAttribute('viewBox').split(' ').map(parseFloat);
+    store.viewBox.x = viewBoxValues[0];
+    store.viewBox.y = viewBoxValues[1];
+  } else if (store.isDraggingLineSegment) {
+    linesRef.value.handleLineMouseUp(event);
+  }
+  endInteraction();
+}
+
 /* SETUP */
+
+const {
+  getSVGCoordinates,
+
+  snapToGrid,
+  deleteObject,
+  endInteraction,
+  maxZoomLevel,
+  minZoomLevel
+} = store;
 
 const pan = (event) => {
   if (!store.panning) return;
@@ -111,7 +114,6 @@ const pan = (event) => {
 
 const zoom = (event) => {
   event.preventDefault();
-  // console.log('xoom levels', store.zoomLevel);
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
@@ -139,9 +141,9 @@ const initSVG = () => {
   store.setViewBox(0, 0, clientWidth, clientHeight);
   svg.value.setAttribute('width', clientWidth);
   svg.value.setAttribute('height', clientHeight);
-  setSvgElement(svg.value);
-  setAxesContainer(axesContainer.value);
-  deserializeState(drawing);
+  store.setSvgElement(svg.value);
+  store.setAxesContainer(axesContainer.value);
+  store.deserializeState(drawing);
   store.setMode(props.mode);
 };
 
@@ -162,11 +164,12 @@ onMounted(() => {
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
   svg.value.addEventListener('mousedown', startInteraction);
-  svg.value.addEventListener('mouseup', endInteraction);
-  svg.value.addEventListener('mouseleave', endInteraction);
+  svg.value.addEventListener('mouseup', endCanvasInteraction);
+  svg.value.addEventListener('mouseleave', endCanvasInteraction);
   svg.value.addEventListener('wheel', zoom);
   svg.value.addEventListener('click', handleSvgClick);
   window.addEventListener('beforeunload', beforeUnloadHandler);
+  svg.value.addEventListener('dblclick', handleDoubleClick);
 });
 
 onBeforeUnmount(() => {
@@ -174,11 +177,12 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', resizeSVG);
   svg.value.removeEventListener('mousemove', handleMouseMove);
   svg.value.removeEventListener('mousedown', startInteraction);
-  svg.value.removeEventListener('mouseup', endInteraction);
-  svg.value.removeEventListener('mouseleave', endInteraction);
+  svg.value.removeEventListener('mouseup', endCanvasInteraction);
+  svg.value.removeEventListener('mouseleave', endCanvasInteraction);
   svg.value.removeEventListener('wheel', zoom);
   svg.value.removeEventListener('click', handleSvgClick);
   window.removeEventListener('beforeunload', beforeUnloadHandler);
+  svg.value.removeEventListener('dblclick', handleDoubleClick);
 });
 
 /* COMMON */
@@ -189,51 +193,68 @@ const beforeUnloadHandler = (event) => {
   }
 };
 
+const handleDoubleClick = (event) => {
+  if (store.isDrawing) {
+    endDrawing();
+  }
+};
+
+const handleStartWire = ({ cp, block, event }) => {
+  if (!store.isDrawing) return;
+  linesRef.value.startWire(cp, block, event);
+};
+
 const handleMouseMove = (event) => {
   handleBlockMouseMove(event);
   handleRectangleMouseMove(event);
   handleLineMouseMove(event);
   handleConnectionPointsMouseMove(event);
   handleTextMouseMove(event);
+
   if (store.isDrawing) {
     const coords = getSVGCoordinates(event);
-    store.hoverPoint = coords;
-    drawHoverLine(coords.x, coords.y, event.ctrlKey);
-  } else if (store.panning && !store.dragging) {
-    pan(event);
+    linesRef.value.setHoverLine(coords.x, coords.y, event.ctrlKey);
   } else if (store.dragging && store.movingBlock) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - store.dragStart.x;
-    const dy = coords.y - store.dragStart.y;
-    const snappedCoords = snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
+    const dx = coords.x - initialBlockPosition.x;
+    const dy = coords.y - initialBlockPosition.y;
+    const snappedCoords = store.snapToGrid(initialBlockPosition.x + dx, initialBlockPosition.y + dy);
 
-    moveBlock(store.movingBlock, snappedCoords.x - store.movingBlock.x, snappedCoords.y - store.movingBlock.y, store);
+    store.moveBlock(store.movingBlock, snappedCoords.x - store.movingBlock.x, snappedCoords.y - store.movingBlock.y, store);
   } else if (store.dragging && store.selectedLineSegment) {
     const coords = getSVGCoordinates(event);
     const dx = coords.x - store.dragStart.x;
     const dy = coords.y - store.dragStart.y;
-    dragSegment(store.selectedLineSegment, dx, dy);
-    //store.dragStart = coords; // Update drag start for smooth dragging
+    store.dragSegment(store.selectedLineSegment, dx, dy);
   } else if (store.activeTool == 'rectangle' && store.isCreatingRectangle) {
     updateRectangle(event);
   } else if (store.dragging && store.movingRect) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - store.dragStart.x;
-    const dy = coords.y - store.dragStart.y;
-    const snappedCoords = snapToGrid(store.initialRectPosition.x + dx, store.initialRectPosition.y + dy);
-    moveRect(store.movingRect, snappedCoords.x - store.movingRect.x, snappedCoords.y - store.movingRect.y, store);
+    const dx = coords.x - initialBlockPosition.x;
+    const dy = coords.y - initialBlockPosition.y;
+    const snappedCoords = store.snapToGrid(store.initialRectPosition.x + dx, store.initialRectPosition.y + dy);
+    store.moveRect(store.movingRect, snappedCoords.x - store.movingRect.x, snappedCoords.y - store.movingRect.y, store);
   } else if (store.dragging && store.movingCP) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - store.dragStart.x;
-    const dy = coords.y - store.dragStart.y;
-    const snappedCoords = snapToGrid(store.initialCPPosition.x + dx, store.initialCPPosition.y + dy);
-    moveCP(store.movingCP, snappedCoords.x - store.movingCP.x, snappedCoords.y - store.movingCP.y, store);
+    const dx = coords.x - initialBlockPosition.x;
+    const dy = coords.y - initialBlockPosition.y;
+    const snappedCoords = store.snapToGrid(store.initialCPPosition.x + dx, store.initialCPPosition.y + dy);
+    store.moveCP(store.movingCP, snappedCoords.x - store.movingCP.x, snappedCoords.y - store.movingCP.y, store);
   } else if (store.dragging && store.movingText) {
     const coords = getSVGCoordinates(event);
-    const dx = coords.x - store.dragStart.x;
-    const dy = coords.y - store.dragStart.y;
-    const snappedCoords = snapToGrid(store.initialTextPosition.x + dx, store.initialTextPosition.y + dy);
-    moveText(store.movingText, snappedCoords.x - store.movingText.x, snappedCoords.y - store.movingText.y, store);
+    const dx = coords.x - initialBlockPosition.x;
+    const dy = coords.y - initialBlockPosition.y;
+    const snappedCoords = store.snapToGrid(store.initialTextPosition.x + dx, store.initialTextPosition.y + dy);
+    store.moveText(store.movingText, snappedCoords.x - store.movingText.x, snappedCoords.y - store.movingText.y, store);
+  } else if (isPanning) {
+    const dx = (event.clientX - panStart.x) / store.zoomLevel;
+    const dy = (event.clientY - panStart.y) / store.zoomLevel;
+
+    const newViewBoxX = viewBoxStart.x - dx;
+    const newViewBoxY = viewBoxStart.y - dy;
+
+    // Directly set the SVG viewBox attribute without using reactive state
+    svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
   }
 };
 
@@ -288,9 +309,10 @@ const startInteraction = (event) => {
     store.currentDragLineSegmentCommand = new DragLineSegmentCommand(store.selectedLineSegment.line, originalPoints, originalPoints, store);
   } else if (store.activeTool == 'rectangle') {
     //startRectangle(event);
-  } else {
+  } else if (!store.dragging && !store.isDrawing && !store.activeTool) {
+    isPanning = true;
     panStart = { x: event.clientX, y: event.clientY };
-    store.panning = true;
+    viewBoxStart = { x: store.viewBox.x, y: store.viewBox.y };
   }
 };
 
@@ -303,7 +325,7 @@ const handleBlockMouseMove = (event) => {
         // If dragging hasn't started yet, start it now
         store.isBlockDragging = true;
         store.isDragging = true;
-        startBlockMove(store.mouseDownBlock, event);
+        store.startBlockMove(store.mouseDownBlock, event);
         startInteraction(event);
       }
     }
@@ -317,7 +339,7 @@ const handleRectangleMouseMove = (event) => {
         // If dragging hasn't started yet, start it now
         store.isRectDragging = true;
         store.isDragging = true;
-        startRectMove(store.mouseDownRect, event);
+        store.startRectMove(store.mouseDownRect, event);
         startInteraction(event);
       }
     }
@@ -331,7 +353,7 @@ const handleTextMouseMove = (event) => {
         // If dragging hasn't started yet, start it now
         store.isTextDragging = true;
         store.isDragging = true;
-        startTextMove(store.mouseDownText, event);
+        store.startTextMove(store.mouseDownText, event);
         startInteraction(event);
       }
     }
@@ -345,7 +367,7 @@ const handleLineMouseMove = (event) => {
         // If dragging hasn't started yet, start it now
         store.isLineDragging = true;
         store.isDragging = true;
-        startLineDrag(store.mouseDownLine, event);
+        store.startLineDrag(store.mouseDownLine, event);
         startInteraction(event);
       }
     }
@@ -363,7 +385,7 @@ const handleConnectionPointsMouseMove = (event) => {
         // If dragging hasn't started yet, start it now
         store.isCPDragging = true;
         store.isDragging = true;
-        startCPMove(store.mouseDownCP, event);
+        store.startCPMove(store.mouseDownCP, event);
         startInteraction(event);
       }
     }
@@ -382,47 +404,7 @@ const cancelRectangle = () => {
   store.cancelCreatingRectangle();
 };
 
-const drawAxes = (snappedPoint) => {
-  store.axesContainer.innerHTML = '';
-  const { x, y } = snappedPoint;
-  const { x: viewBoxX, y: viewBoxY, width, height } = store.viewBox;
-
-  const xAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  xAxis.setAttribute('x1', x);
-  xAxis.setAttribute('y1', viewBoxY - height); // Extend beyond the top of the viewport
-  xAxis.setAttribute('x2', x);
-  xAxis.setAttribute('y2', viewBoxY + 2 * height); // Extend beyond the bottom of the viewport
-  xAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
-  xAxis.setAttribute('stroke-width', 1);
-  xAxis.setAttribute('stroke-dasharray', '5,5');
-
-  const yAxis = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-  yAxis.setAttribute('x1', viewBoxX - width); // Extend beyond the left of the viewport
-  yAxis.setAttribute('y1', y);
-  yAxis.setAttribute('x2', viewBoxX + 2 * width); // Extend beyond the right of the viewport
-  yAxis.setAttribute('y2', y);
-  yAxis.setAttribute('stroke', 'rgba(255, 0, 0, 0.5)');
-  yAxis.setAttribute('stroke-width', 1);
-  yAxis.setAttribute('stroke-dasharray', '5,5');
-
-  store.axesContainer.appendChild(xAxis);
-  store.axesContainer.appendChild(yAxis);
-};
-
-const drawHoverLine = (x, y, ctrlKey) => {
-  if (store.currentLine.length > 0) {
-    const lastPoint = store.currentLine[store.currentLine.length - 1];
-    if (!ctrlKey) {
-      const dx = Math.abs(x - lastPoint.x);
-      const dy = Math.abs(y - lastPoint.y);
-      if (dx > dy) y = lastPoint.y;
-      else x = lastPoint.x;
-    }
-    const snappedPoint = snapToGrid(x, y);
-    store.hoverPoint = snappedPoint;
-    drawAxes(snappedPoint);
-  }
-};
+// Function to handle hover line is moved to Lines.vue
 
 const handleKeyDown = (event) => {
   if (event.key === 'Escape' && store.isDrawing) {
@@ -451,6 +433,22 @@ const handleKeyDown = (event) => {
         break;
       }
   }
+};
+
+// Function to handle drawing logic locally
+const handleSvgClick = (event) => {
+  if (store.activeTool === 'line') {
+    linesRef.value.handleSvgClickLineDrawing(event);
+  } else {
+    store.handleSvgClick(event);
+  }
+};
+
+const endDrawing = () => {
+  if (store.isDrawing) {
+    linesRef.value.endLineDrawing();
+  }
+  store.endDrawing();
 };
 </script>
 

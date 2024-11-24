@@ -35,7 +35,10 @@ const PurpleTheme: ThemeTypes = {
     gray100: '#fafafa',
     primary200: '#90caf9',
     secondary200: '#b39ddb',
-    ground: '#00a651'
+    ground: '#00a651',
+    conductor: '#ffcc00',
+    neutral: '#6c757d',
+    background: '#f5f5f5'
   }
 };
 

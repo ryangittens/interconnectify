@@ -1,8 +1,14 @@
 <template>
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
-      <div class="d-flex align-center justify-space-between mb-4">
-        <h4 class="text-h4">Dwelling Unit Service Load Calculation – Standard Method</h4>
+      <div class="d-flex align-center justify-space-between mb-4 flex-row">
+        <h4 class="text-h4">Dwelling Unit Service Load Calculation</h4>
+
+        <v-btn-toggle class="mr-3" v-model="calculationMethod" density="compact">
+          <v-btn> Standard </v-btn>
+
+          <v-btn> Optional </v-btn>
+        </v-btn-toggle>
       </div>
       <v-form v-model="valid">
         <perfect-scrollbar class="perfectScroll">
@@ -497,6 +503,7 @@ const snackbarStore = useSnackbarStore();
 export default {
   data() {
     return {
+      calculationMethod: 0,
       valid: true,
       mainBreakerSize: 0,
       minMainBreakerSize: 0,
@@ -1429,6 +1436,6 @@ export default {
 <style scoped>
 .perfectScroll {
   width: 100%;
-  height: calc(100vh - 338px);
+  height: calc(100vh - 350px);
 }
 </style>

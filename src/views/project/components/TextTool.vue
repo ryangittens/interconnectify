@@ -3,55 +3,35 @@
     <text
       v-for="text in store.texts"
       :key="text.id"
+      :ref="(el) => textRefs.set(text.id, el)"
       :x="text.x"
       :y="text.y"
       :font-size="text.fontSize"
       @mousedown.stop="handleTextMouseDown(text, $event)"
-      @mouseup="handleTextMouseUp(text, $event)"
       @click="handleTextClick(text, $event)"
-      style="cursor: pointer; user-select: none"
+      style="cursor: grab; user-select: none"
     >
       {{ text.content }}
     </text>
   </g>
-  <!-- <foreignObject
-    v-if="store.selectedText"
-    :x="store.selectedText.x"
-    :y="store.selectedText.y - store.selectedText.fontSize"
-    :width="300"
-    :height="100"
-  >
-    <input
-      ref="textInput"
-      type="text"
-      :value="store.selectedText.content"
-      @input="updateTextContent"
-      @blur="deselectText"
-      style="font-size: 16px; width: 300px"
-    />
-  </foreignObject> -->
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { ref } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 
 const store = useSvgStore();
-const textInput = ref(null);
 
-const { endInteraction } = store;
+const { selectText, snapToGrid } = store;
 
-const selectText = (text) => {
-  store.selectText(text);
-};
+const textRefs = new Map();
 
-const updateTextContent = (event) => {
-  store.updateTextContent(event.target.value);
-};
-
-const deselectText = () => {
-  store.selectText(null);
-};
+// Non-reactive variables
+let isDraggingText = false;
+let dragStartCoords = { x: 0, y: 0 };
+let initialTextPosition = { x: 0, y: 0 };
+let currentTextElement = null;
+let currentText = null;
 
 const handleTextClick = (text, event) => {
   if (store.activeTool) {
@@ -61,19 +41,73 @@ const handleTextClick = (text, event) => {
   }
 };
 
-const primary = ref('rgb(var(--v-theme-primary))');
-const secondary = ref('rgb(var(--v-theme-secondary))');
-
 const handleTextMouseDown = (text, event) => {
-  store.mouseDown = true; // Set mouseDown flag to true
-  store.mouseDownText = text; // Store the line being dragged
-  store.isTextDragging = false; // Reset dragging flag
-};
-const handleTextMouseUp = (text, event) => {
-  endInteraction(event);
-  store.mouseDown = false; // Reset mouseDown flag
-};
-const isTextSelected = (text) => store.selectedText && store.selectedText.id === text.id;
+  event.preventDefault();
 
-onMounted(() => {});
+  isDraggingText = true;
+  dragStartCoords = { x: event.clientX, y: event.clientY };
+  initialTextPosition = { x: text.x, y: text.y };
+  currentText = text;
+  currentTextElement = textRefs.get(text.id);
+
+  currentTextElement.classList.add('dragging');
+
+  window.addEventListener('mousemove', handleMouseMove);
+  window.addEventListener('mouseup', handleTextMouseUp);
+};
+
+const handleMouseMove = (event) => {
+  if (!isDraggingText || !currentTextElement) return;
+
+  event.preventDefault();
+
+  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
+  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+
+  const newX = initialTextPosition.x + deltaX;
+  const newY = initialTextPosition.y + deltaY;
+
+  const snappedCoords = snapToGrid(newX, newY);
+
+  // Update the text's position directly in the DOM
+  currentTextElement.setAttribute('x', snappedCoords.x);
+  currentTextElement.setAttribute('y', snappedCoords.y);
+};
+
+const handleTextMouseUp = (event) => {
+  if (!isDraggingText || !currentText) return;
+
+  event.preventDefault();
+
+  // Calculate final position
+  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
+  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+
+  const newX = initialTextPosition.x + deltaX;
+  const newY = initialTextPosition.y + deltaY;
+
+  const snappedCoords = snapToGrid(newX, newY);
+
+  // Update the text's position in the reactive store
+  currentText.x = snappedCoords.x;
+  currentText.y = snappedCoords.y;
+
+  currentTextElement.classList.remove('dragging');
+  currentTextElement = null;
+  isDraggingText = false;
+
+  window.removeEventListener('mousemove', handleMouseMove);
+  window.removeEventListener('mouseup', handleTextMouseUp);
+};
 </script>
+
+<style scoped>
+.dragging {
+  cursor: grabbing;
+}
+
+text {
+  cursor: grab;
+  user-select: none;
+}
+</style>

@@ -13,14 +13,30 @@
 
     <v-list density="compact" nav>
       <v-list-item v-for="(field, index) in drawerFields" :key="index">
-        <v-text-field
-          :rounded="false"
-          :label="field.label"
-          :modelValue="selectedObject[field.key]"
-          :type="field.type"
-          @input="handleInput(field, $event.target.value)"
-          :step="field?.step"
-        ></v-text-field>
+        <!-- Conditionally render v-select if options exist, else render v-text-field -->
+        <template v-if="field.options">
+          <v-select
+            :rounded="false"
+            :label="field.label"
+            :items="field.options"
+            :modelValue="selectedObject[field.key]"
+            @update:modelValue="handleInput(field, $event)"
+            :multiple="field.multiple || false"
+            :clearable="field.clearable || false"
+            :disabled="field.disabled || false"
+            class="w-100"
+          ></v-select>
+        </template>
+        <template v-else>
+          <v-text-field
+            :rounded="false"
+            :label="field.label"
+            :modelValue="selectedObject[field.key]"
+            :type="field.type"
+            @input="handleInput(field, $event.target.value)"
+            :step="field?.step"
+          ></v-text-field>
+        </template>
       </v-list-item>
     </v-list>
   </v-navigation-drawer>
@@ -34,7 +50,6 @@ import { useHistoryStore } from '@/stores/history';
 import { DeleteBlockCommand, DeleteLineCommand, ScaleBlockCommand } from '@/commands';
 
 const historyStore = useHistoryStore();
-
 const store = useSvgStore();
 const { deleteObject, onLinePropertyChange } = store;
 
@@ -52,6 +67,10 @@ const updateLine = (element, key, newValue) => {
   onLinePropertyChange(element, key, newValue);
 };
 
+const updateWireSize = (element, key, newValue) => {
+  onLinePropertyChange(element, key, newValue);
+};
+
 const handleInput = (field, newValue) => {
   const element = selectedObject.value;
   const key = field.key;
@@ -63,6 +82,10 @@ const handleInput = (field, newValue) => {
     // Update the value in selectedObject
     element[key] = newValue;
   }
+};
+
+const handleBlur = () => {
+  // Optional: Implement any onBlur logic if necessary
 };
 
 const drawerFields = computed(() => {
@@ -77,12 +100,37 @@ const drawerFields = computed(() => {
   }
   if (selectedObject.value?.object === 'line') {
     return [
-      { label: 'Voltage', key: 'voltage', type: 'text', onUpdate: updateLine },
-      { label: 'Current', key: 'current', type: 'text', onUpdate: updateLine }
+      {
+        label: 'Voltage',
+        key: 'voltage',
+        type: 'text',
+        onUpdate: updateLine
+      },
+      {
+        label: 'Current',
+        key: 'current',
+        type: 'text',
+        onUpdate: updateLine
+      },
+      {
+        label: 'Size',
+        key: 'size',
+        type: 'number',
+        options: store.wireSizes, // Reference to wireSizes from store
+        onUpdate: updateWireSize
+      }
     ];
   }
   if (selectedObject.value?.object === 'block') {
-    return [{ label: 'Scale', key: 'scale', type: 'number', step: 0.01, onUpdate: scaleBlock }];
+    return [
+      {
+        label: 'Scale',
+        key: 'scale',
+        type: 'number',
+        step: 0.01,
+        onUpdate: scaleBlock
+      }
+    ];
   }
   // Add other conditions for different object types if necessary
   return [];
@@ -92,5 +140,8 @@ const drawerFields = computed(() => {
 <style scoped>
 .infoPanel {
   width: 300px;
+}
+.w-100 {
+  width: 100%;
 }
 </style>

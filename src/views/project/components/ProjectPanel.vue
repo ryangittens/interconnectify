@@ -35,26 +35,11 @@ const project = props.project;
 
 const error = ref(null);
 
-const setSolidBlackLine = () => {
+function setLine(lineId) {
   store.endDrawing();
-  store.setLineType('solid');
-  store.setLineColor('black');
+  store.setCurrentLineId(lineId);
   store.startDrawing();
-};
-
-const setSolidGreenLine = () => {
-  store.endDrawing();
-  store.setLineType('solid');
-  store.setLineColor('#11dd01');
-  store.startDrawing();
-};
-
-const setDashedLine = () => {
-  store.endDrawing();
-  store.setLineType('dashed');
-  store.setLineColor('#636363');
-  store.startDrawing();
-};
+}
 
 const setRectangleTool = () => {
   store.endDrawing();
@@ -66,9 +51,9 @@ const startTextTool = () => {
   store.startTextTool();
 };
 
-const startConnectionPointsTool = () => {
+const startConnectionPointsTool = (type) => {
   store.endDrawing();
-  store.startConnectionPointsTool();
+  store.startConnectionPointsTool(type);
 };
 
 const deleteObject = () => {
@@ -297,18 +282,50 @@ const saveDrawingAsBlock = async () => {
       <GridPatternIcon size="17" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
-    <v-btn
-      @click="startConnectionPointsTool"
-      class="text-secondary ml-2"
-      color="background"
-      icon
-      outlined
-      rounded="sm"
-      :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
-      size="small"
-    >
-      <IconPointFilled size="17" stroke-width="1.5" />
-    </v-btn>
+
+    <v-speed-dial location="bottom center">
+      <template v-slot:activator="{ props: activatorProps }">
+        <v-btn
+          v-bind="activatorProps"
+          class="text-secondary ml-2"
+          color="background"
+          icon
+          outlined
+          rounded="sm"
+          :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
+          size="small"
+        >
+          <IconPointFilled size="17" stroke-width="1.5" />
+        </v-btn>
+      </template>
+
+      <v-btn
+        key="1"
+        @click="startConnectionPointsTool('conductor')"
+        class="text-secondary"
+        color="background"
+        icon
+        outlined
+        rounded="sm"
+        :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
+        size="small"
+      >
+        <IconPointFilled :color="store.connectionPointColors['conductor']" size="17" stroke-width="1.5" />
+      </v-btn>
+      <v-btn
+        key="2"
+        @click="startConnectionPointsTool('ground')"
+        class="text-secondary"
+        color="background"
+        icon
+        outlined
+        rounded="sm"
+        :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
+        size="small"
+      >
+        <IconPointFilled :color="store.connectionPointColors['ground']" size="17" stroke-width="1.5"
+      /></v-btn>
+    </v-speed-dial>
     <v-btn
       @click="startTextTool"
       class="text-secondary ml-2"
@@ -334,37 +351,37 @@ const saveDrawingAsBlock = async () => {
       <IconSquarePlus2 size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn
-      @click="setSolidBlackLine"
+      @click="setLine('solid-conductor')"
       class="text-secondary ml-2"
       color="background"
       icon
       outlined
       rounded="sm"
-      :variant="isActive('solid-black') ? 'tonal' : 'flat'"
+      :variant="store.isDrawing && store.currentLineId == 'solid-conductor' ? 'tonal' : 'flat'"
       size="small"
     >
       <LineIcon style="color: black" size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn
-      @click="setSolidGreenLine"
+      @click="setLine('solid-ground')"
       class="text-secondary ml-2"
       color="background"
       icon
       outlined
       rounded="sm"
-      :variant="isActive('solid-#11dd01') ? 'tonal' : 'flat'"
+      :variant="store.isDrawing && store.currentLineId == 'solid-ground' ? 'tonal' : 'flat'"
       size="small"
     >
       <CircuitGroundIcon style="color: green" size="17" stroke-width="1.5" />
     </v-btn>
     <v-btn
-      @click="setDashedLine"
+      @click="setLine('dashed-communication')"
       class="text-secondary ml-2"
       color="background"
       icon
       outlined
       rounded="sm"
-      :variant="isActive('dashed-#636363') ? 'tonal' : 'flat'"
+      :variant="store.isDrawing && store.currentLineId == 'dashed-communication' ? 'tonal' : 'flat'"
       size="small"
     >
       <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />

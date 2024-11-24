@@ -6,12 +6,12 @@
       :cx="cp.x"
       :cy="cp.y"
       r="5"
-      fill="red"
+      :fill="cp.color"
       @mousedown.stop="handleCPMouseDown(cp, $event)"
       @mouseup="handleCPMouseUp(cp, $event)"
       @click="handleCPClick(cp, $event)"
     />
-    <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="5" fill="blue" />
+    <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="5" :fill="cpColor" />
   </g>
 </template>
 
@@ -31,7 +31,7 @@
 </template> -->
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 
 const store = useSvgStore();
@@ -49,6 +49,10 @@ const handleCPClick = (cp, event) => {
     selectConnectionPoint(cp);
   }
 };
+
+const cpColor = computed(() => {
+  return store.connectionPointColors[store.currentConnectionPointType];
+});
 
 const primary = ref('rgb(var(--v-theme-primary))');
 const secondary = ref('rgb(var(--v-theme-secondary))');

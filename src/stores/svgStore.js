@@ -4,6 +4,8 @@ import { uuid } from 'vue-uuid'
 import * as pdfMake from 'pdfmake/build/pdfmake'
 import { nextTick } from 'vue'
 import { UpdateLineCommand } from '@/commands'
+import { updateLinePoints } from '@/utils/lineUtils'
+import { lineRefs } from '@/views/project/refs/lineRefs.js'
 // PDF Fonts
 const pdfFonts = {
   // download default Roboto font from cdnjs.com
@@ -74,6 +76,7 @@ export const useSvgStore = defineStore('svgStore', {
     mouseDownRect: null,
     isDragging: false,
     isLineDragging: false,
+    isDraggingLineSegment: false,
     isBlockDragging: false,
     isRectDragging: false,
     panning: false,
@@ -89,6 +92,7 @@ export const useSvgStore = defineStore('svgStore', {
     texts: [],
     axezContainer: null,
     isAddingConnectionPoint: false,
+    currentConnectionPointType: null,
     currentPoint: { x: 0, y: 0 },
     droppedBlock: false,
     droppedRect: false,
@@ -118,27 +122,215 @@ export const useSvgStore = defineStore('svgStore', {
     initialRectPosition: { x: 0, y: 0 },
     initialCPPosition: { x: 0, y: 0 },
     initialTextPosition: { x: 0, y: 0 },
-    conductorTableHeadings: [
-      { title: 'alias', key: 'alias', editable: false },
-      { title: 'run', key: 'run', editable: false },
-      { title: 'voltage', key: 'voltage', editable: true },
-      { title: 'current', key: 'current', editable: true },
-      { title: 'vd', key: 'vd', editable: false },
-      { title: 'len', key: 'len', editable: false },
-      { title: 'ccc', key: 'ccc', editable: false },
-      { title: 'egc', key: 'egc', editable: false },
-      { title: 'ocpd', key: 'ocpd', editable: false },
-      { title: 'size', key: 'size', editable: false },
-      { title: 'conductor', key: 'conductor', editable: false },
-      { title: 'ohms', key: 'ohms', editable: false },
+    wireSizes: [
+      "#12",
+      "#10",
+      "#8",
+      "#6",
+      "#4",
+      "#3",
+      "#2",
+      "#1",
+      "#1/0",
+      "#2/0",
+      "#3/0",
+      "#4/0",
+      "250MCM",
+      "300MCM",
+      "350MCM",
+      "400MCM",
+      "500MCM",
     ],
     minZoomLevel: 0.5,
     maxZoomLevel: 2,
+    connectionPointTypes: ['conductor', 'ground', 'neutral'],
+    connectionPointColors: { conductor: 'black', ground: 'green', neutral: 'gray' },
+    lineIds: {
+      'solid-conductor': {
+        type: 'solid',
+        color: 'black',
+        width: 1
+      },
+      'solid-ground': {
+        type: 'solid',
+        color: 'green',
+        width: 1
+      },
+      'dashed-communication': {
+        type: 'dashed',
+        color: 'gray',
+        width: 1
+      },
+    },
+
+    currentLineId: null,
+    conductorData: {
+      CU: {
+        "#12": {
+          "75": { ampacity: 25, resistance: 1.98 },
+          "90": { ampacity: 30, resistance: 1.98 },
+        },
+        "#10": {
+          "75": { ampacity: 35, resistance: 1.24 },
+          "90": { ampacity: 40, resistance: 1.24 },
+        },
+        "#8": {
+          "75": { ampacity: 50, resistance: 0.778 },
+          "90": { ampacity: 55, resistance: 0.778 },
+        },
+        "#6": {
+          "75": { ampacity: 65, resistance: 0.491 },
+          "90": { ampacity: 75, resistance: 0.491 },
+        },
+        "#4": {
+          "75": { ampacity: 85, resistance: 0.308 },
+          "90": { ampacity: 95, resistance: 0.308 },
+        },
+        "#3": {
+          "75": { ampacity: 100, resistance: 0.245 },
+          "90": { ampacity: 115, resistance: 0.245 },
+        },
+        "#2": {
+          "75": { ampacity: 115, resistance: 0.194 },
+          "90": { ampacity: 130, resistance: 0.194 },
+        },
+        "#1": {
+          "75": { ampacity: 130, resistance: 0.154 },
+          "90": { ampacity: 145, resistance: 0.154 },
+        },
+        "#1/0": {
+          "75": { ampacity: 150, resistance: 0.122 },
+          "90": { ampacity: 170, resistance: 0.122 },
+        },
+        "#2/0": {
+          "75": { ampacity: 175, resistance: 0.0967 },
+          "90": { ampacity: 195, resistance: 0.0967 },
+        },
+        "#3/0": {
+          "75": { ampacity: 200, resistance: 0.0766 },
+          "90": { ampacity: 225, resistance: 0.0766 },
+        },
+        "#4/0": {
+          "75": { ampacity: 230, resistance: 0.0608 },
+          "90": { ampacity: 260, resistance: 0.0608 },
+        },
+        "250MCM": {
+          "75": { ampacity: 255, resistance: 0.0515 },
+          "90": { ampacity: 290, resistance: 0.0515 },
+        },
+        "300MCM": {
+          "75": { ampacity: 285, resistance: 0.0429 },
+          "90": { ampacity: 320, resistance: 0.0429 },
+        },
+        "350MCM": {
+          "75": { ampacity: 310, resistance: 0.0367 },
+          "90": { ampacity: 350, resistance: 0.0367 },
+        },
+        "400MCM": {
+          "75": { ampacity: 335, resistance: 0.0321 },
+          "90": { ampacity: 380, resistance: 0.0321 },
+        },
+        "500MCM": {
+          "75": { ampacity: 380, resistance: 0.0258 },
+          "90": { ampacity: 430, resistance: 0.0258 },
+        },
+      },
+      AL: {
+        "#12": {
+          "75": { ampacity: 20, resistance: 3.25 },
+          "90": { ampacity: 35, resistance: 3.25 },
+        },
+        "#10": {
+          "75": { ampacity: 30, resistance: 2.04 },
+          "90": { ampacity: 35, resistance: 2.04 },
+        },
+        "#8": {
+          "75": { ampacity: 40, resistance: 1.28 },
+          "90": { ampacity: 45, resistance: 1.28 },
+        },
+        "#6": {
+          "75": { ampacity: 50, resistance: 0.808 },
+          "90": { ampacity: 55, resistance: 0.808 },
+        },
+        "#4": {
+          "75": { ampacity: 65, resistance: 0.508 },
+          "90": { ampacity: 75, resistance: 0.508 },
+        },
+        "#3": {
+          "75": { ampacity: 75, resistance: 0.403 },
+          "90": { ampacity: 85, resistance: 0.403 },
+        },
+        "#2": {
+          "75": { ampacity: 90, resistance: 0.319 },
+          "90": { ampacity: 100, resistance: 0.319 },
+        },
+        "#1": {
+          "75": { ampacity: 100, resistance: 0.253 },
+          "90": { ampacity: 115, resistance: 0.253 },
+        },
+        "#1/0": {
+          "75": { ampacity: 120, resistance: 0.201 },
+          "90": { ampacity: 135, resistance: 0.201 },
+        },
+        "#2/0": {
+          "75": { ampacity: 135, resistance: 0.159 },
+          "90": { ampacity: 150, resistance: 0.159 },
+        },
+        "#3/0": {
+          "75": { ampacity: 155, resistance: 0.126 },
+          "90": { ampacity: 175, resistance: 0.126 },
+        },
+        "#4/0": {
+          "75": { ampacity: 180, resistance: 0.1 },
+          "90": { ampacity: 205, resistance: 0.1 },
+        },
+        "250MCM": {
+          "75": { ampacity: 205, resistance: 0.0847 },
+          "90": { ampacity: 230, resistance: 0.0847 },
+        },
+        "300MCM": {
+          "75": { ampacity: 230, resistance: 0.0707 },
+          "90": { ampacity: 260, resistance: 0.0707 },
+        },
+        "350MCM": {
+          "75": { ampacity: 250, resistance: 0.0605 },
+          "90": { ampacity: 280, resistance: 0.0605 },
+        },
+        "400MCM": {
+          "75": { ampacity: 270, resistance: 0.0529 },
+          "90": { ampacity: 305, resistance: 0.0529 },
+        },
+        "500MCM": {
+          "75": { ampacity: 310, resistance: 0.0424 },
+          "90": { ampacity: 350, resistance: 0.0424 },
+        },
+      },
+    }
   }),
+  getters: {
+    conductorTableHeadings(state) {
+      return [
+        { title: 'alias', key: 'alias', editable: false },
+        { title: 'run', key: 'run', editable: false },
+        { title: 'voltage', key: 'voltage', editable: true },
+        { title: 'current', key: 'current', editable: true },
+        { title: 'vd', key: 'vd', editable: false },
+        { title: 'len', key: 'len', editable: false },
+        { title: 'ccc', key: 'ccc', editable: false },
+        { title: 'egc', key: 'egc', editable: false },
+        { title: 'ocpd', key: 'ocpd', editable: false },
+        { title: 'size', key: 'size', editable: true, items: state.wireSizes },
+        { title: 'conductor', key: 'conductor', editable: true, items: ['CU', 'AL'] },
+        { title: 'ohms', key: 'ohms', editable: false },
+      ]
+    },
+  },
   actions: {
+    //*----------- ELECTRICAL FUNCTIONS -----------*//
     onLinePropertyChange(line, key, newValue) {
       const oldValue = line[key]
       if (oldValue !== newValue) {
+
         const oldValues = { [key]: oldValue }
         const newValues = { [key]: newValue }
         // If there's an ongoing command for this line, update it
@@ -147,6 +339,7 @@ export const useSvgStore = defineStore('svgStore', {
           Object.assign(line.pendingCommand.oldValues, oldValues)
         } else {
           // Create a new command
+
           const command = new UpdateLineCommand(line, newValues, oldValues, this)
           line.pendingCommand = command
           historyStore.executeCommand(command)
@@ -155,9 +348,9 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     recalculateLine(line) {
-      console.log(line.voltage, line.current)
       line.ccc = this.calculateCcc(line.voltage, line.current)
-      line.size = this.calculateWireSize(line.voltage, line.current)
+      line.ohms = this.calculateOhms(line.size, line.conductor)
+
       // Recalculate other dependent fields if necessary
     },
     calculateWireSize(voltage, current) {
@@ -165,9 +358,12 @@ export const useSvgStore = defineStore('svgStore', {
       return (voltage * current) / 1000 // Replace with your actual logic
     },
     calculateCcc(voltage, current) {
-      console.log('Calculating ccc')
       return voltage * current * 3 // Replace with your actual logic
     },
+    calculateOhms(wireSize, conductor) {
+      return this.conductorData?.[conductor]?.[wireSize]?.["75"]?.resistance
+    },
+    //----------------- SVG FUNCTIONS -----------------//
     handleSvgClick(event) {
       if (
         !this.activeTool &&
@@ -209,451 +405,11 @@ export const useSvgStore = defineStore('svgStore', {
         historyStore.executeCommand(new AddTextCommand(text, this))
       }
     },
-    startRectangle(event) {
-      const coords = this.getSVGCoordinates(event)
-      const snappedCoords = this.snapToGrid(coords.x, coords.y)
-      this.startCreatingRectangle(snappedCoords)
-    },
-    endRectangle() {
-      if (this.isCreatingRectangle) {
-        historyStore.executeCommand(new AddRectangleCommand(this.currentRectangle, this))
-      }
-    },
-    selectConnectionPoint(cp) {
-      if (!this.activeTool) {
-        this.selectedConnectionPoint = cp
-        this.selectObject(this.selectedConnectionPoint)
-      }
-    },
-    setMode(mode) {
-      this.mode = mode
-    },
-    startConnectionPointsTool() {
-      this.activeTool = 'connectionPoints'
-      this.isAddingConnectionPoint = true
-    },
-    startAddConnectionPoint(event) {
-      if (this.mode !== 'block') {
-        return
-      }
-      const coords = this.getSVGCoordinates(event)
-      // const snappedCoords = this.snapToGrid(coords.x, coords.y);
-      // this.selectedBlock.connectionPoints.push({
-      //   id: Date.now().toString(),
-      //   x: snappedCoords.x - this.selectedBlock.x,
-      //   y: snappedCoords.y - this.selectedBlock.y
-      // });
-      //const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
-      const snappedCoords = this.snapToGrid(coords.x, coords.y)
-      // this.selectedBlock.connectionPoints.push({
-      //   id: Date.now().toString(),
-      //   x: snappedCoords.x,
-      //   y: snappedCoords.y
-      // });
-
-      let cp = {
-        object: 'connectionPoint',
-        id: uuid.v1(),
-        x: snappedCoords.x,
-        y: snappedCoords.y,
-        voltage: null,
-        connectionType: null
-      }
-      historyStore.executeCommand(new AddConnectionPointCommand(cp, this))
-      this.endDrawing()
-    },
-    addConnectionPoint(cp) {
-      this.connectionPoints.push(cp)
-    },
-    moveCP(cp, dx, dy) {
-      const index = this.connectionPoints.findIndex((c) => c.id === cp.id)
-      if (index !== -1) {
-        // Update the block position
-        this.connectionPoints[index].x += dx
-        this.connectionPoints[index].y += dy
-      }
-    },
-    startCPMove(cp, event) {
-      this.movingCP = cp
-      if (this.droppedCP) {
-        const coords = this.getSVGCoordinates(event)
-        cp.x = coords.x
-        cp.y = coords.y
-      }
-    },
-    endCPDrag() {
-      historyStore.executeCommand(new MoveConnectionPointCommand(this.movingCP, this.movingCP.x - this.initialCPPosition.x, this.movingCP.y - this.initialCPPosition.y, this))
-
-      //start rect dragging
-      this.mouseDown = false
-      this.mouseDownCP = null
-      this.dragging = false
-      this.isCPDragging = false
-      this.movingCP = null
-    },
-    updateCurrentPoint(event) {
-      const coords = this.getSVGCoordinates(event)
-      const snappedCoords = this.snapToGrid(coords.x, coords.y)
-      this.currentPoint = snappedCoords
-    },
-    deleteConnectionPoint(cp) {
-      this.connectionPoints = this.connectionPoints.filter((c) => c.id !== cp.id)
-      if (this.selectedConnectionPoint && this.selectedConnectionPoint.id === cp.id) {
-        this.selectedConnectionPoint = null
-      }
-    },
     clearAxes() {
       if (this.axesContainer) {
         this.axesContainer.innerHTML = ''
       }
     },
-    startTextTool() {
-      this.activeTool = 'text'
-    },
-    createText(start, content = 'New Text') {
-      if (this.activeTool !== 'text') return
-      const snappedStart = this.snapToGrid(start.x, start.y)
-      const newText = {
-        object: 'text',
-        id: uuid.v1(),
-        x: snappedStart.x,
-        y: snappedStart.y,
-        content,
-        fontSize: 16
-      }
-      return newText
-    },
-    addText(newText) {
-      this.texts.push(newText)
-      this.selectText(newText)
-      this.endDrawing()
-    },
-    deleteText(text) {
-      this.texts = this.texts.filter((t) => t.id !== text.id)
-      if (this.selectedText && this.selectedText.id === text.id) {
-        this.selectedText = null
-      }
-    },
-    selectText(text) {
-      if (!this.activeTool) {
-        this.selectedText = text
-        this.selectObject(this.selectedText)
-      }
-    },
-    moveText(text, dx, dy) {
-      const index = this.texts.findIndex((t) => t.id === text.id)
-      if (index !== -1) {
-        // Update the block position
-        this.texts[index].x += dx
-        this.texts[index].y += dy
-      }
-    },
-    startTextMove(text, event) {
-      this.movingText = text
-      if (this.droppedText) {
-        const coords = this.getSVGCoordinates(event)
-        text.x = coords.x
-        text.y = coords.y
-      }
-    },
-    endTextDrag() {
-      historyStore.executeCommand(new MoveTextCommand(this.movingText, this.movingText.x - this.initialTextPosition.x, this.movingText.y - this.initialTextPosition.y, this))
-
-      //start rect dragging
-      this.mouseDown = false
-      this.mouseDownText = null
-      this.dragging = false
-      this.isTextDragging = false
-      this.movingText = null
-    },
-    updateTextSize(newSize) {
-      if (this.selectedText) {
-        this.selectedText.fontSize = newSize
-      }
-    },
-    updateTextContent(content) {
-      if (this.selectedText) {
-        this.selectedText.content = content
-      }
-    },
-    startRectangleTool() {
-      this.activeTool = 'rectangle'
-      this.currentRectangle = null
-    },
-    startCreatingRectangle(start) {
-      if (this.activeTool !== 'rectangle') return
-      this.isCreatingRectangle = true
-      this.rectangleStartPoint = { x: start.x, y: start.y }
-      this.currentRectangle = {
-        object: 'rectangle',
-        id: uuid.v1(),
-        x: start.x,
-        y: start.y,
-        width: 0,
-        height: 0,
-        color: 'rgba(240, 240, 240, 0.5)',
-        stroke: 'black',
-        strokeWidth: 1
-      }
-    },
-    startRectMove(rect, event) {
-      this.movingRect = rect
-      if (this.droppedRect) {
-        const coords = this.getSVGCoordinates(event)
-        rect.x = coords.x
-        rect.y = coords.y
-      }
-    },
-    endRectDrag() {
-
-      historyStore.executeCommand(new MoveRectangleCommand(this.movingRect, this.movingRect.x - this.initialRectPosition.x, this.movingRect.y - this.initialRectPosition.y, this))
-
-
-      //start rect dragging
-      this.mouseDown = false
-      this.mouseDownRect = null
-      this.dragging = false
-      this.isRectDragging = false
-      this.movingRect = null
-    },
-    updateRect(rect) {
-
-      const rectIndex = this.rectangles.findIndex((r) => r.id === rect.id)
-      if (rectIndex !== -1) {
-        this.rectangles[rectIndex] = rect
-      }
-    },
-    moveRect(rect, dx, dy) {
-      const index = this.rectangles.findIndex((r) => r.id === rect.id)
-      if (index !== -1) {
-        // Update the block position
-        this.rectangles[index].x += dx
-        this.rectangles[index].y += dy
-      }
-    },
-    updateCurrentRectangle(end) {
-      if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return
-      const startX = this.rectangleStartPoint.x
-      const startY = this.rectangleStartPoint.y
-      const width = end.x - startX
-      const height = end.y - startY
-
-      if (width < 0) {
-        this.currentRectangle.x = end.x
-        this.currentRectangle.width = Math.abs(width)
-      } else {
-        this.currentRectangle.x = startX
-        this.currentRectangle.width = width
-      }
-
-      if (height < 0) {
-        this.currentRectangle.y = end.y
-        this.currentRectangle.height = Math.abs(height)
-      } else {
-        this.currentRectangle.y = startY
-        this.currentRectangle.height = height
-      }
-    },
-    addRectangle(currentRectangle) {
-      this.isCreatingRectangle = false
-      this.rectangles.push(currentRectangle)
-      this.currentRectangle = null
-      this.endDrawing()
-    },
-    selectRectangle(rect) {
-      if (!this.activeTool) {
-        this.selectedRectangle = rect
-        this.selectObject(this.selectedRectangle)
-      }
-    },
-    cancelCreatingRectangle() {
-      this.isCreatingRectangle = false
-      this.currentRectangle = null
-      this.activeTool = null
-    },
-    deleteRectangle(rect) {
-      this.rectangles = this.rectangles.filter((r) => r.id !== rect.id)
-      if (this.selectedRectangle && this.selectedRectangle.id === rect.id) {
-        this.selectedRectangle = null
-      }
-    },
-    endDrawing() {
-      this.activeTool = null
-      this.deselectAll()
-      if (this.droppedBlock) {
-        this.cancelBlockDrop()
-      }
-      if (this.isDrawing) {
-        historyStore.executeCommand(new StopDrawingCommand(this))
-        this.isAddingConnectionPoint = false
-        this.stopDrawing()
-      }
-      if (this.isAddingConnectionPoint) {
-        this.isAddingConnectionPoint = false
-        this.currentPoint = { x: 0, y: 0 }
-      }
-    },
-    finishWire() {
-      if (this.wireStart && this.wireEnd) {
-        this.wireStart = null
-        this.wireEnd = null
-        this.drawingWire = false
-        this.endDrawing()
-      }
-    },
-    startWire(cp, block, event) {
-      if (this.isDrawing) {
-        if (this.drawingWire) {
-          this.wireEnd = { block, cp }
-          const endPoint = {
-            x: this.wireEnd.block.x + this.wireEnd.cp.x,
-            y: this.wireEnd.block.y + this.wireEnd.cp.y,
-            blockId: this.wireEnd.block.id,
-            connectionPointId: this.wireEnd.cp.id
-          }
-          this.addPoint(endPoint, event.ctrlKey)
-          this.finishWire()
-        } else {
-          this.drawingWire = true
-          this.wireStart = { block, cp }
-          const startPoint = {
-            x: this.wireStart.block.x + this.wireStart.cp.x,
-            y: this.wireStart.block.y + this.wireStart.cp.y,
-            blockId: this.wireStart.block.id,
-            connectionPointId: this.wireStart.cp.id
-          }
-          this.addPoint(startPoint, event.ctrlKey)
-        }
-      }
-    },
-    addPoint(point, ctrlKey) {
-      const lastPoint = this.currentLine[this.currentLine.length - 1]
-      let { x, y } = point
-      if (lastPoint && !ctrlKey) {
-        const dx = Math.abs(x - lastPoint.x)
-        const dy = Math.abs(y - lastPoint.y)
-        if (dx > dy) y = lastPoint.y
-        else x = lastPoint.x
-      }
-      const snappedPoint = this.snapToGrid(x, y)
-      const updatedPoint = { ...point, ...snappedPoint }
-      historyStore.executeCommand(new AddLinePointCommand(this, updatedPoint))
-    },
-    endInteraction(event) {
-
-      this.panning = false
-      if (this.isLineDragging) {
-        this.endLineDrag()
-      }
-      if (this.droppedBlock || this.isBlockDragging) {
-        this.endBlockDrag()
-      }
-
-      if (this.isRectDragging) {
-        this.endRectDrag()
-      }
-
-      if (this.isCPDragging) {
-        this.endCPDrag()
-      }
-
-      if (this.isTextDragging) {
-        this.endTextDrag()
-      }
-
-      if (this.droppedTemplate || this.isBlockDragging) {
-        this.endTemplateDrop(event)
-      }
-
-
-      this.clearInteractionStore()
-    },
-    addBlock(block) {
-      const blockExists = this.blocks.some((existingBlock) => existingBlock.id === block.id)
-      if (!blockExists) {
-        this.blocks.push(block)
-      }
-    },
-    scaleBlock(block, scale) {
-      const index = this.blocks.findIndex((b) => b.id === block.id)
-      if (index !== -1) {
-        const currentBlock = this.blocks[index]
-
-        // Store original dimensions and content if not already stored
-        if (currentBlock.originalWidth == null) {
-          currentBlock.originalWidth = currentBlock.width
-        }
-        if (currentBlock.originalHeight == null) {
-          currentBlock.originalHeight = currentBlock.height
-        }
-        if (currentBlock.originalContent == null) {
-          currentBlock.originalContent = currentBlock.content
-        }
-
-        // Update the block's scale
-        currentBlock.scale = scale
-
-        // Scale the SVG content based on the original content
-        let scaledSvgContent = this.scaleSvgContent(currentBlock.originalContent, scale)
-        currentBlock.content = scaledSvgContent
-
-        // Compute new width and height based on original dimensions
-        currentBlock.width = currentBlock.originalWidth * scale
-        currentBlock.height = currentBlock.originalHeight * scale
-      }
-    },
-    moveBlock(block, dx, dy) {
-      const index = this.blocks.findIndex((b) => b.id === block.id)
-      if (index !== -1) {
-        // Update the block position
-        this.blocks[index].x += dx
-        this.blocks[index].y += dy
-
-        // Determine if the block movement is primarily horizontal or vertical
-        const isHorizontalMove = Math.abs(dx) > Math.abs(dy)
-
-        // Update connected wires
-        this.lines.forEach((line) => {
-          let lineStartedAtBlock = false
-          line.points.forEach((point) => {
-            if (point?.blockId === block.id) {
-              let lineIndex = line.points.findIndex((p) => p.blockId === block.id)
-              if (lineIndex === 0) {
-                lineStartedAtBlock = true
-              }
-              point.x += dx
-              point.y += dy
-            }
-          })
-
-          // Update line points to add/remove intermediate points
-          this.updateLinePoints(line, lineStartedAtBlock, isHorizontalMove)
-        })
-      }
-    },
-    startBlockMove(block, event) {
-      this.movingBlock = block
-      if (this.droppedBlock) {
-        const coords = this.getSVGCoordinates(event)
-        block.x = coords.x
-        block.y = coords.y
-      }
-    },
-    //I think what this does is replace the objects with the stored objects, not just update their props
-    updateBlockAndLines(block, lines) {
-      const blockIndex = this.blocks.findIndex((b) => b.id === block.id)
-      if (blockIndex !== -1) {
-        this.blocks[blockIndex] = block
-      }
-
-      lines.forEach((updatedLine) => {
-        const lineIndex = this.lines.findIndex((line) => line.id === updatedLine.id)
-        if (lineIndex !== -1) {
-          this.lines[lineIndex].points = updatedLine.points
-        }
-      })
-    },
-
     scaleSvgContent(svgContent, scaleFactor) {
       const parser = new DOMParser()
       const serializer = new XMLSerializer()
@@ -750,79 +506,471 @@ export const useSvgStore = defineStore('svgStore', {
       // Serialize the modified SVG back to a string
       return serializer.serializeToString(svgDoc)
     },
+    //----------------- RECTANGLE FUNCTIONS -----------------//
+    startRectangle(event) {
+      const coords = this.getSVGCoordinates(event)
+      const snappedCoords = this.snapToGrid(coords.x, coords.y)
+      this.startCreatingRectangle(snappedCoords)
+    },
+    endRectangle() {
+      if (this.isCreatingRectangle) {
+        historyStore.executeCommand(new AddRectangleCommand(this.currentRectangle, this))
+      }
+    },
+    selectConnectionPoint(cp) {
+      if (!this.activeTool) {
+        this.selectObject(cp) //must be first
+        this.selectedConnectionPoint = cp
+      }
+    },
+    startRectangleTool() {
+      this.activeTool = 'rectangle'
+      this.currentRectangle = null
+    },
+    startCreatingRectangle(start) {
+      if (this.activeTool !== 'rectangle') return
+      this.isCreatingRectangle = true
+      this.rectangleStartPoint = { x: start.x, y: start.y }
+      this.currentRectangle = {
+        object: 'rectangle',
+        id: uuid.v1(),
+        x: start.x,
+        y: start.y,
+        width: 0,
+        height: 0,
+        color: 'rgba(240, 240, 240, 0.5)',
+        stroke: 'black',
+        strokeWidth: 1
+      }
+    },
+    startRectMove(rect, event) {
+      this.movingRect = rect
+      if (this.droppedRect) {
+        const coords = this.getSVGCoordinates(event)
+        rect.x = coords.x
+        rect.y = coords.y
+      }
+    },
+    endRectDrag() {
+
+      historyStore.executeCommand(new MoveRectangleCommand(this.movingRect, this.movingRect.x - this.initialRectPosition.x, this.movingRect.y - this.initialRectPosition.y, this))
 
 
+      //start rect dragging
+      this.mouseDown = false
+      this.mouseDownRect = null
+      this.dragging = false
+      this.isRectDragging = false
+      this.movingRect = null
+    },
+    updateRect(rect) {
 
-    updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
-      if (line.points.length < 2) return
-      let newPoints
-      if (lineStartedAtBlock) {
-        newPoints = [line.points[0]]
-        for (let i = 0; i < line.points.length - 1; i++) {
-          const currentPoint = line.points[i]
-          const nextPoint = line.points[i + 1]
+      const rectIndex = this.rectangles.findIndex((r) => r.id === rect.id)
+      if (rectIndex !== -1) {
+        this.rectangles[rectIndex] = rect
+      }
+    },
+    moveRect(rect, dx, dy) {
+      const index = this.rectangles.findIndex((r) => r.id === rect.id)
+      if (index !== -1) {
+        // Update the block position
+        this.rectangles[index].x += dx
+        this.rectangles[index].y += dy
+      }
+    },
+    updateCurrentRectangle(end) {
+      if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return
+      const startX = this.rectangleStartPoint.x
+      const startY = this.rectangleStartPoint.y
+      const width = end.x - startX
+      const height = end.y - startY
 
-          // Add the current point
-          newPoints.push(currentPoint)
-
-          // Add intermediate points to maintain right-angle connections only if necessary
-          if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
-            if (isHorizontalMove) {
-              const midPoint = {
-                x: currentPoint.x,
-                y: nextPoint.y,
-                blockId: null
-              }
-              newPoints.push(midPoint)
-            } else {
-              const midPoint = {
-                x: nextPoint.x,
-                y: currentPoint.y,
-                blockId: null
-              }
-              newPoints.push(midPoint)
-            }
-          }
-        }
-
-        newPoints.push(line.points[line.points.length - 1])
+      if (width < 0) {
+        this.currentRectangle.x = end.x
+        this.currentRectangle.width = Math.abs(width)
       } else {
-        newPoints = [line.points[line.points.length - 1]]
-        for (let i = line.points.length - 1; i > 0; i--) {
-          const currentPoint = line.points[i]
-          const nextPoint = line.points[i - 1]
-
-          // Add the current point
-          newPoints.push(currentPoint)
-
-          // Add intermediate points to maintain right-angle connections only if necessary
-          if (currentPoint.x !== nextPoint.x && currentPoint.y !== nextPoint.y) {
-            if (isHorizontalMove) {
-              const midPoint = {
-                x: currentPoint.x,
-                y: nextPoint.y,
-                blockId: null
-              }
-              newPoints.push(midPoint)
-            } else {
-              const midPoint = {
-                x: nextPoint.x,
-                y: currentPoint.y,
-                blockId: null
-              }
-              newPoints.push(midPoint)
-            }
-          }
-        }
-
-        newPoints.push(line.points[0])
-        // keep original direction
-        newPoints.reverse()
+        this.currentRectangle.x = startX
+        this.currentRectangle.width = width
       }
 
-      // Clean up points to remove unnecessary midpoints
-      line.points = this.cleanUpPoints(newPoints)
+      if (height < 0) {
+        this.currentRectangle.y = end.y
+        this.currentRectangle.height = Math.abs(height)
+      } else {
+        this.currentRectangle.y = startY
+        this.currentRectangle.height = height
+      }
     },
+    addRectangle(currentRectangle) {
+      this.isCreatingRectangle = false
+      this.rectangles.push(currentRectangle)
+      this.currentRectangle = null
+      this.endDrawing()
+    },
+    selectRectangle(rect) {
+      if (!this.activeTool) {
+        this.selectObject(rect) //must be first
+        this.selectedRectangle = rect
+      }
+    },
+    cancelCreatingRectangle() {
+      this.isCreatingRectangle = false
+      this.currentRectangle = null
+      this.activeTool = null
+    },
+    deleteRectangle(rect) {
+      this.rectangles = this.rectangles.filter((r) => r.id !== rect.id)
+      if (this.selectedRectangle && this.selectedRectangle.id === rect.id) {
+        this.selectedRectangle = null
+      }
+    },
+    //----------------- PAGE FUNCTIONS -----------------//
+    setMode(mode) {
+      this.mode = mode
+    },
+    //----------------- CONNECTION POINT FUNCTIONS -----------------//
+    startConnectionPointsTool(type) {
+      this.activeTool = 'connectionPoints'
+      this.isAddingConnectionPoint = true
+      this.currentConnectionPointType = type
+    },
+    startAddConnectionPoint(event) {
+      if (this.mode !== 'block') {
+        return
+      }
+      const coords = this.getSVGCoordinates(event)
+      // const snappedCoords = this.snapToGrid(coords.x, coords.y);
+      // this.selectedBlock.connectionPoints.push({
+      //   id: Date.now().toString(),
+      //   x: snappedCoords.x - this.selectedBlock.x,
+      //   y: snappedCoords.y - this.selectedBlock.y
+      // });
+      //const snappedCoords = this.snapToGrid(coords.x - this.selectedBlock.x, coords.y - this.selectedBlock.y);
+      const snappedCoords = this.snapToGrid(coords.x, coords.y)
+      // this.selectedBlock.connectionPoints.push({
+      //   id: Date.now().toString(),
+      //   x: snappedCoords.x,
+      //   y: snappedCoords.y
+      // });
+      let type = this.currentConnectionPointType || 'conductor'
+      let cp = {
+        object: 'connectionPoint',
+        id: uuid.v1(),
+        x: snappedCoords.x,
+        y: snappedCoords.y,
+        voltage: null,
+        connectionType: null,
+        type: type,
+        color: this.connectionPointColors[type]
+      }
+      historyStore.executeCommand(new AddConnectionPointCommand(cp, this))
+      this.endDrawing()
+    },
+    addConnectionPoint(cp) {
+      this.connectionPoints.push(cp)
+    },
+    moveCP(cp, dx, dy) {
+      const index = this.connectionPoints.findIndex((c) => c.id === cp.id)
+      if (index !== -1) {
+        // Update the block position
+        this.connectionPoints[index].x += dx
+        this.connectionPoints[index].y += dy
+      }
+    },
+    startCPMove(cp, event) {
+      this.movingCP = cp
+      if (this.droppedCP) {
+        const coords = this.getSVGCoordinates(event)
+        cp.x = coords.x
+        cp.y = coords.y
+      }
+    },
+    endCPDrag() {
+      historyStore.executeCommand(new MoveConnectionPointCommand(this.movingCP, this.movingCP.x - this.initialCPPosition.x, this.movingCP.y - this.initialCPPosition.y, this))
+
+      //start rect dragging
+      this.mouseDown = false
+      this.mouseDownCP = null
+      this.dragging = false
+      this.isCPDragging = false
+      this.movingCP = null
+    },
+    updateCurrentPoint(event) {
+      const coords = this.getSVGCoordinates(event)
+      const snappedCoords = this.snapToGrid(coords.x, coords.y)
+      this.currentPoint = snappedCoords
+    },
+    deleteConnectionPoint(cp) {
+      this.connectionPoints = this.connectionPoints.filter((c) => c.id !== cp.id)
+      if (this.selectedConnectionPoint && this.selectedConnectionPoint.id === cp.id) {
+        this.selectedConnectionPoint = null
+      }
+    },
+    //----------------- TEXT FUNCTIONS -----------------//
+
+    startTextTool() {
+      this.activeTool = 'text'
+    },
+    createText(start, content = 'New Text') {
+      if (this.activeTool !== 'text') return
+      const snappedStart = this.snapToGrid(start.x, start.y)
+      const newText = {
+        object: 'text',
+        id: uuid.v1(),
+        x: snappedStart.x,
+        y: snappedStart.y,
+        content,
+        fontSize: 16
+      }
+      return newText
+    },
+    addText(newText) {
+      this.texts.push(newText)
+      this.selectText(newText)
+      this.endDrawing()
+    },
+    deleteText(text) {
+      this.texts = this.texts.filter((t) => t.id !== text.id)
+      if (this.selectedText && this.selectedText.id === text.id) {
+        this.selectedText = null
+      }
+    },
+    selectText(text) {
+      if (!this.activeTool) {
+        this.selectObject(text) //must be first
+        this.selectedText = text
+      }
+    },
+    moveText(text, dx, dy) {
+      const index = this.texts.findIndex((t) => t.id === text.id)
+      if (index !== -1) {
+        // Update the block position
+        this.texts[index].x += dx
+        this.texts[index].y += dy
+      }
+    },
+    startTextMove(text, event) {
+      this.movingText = text
+      if (this.droppedText) {
+        const coords = this.getSVGCoordinates(event)
+        text.x = coords.x
+        text.y = coords.y
+      }
+    },
+    endTextDrag() {
+      historyStore.executeCommand(new MoveTextCommand(this.movingText, this.movingText.x - this.initialTextPosition.x, this.movingText.y - this.initialTextPosition.y, this))
+
+      //start rect dragging
+      this.mouseDown = false
+      this.mouseDownText = null
+      this.dragging = false
+      this.isTextDragging = false
+      this.movingText = null
+    },
+    updateTextSize(newSize) {
+      if (this.selectedText) {
+        this.selectedText.fontSize = newSize
+      }
+    },
+    updateTextContent(content) {
+      if (this.selectedText) {
+        this.selectedText.content = content
+      }
+    },
+    //----------------- LINE/WIRE FUNCTIONS -----------------//
+    endDrawing() {
+      this.activeTool = null
+      this.setCurrentLineId(null)
+      this.deselectAll()
+      if (this.droppedBlock) {
+        this.cancelBlockDrop()
+      }
+      if (this.isDrawing) {
+        historyStore.executeCommand(new StopDrawingCommand(this))
+        this.isAddingConnectionPoint = false
+        this.currentConnectionPointType = null
+        this.stopDrawing()
+      }
+      if (this.isAddingConnectionPoint) {
+        this.isAddingConnectionPoint = false
+        this.currentConnectionPointType = null
+        this.currentPoint = { x: 0, y: 0 }
+      }
+    },
+    finishWire() {
+      if (this.wireStart && this.wireEnd) {
+        this.wireStart = null
+        this.wireEnd = null
+        this.drawingWire = false
+        this.endDrawing()
+      }
+    },
+    startWire(cp, block, event) {
+      if (this.isDrawing) {
+        if (this.drawingWire) {
+          this.wireEnd = { block, cp }
+          const endPoint = {
+            x: this.wireEnd.block.x + this.wireEnd.cp.x,
+            y: this.wireEnd.block.y + this.wireEnd.cp.y,
+            blockId: this.wireEnd.block.id,
+            connectionPointId: this.wireEnd.cp.id
+          }
+          this.addPoint(endPoint, event.ctrlKey)
+          this.finishWire()
+        } else {
+          this.drawingWire = true
+          this.wireStart = { block, cp }
+          const startPoint = {
+            x: this.wireStart.block.x + this.wireStart.cp.x,
+            y: this.wireStart.block.y + this.wireStart.cp.y,
+            blockId: this.wireStart.block.id,
+            connectionPointId: this.wireStart.cp.id
+          }
+          this.addPoint(startPoint, event.ctrlKey)
+        }
+      }
+    },
+
+    addPoint(point, ctrlKey) {
+      const lastPoint = this.currentLine[this.currentLine.length - 1]
+      let { x, y } = point
+      if (lastPoint && !ctrlKey) {
+        const dx = Math.abs(x - lastPoint.x)
+        const dy = Math.abs(y - lastPoint.y)
+        if (dx > dy) y = lastPoint.y
+        else x = lastPoint.x
+      }
+      const snappedPoint = this.snapToGrid(x, y)
+      const updatedPoint = { ...point, ...snappedPoint }
+      historyStore.executeCommand(new AddLinePointCommand(this, updatedPoint))
+    },
+
+    //----------------- INTERACTION FUNCTIONS -----------------//
+    snapToGridValue(value) {
+      const gridSize = this.gridSize || 10 // Replace with your grid size
+      return Math.round(value / gridSize) * gridSize
+    },
+    endInteraction(event) {
+
+      this.panning = false
+      if (this.isLineDragging) {
+        this.endLineDrag()
+      }
+      if (this.droppedBlock || this.isBlockDragging) {
+        this.endBlockDrag()
+      }
+
+      if (this.isRectDragging) {
+        this.endRectDrag()
+      }
+
+      if (this.isCPDragging) {
+        this.endCPDrag()
+      }
+
+      if (this.isTextDragging) {
+        this.endTextDrag()
+      }
+
+      if (this.droppedTemplate || this.isBlockDragging) {
+        this.endTemplateDrop(event)
+      }
+
+
+      this.clearInteractionStore()
+    },
+    //----------------- BLOCK FUNCTIONS -----------------//
+    addBlock(block) {
+      const blockExists = this.blocks.some((existingBlock) => existingBlock.id === block.id)
+      if (!blockExists) {
+        this.blocks.push(block)
+      }
+    },
+    scaleBlock(block, scale) {
+      const index = this.blocks.findIndex((b) => b.id === block.id)
+      if (index !== -1) {
+        const currentBlock = this.blocks[index]
+
+        // Store original dimensions and content if not already stored
+        if (currentBlock.originalWidth == null) {
+          currentBlock.originalWidth = currentBlock.width
+        }
+        if (currentBlock.originalHeight == null) {
+          currentBlock.originalHeight = currentBlock.height
+        }
+        if (currentBlock.originalContent == null) {
+          currentBlock.originalContent = currentBlock.content
+        }
+
+        // Update the block's scale
+        currentBlock.scale = scale
+
+        // Scale the SVG content based on the original content
+        let scaledSvgContent = this.scaleSvgContent(currentBlock.originalContent, scale)
+        currentBlock.content = scaledSvgContent
+
+        // Compute new width and height based on original dimensions
+        currentBlock.width = currentBlock.originalWidth * scale
+        currentBlock.height = currentBlock.originalHeight * scale
+      }
+    },
+    moveBlock(block, dx, dy) {
+      const index = this.blocks.findIndex((b) => b.id === block.id)
+      if (index !== -1) {
+        // Update the block position
+        this.blocks[index].x += dx
+        this.blocks[index].y += dy
+
+        // Determine if the block movement is primarily horizontal or vertical
+        const isHorizontalMove = Math.abs(dx) > Math.abs(dy)
+
+        // Update connected lines
+        this.lines.forEach((line) => {
+          if (line.points.some((point) => point.blockId === block.id)) {
+            // Update the points connected to the block
+            line.points = line.points.map((point) => {
+              if (point.blockId === block.id) {
+                return {
+                  ...point,
+                  x: point.x + dx,
+                  y: point.y + dy,
+                }
+              } else {
+                return point
+              }
+            })
+
+            // Update line points to maintain right-angle connections
+            const lineStartedAtBlock = line.points[0].blockId === block.id
+            this.updateLinePoints(line, lineStartedAtBlock, isHorizontalMove)
+          }
+        })
+      }
+    },
+    startBlockMove(block, event) {
+      this.movingBlock = block
+      if (this.droppedBlock) {
+        const coords = this.getSVGCoordinates(event)
+        block.x = coords.x
+        block.y = coords.y
+      }
+    },
+    //I think what this does is replace the objects with the stored objects, not just update their props
+    updateBlockAndLines(block, lines) {
+      const blockIndex = this.blocks.findIndex((b) => b.id === block.id)
+      if (blockIndex !== -1) {
+        this.blocks[blockIndex] = block
+      }
+
+      lines.forEach((updatedLine) => {
+        const lineIndex = this.lines.findIndex((line) => line.id === updatedLine.id)
+        if (lineIndex !== -1) {
+          this.lines[lineIndex].points = updatedLine.points
+        }
+      })
+    },
+
+
 
     cleanUpPoints(points) {
       if (points.length <= 2) return points
@@ -1090,6 +1238,22 @@ export const useSvgStore = defineStore('svgStore', {
       this.updateLinePoints(line, index === 0, Math.abs(dx) > Math.abs(dy))
       this.draggingLine = line
     },
+    updateLine(updatedLine) {
+      const index = this.lines.findIndex(line => line.id === updatedLine.id)
+      if (index !== -1) {
+        // Replace the old line with the updated line
+        // Using Vue's reactivity system to ensure updates are tracked
+        this.lines[index] = { ...this.lines[index], ...updatedLine }
+      } else {
+        console.warn(`Line with id ${updatedLine.id} not found.`)
+      }
+    },
+    updateLinePoints(line) {
+      const index = this.lines.findIndex((l) => l.id === line.id)
+      if (index !== -1) {
+        this.lines.splice(index, 1, { ...line })
+      }
+    },
     clearInteractionStore() {
       this.selectedLineSegment = this.draggingLine = this.movingBlock = null
       this.dragging = this.mouseDownBlock = false
@@ -1110,11 +1274,12 @@ export const useSvgStore = defineStore('svgStore', {
     },
     selectBlock(block) {
       if (!this.activeTool) {
+        this.selectObject(block) //must be first
         this.selectedBlock = block
-        this.selectObject(this.selectedBlock)
       }
     },
     selectObject(obj) {
+      this.deselectAll()
       this.selectedObject = obj
     },
     deleteBlock(block) {
@@ -1125,7 +1290,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
     startDrawing() {
       this.isDrawing = true
-      this.activeTool = `${this.lineType}-${this.lineColor}` // Set the active tool
+      this.activeTool = "line" // Set the active tool
     },
     addLine(line) {
       if (line) {
@@ -1162,7 +1327,8 @@ export const useSvgStore = defineStore('svgStore', {
           type: this.lineType,
           color: this.lineColor,
           points: [...this.currentLine],
-          voltage: 240
+          voltage: 240,
+          labelPosition: null
         }
 
         this.addLine(newLine)
@@ -1176,6 +1342,11 @@ export const useSvgStore = defineStore('svgStore', {
     addLinePoint(point) {
       this.currentLine.push(point)
     },
+    setCurrentLineId(lineId) {
+      this.currentLineId = lineId
+      this.setLineType(this.lineIds[lineId]?.type)
+      this.setLineColor(this.lineIds[lineId]?.color)
+    },
     setLineType(type) {
       this.lineType = type
     },
@@ -1184,8 +1355,8 @@ export const useSvgStore = defineStore('svgStore', {
     },
     selectLine(line) {
       if (!this.activeTool) {
+        this.selectObject(line) //must be first
         this.selectedLine = line
-        this.selectObject(this.selectedLine)
       }
     },
     deleteLine(line) {
@@ -1759,11 +1930,13 @@ export const useSvgStore = defineStore('svgStore', {
       // }
     },
     deselectAll() {
-      this.selectText(null)
-      this.selectBlock(null)
-      this.selectLine(null)
-      this.selectRectangle(null)
-      this.selectConnectionPoint(null)
+      this.selectedObject = null
+      this.selectedText = null
+      this.selectedBlock = null
+      this.selectedLine = null
+      this.selectedRectangle = null
+      this.selectedConnectionPoint = null
+
     },
     async downloadSVG() {
       if (!this.svg) return

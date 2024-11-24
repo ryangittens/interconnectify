@@ -1,7 +1,21 @@
 <template>
-  <span :contenteditable="editable" class="tableValue" :class="[...customClass, { editable }]" @input="onInput" @blur="onBlur">{{
-    modelValue
-  }}</span>
+  <span
+    v-if="!items || !items.length"
+    :contenteditable="editable"
+    class="tableValue"
+    :class="[...customClass, { editable }]"
+    @input="onInput"
+    @blur="onBlur"
+  >
+    {{ modelValue }}
+  </span>
+
+  <select v-else class="tableValue" :class="[...customClass, { editable }]" @change="onSelectChange" :value="modelValue">
+    <option disabled value="">Select an option</option>
+    <option v-for="item in items" :key="item" :value="item">
+      {{ item }}
+    </option>
+  </select>
 </template>
 
 <script setup>
@@ -11,7 +25,14 @@ import { defineProps, defineEmits } from 'vue';
 const props = defineProps({
   modelValue: [String, Number],
   editable: Boolean,
-  customClass: Array
+  customClass: {
+    type: Array,
+    default: () => []
+  },
+  items: {
+    type: Array,
+    default: () => []
+  }
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -33,6 +54,11 @@ const onInput = (event) => {
 const onBlur = () => {
   emit('update:modelValue', localValue.value);
 };
+
+const onSelectChange = (event) => {
+  localValue.value = event.target.value;
+  emit('update:modelValue', localValue.value);
+};
 </script>
 
 <style scoped>
@@ -45,5 +71,10 @@ const onBlur = () => {
 }
 .tableValue {
   display: block;
+}
+select.tableValue {
+  width: 100%;
+  padding: 4px;
+  font-size: 14px;
 }
 </style>

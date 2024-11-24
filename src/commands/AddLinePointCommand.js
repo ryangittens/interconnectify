@@ -1,14 +1,14 @@
 export class AddLinePointCommand {
   constructor(store, point) {
-    this.store = store;
-    this.point = point;
+    this.store = store
+    this.point = point
   }
 
   execute() {
-    this.store.addLinePoint(this.point);
+    this.store.addLinePoint(this.point)
   }
 
   undo() {
-    this.store.removeLastLinePoint();
+    this.store.removeLastLinePoint()
   }
 }
