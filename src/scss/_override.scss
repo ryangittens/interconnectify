@@ -29,6 +29,10 @@ html {
   }
 }
 
+.v-main {
+  margin-right: 0px !important;
+}
+
 @keyframes progress-circular-rotate {
   100% {
     transform: rotate(270deg);

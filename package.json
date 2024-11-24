@@ -30,6 +30,7 @@
     "pdfmake": "^0.2.14",
     "pinia": "2.1.7",
     "remixicon": "4.1.0",
+    "resize-observer-polyfill": "^1.5.1",
     "svg-to-pdfkit": "^0.1.8",
     "vee-validate": "4.12.5",
     "vite-plugin-vuetify": "2.0.1",

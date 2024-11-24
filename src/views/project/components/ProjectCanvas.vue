@@ -30,6 +30,7 @@
 import { ref, onMounted, onBeforeUnmount, defineProps } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
+import { useCustomizerStore } from '@/stores/customizer';
 
 import ConductorSchedule from './ConductorSchedule.vue';
 import InfoPanel from './InfoPanel.vue';
@@ -54,6 +55,7 @@ import {
 } from '@/commands';
 
 const store = useSvgStore();
+const customizer = useCustomizerStore();
 const historyStore = useHistoryStore();
 
 const props = defineProps({
@@ -75,12 +77,12 @@ let isPanning = false;
 let panStart = { x: 0, y: 0 };
 let viewBoxStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
+let animationFrameId = null;
 const zoomFactor = 0.04;
 
 function endCanvasInteraction(event) {
   if (isPanning) {
     isPanning = false;
-    // Update the reactive state once at the end
     const viewBoxValues = svg.value.getAttribute('viewBox').split(' ').map(parseFloat);
     store.viewBox.x = viewBoxValues[0];
     store.viewBox.y = viewBoxValues[1];
@@ -88,6 +90,10 @@ function endCanvasInteraction(event) {
     linesRef.value.handleLineMouseUp(event);
   }
   endInteraction();
+  if (animationFrameId) {
+    cancelAnimationFrame(animationFrameId);
+    animationFrameId = null;
+  }
 }
 
 /* SETUP */
@@ -159,7 +165,20 @@ const resizeSVG = () => {
 };
 
 onMounted(() => {
-  initSVG();
+  customizer.CLOSE_SIDEBAR();
+
+  const sidebarElement = document.querySelector('.leftSidebar'); // Replace with actual selector
+
+  const onTransitionEnd = () => {
+    initSVG();
+
+    // Remove the event listener after it's called
+    sidebarElement.removeEventListener('transitionend', onTransitionEnd);
+  };
+
+  if (sidebarElement) {
+    sidebarElement.addEventListener('transitionend', onTransitionEnd);
+  }
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
@@ -173,6 +192,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  customizer.OPEN_SIDEBAR();
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', resizeSVG);
   svg.value.removeEventListener('mousemove', handleMouseMove);
@@ -253,8 +273,15 @@ const handleMouseMove = (event) => {
     const newViewBoxX = viewBoxStart.x - dx;
     const newViewBoxY = viewBoxStart.y - dy;
 
-    // Directly set the SVG viewBox attribute without using reactive state
-    svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
+    // Cancel any pending animation frame
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+
+    // Schedule the viewBox update
+    animationFrameId = requestAnimationFrame(() => {
+      svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
+    });
   }
 };
 
@@ -456,12 +483,12 @@ const endDrawing = () => {
 .canvas-container {
   position: relative;
   width: 100%;
-  height: calc(100vh - 160px);
+  height: calc(100vh - 150px);
 }
 .drawing-svg {
   position: absolute;
   top: -42px;
-  height: calc(100vh - 160px);
+  height: calc(100vh - 150px);
 }
 .drawing-svg:active {
   cursor: grabbing;

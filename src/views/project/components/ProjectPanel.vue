@@ -214,18 +214,18 @@ const saveDrawingAsBlock = async () => {
 </script>
 
 <template>
-  <v-toolbar elevation="0" height="40" class="mt-n3" style="z-index: 1; background: transparent">
-    <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small" @click="downloadSVG">
-      <IconFileTypeSvg size="17" stroke-width="1.5" />
+  <v-toolbar elevation="0" height="40" class="mt-0" style="z-index: 1; background: transparent">
+    <v-btn class="text-secondary ml-2" icon outlined rounded="sm" variant="flat" @click="downloadSVG">
+      <IconFileTypeSvg size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn class="text-secondary ml-2 mr-6" color="background" icon outlined rounded="sm" variant="flat" size="small" @click="downloadPDF">
-      <IconFileTypePdf size="17" stroke-width="1.5" />
+    <v-btn class="text-secondary ml-2 mr-6" icon outlined rounded="sm" variant="flat" @click="downloadPDF">
+      <IconFileTypePdf size="20" stroke-width="1.5" />
     </v-btn>
     <v-divider vertical></v-divider>
     <!-- <v-menu>
       <template v-slot:activator="{ props }">
-        <v-btn class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small" v-bind="props">
-          <DownloadIcon size="17" stroke-width="1.5" />
+        <v-btn class="text-secondary ml-2"  icon outlined rounded="sm" variant="flat"  v-bind="props">
+          <DownloadIcon size="20" stroke-width="1.5" />
         </v-btn>
       </template>
 
@@ -242,44 +242,40 @@ const saveDrawingAsBlock = async () => {
       v-if="store.mode == 'project'"
       @click="saveDrawing"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :disabled="historyStore.saved"
       :variant="historyStore.saved ? 'plain' : 'flat'"
-      size="small"
     >
-      <DeviceFloppyIcon size="17" stroke-width="1.5" />
+      <DeviceFloppyIcon size="20" stroke-width="1.5" />
     </v-btn>
 
     <v-btn
       v-if="store.mode == 'block'"
       @click="saveDrawingAsBlock"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :disabled="historyStore.saved"
       :variant="historyStore.saved ? 'plain' : 'flat'"
-      size="small"
     >
-      <DeviceFloppyIcon size="17" stroke-width="1.5" />
+      <DeviceFloppyIcon size="20" stroke-width="1.5" />
       <v-tooltip activator="parent" location="bottom">Save As Block</v-tooltip>
     </v-btn>
 
-    <v-btn @click="undo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <ArrowBackUpIcon size="17" stroke-width="1.5" />
+    <v-btn @click="undo" class="text-secondary ml-2" icon outlined rounded="sm" variant="flat">
+      <ArrowBackUpIcon size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="redo" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <ArrowForwardUpIcon size="17" stroke-width="1.5" />
+    <v-btn @click="redo" class="text-secondary ml-2" icon outlined rounded="sm" variant="flat">
+      <ArrowForwardUpIcon size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="fitSVGToExtent" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <Focus2Icon size="17" stroke-width="1.5" />
+    <v-btn @click="fitSVGToExtent" class="text-secondary ml-2" icon outlined rounded="sm" variant="flat">
+      <Focus2Icon size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn @click="toggleGrid" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <GridPatternIcon size="17" stroke-width="1.5" />
+    <v-btn @click="toggleGrid" class="text-secondary ml-2" icon outlined rounded="sm" variant="flat">
+      <GridPatternIcon size="20" stroke-width="1.5" />
     </v-btn>
     <v-spacer />
 
@@ -288,14 +284,12 @@ const saveDrawingAsBlock = async () => {
         <v-btn
           v-bind="activatorProps"
           class="text-secondary ml-2"
-          color="background"
           icon
           outlined
           rounded="sm"
           :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
-          size="small"
         >
-          <IconPointFilled size="17" stroke-width="1.5" />
+          <IconPointFilled size="20" stroke-width="1.5" />
         </v-btn>
       </template>
 
@@ -303,116 +297,77 @@ const saveDrawingAsBlock = async () => {
         key="1"
         @click="startConnectionPointsTool('conductor')"
         class="text-secondary"
-        color="background"
         icon
         outlined
         rounded="sm"
         :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
-        size="small"
       >
-        <IconPointFilled :color="store.connectionPointColors['conductor']" size="17" stroke-width="1.5" />
+        <IconPointFilled :color="store.connectionPointColors['conductor']" size="20" stroke-width="1.5" />
       </v-btn>
       <v-btn
         key="2"
         @click="startConnectionPointsTool('ground')"
         class="text-secondary"
-        color="background"
         icon
         outlined
         rounded="sm"
         :variant="isActive('connectionPoints') ? 'tonal' : 'flat'"
-        size="small"
       >
-        <IconPointFilled :color="store.connectionPointColors['ground']" size="17" stroke-width="1.5"
+        <IconPointFilled :color="store.connectionPointColors['ground']" size="20" stroke-width="1.5"
       /></v-btn>
     </v-speed-dial>
-    <v-btn
-      @click="startTextTool"
-      class="text-secondary ml-2"
-      color="background"
-      icon
-      outlined
-      rounded="sm"
-      :variant="isActive('text') ? 'tonal' : 'flat'"
-      size="small"
-    >
-      <IconLetterCase size="17" stroke-width="1.5" />
+    <v-btn @click="startTextTool" class="text-secondary ml-2" icon outlined rounded="sm" :variant="isActive('text') ? 'tonal' : 'flat'">
+      <IconLetterCase size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setRectangleTool"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :variant="isActive('rectangle') ? 'tonal' : 'flat'"
-      size="small"
     >
-      <IconSquarePlus2 size="17" stroke-width="1.5" />
+      <IconSquarePlus2 size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setLine('solid-conductor')"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :variant="store.isDrawing && store.currentLineId == 'solid-conductor' ? 'tonal' : 'flat'"
-      size="small"
     >
-      <LineIcon style="color: black" size="17" stroke-width="1.5" />
+      <LineIcon style="color: black" size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setLine('solid-ground')"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :variant="store.isDrawing && store.currentLineId == 'solid-ground' ? 'tonal' : 'flat'"
-      size="small"
     >
-      <CircuitGroundIcon style="color: green" size="17" stroke-width="1.5" />
+      <CircuitGroundIcon style="color: green" size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setLine('dashed-communication')"
       class="text-secondary ml-2"
-      color="background"
       icon
       outlined
       rounded="sm"
       :variant="store.isDrawing && store.currentLineId == 'dashed-communication' ? 'tonal' : 'flat'"
-      size="small"
     >
-      <LineDashedIcon style="color: black" size="17" stroke-width="1.5" />
+      <LineDashedIcon style="color: black" size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn
-      @click="$emit('openBlockDialog')"
-      class="text-secondary ml-6"
-      color="background"
-      icon
-      outlined
-      rounded="sm"
-      variant="flat"
-      size="small"
-    >
-      <CubePlusIcon size="17" stroke-width="1.5" />
+    <v-btn @click="$emit('openBlockDialog')" class="text-secondary ml-6" icon outlined rounded="sm" variant="flat">
+      <CubePlusIcon size="20" stroke-width="1.5" />
     </v-btn>
-    <v-btn
-      @click="$emit('openImportSvgDialog')"
-      class="text-secondary ml-2"
-      color="background"
-      icon
-      outlined
-      rounded="sm"
-      variant="flat"
-      size="small"
-    >
-      <IconFileArrowLeft size="17" stroke-width="1.5" />
+    <v-btn @click="$emit('openImportSvgDialog')" class="text-secondary ml-2" icon outlined rounded="sm" variant="flat">
+      <IconFileArrowLeft size="20" stroke-width="1.5" />
     </v-btn>
     <!-- 
-    <v-btn @click="addNewBlock" class="text-secondary ml-2" color="background" icon outlined rounded="sm" variant="flat" size="small">
-      <CubePlusIcon size="17" stroke-width="1.5" />
+    <v-btn @click="addNewBlock" class="text-secondary ml-2"  icon outlined rounded="sm" variant="flat" >
+      <CubePlusIcon size="20" stroke-width="1.5" />
     </v-btn>
     -->
   </v-toolbar>
