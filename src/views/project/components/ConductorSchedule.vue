@@ -1,41 +1,53 @@
 <template>
-  <v-expansion-panels class="conductorSchedulePanel">
-    <v-expansion-panel title="Conductor Schedule">
-      <v-expansion-panel-text>
-        <table class="conductorTable">
-          <thead>
-            <tr>
-              <th></th>
-              <!-- Empty header for drag handle -->
-              <th v-for="heading in store.conductorTableHeadings" :key="heading.key">
-                {{ heading.title.toUpperCase() }}
-              </th>
-            </tr>
-          </thead>
-          <draggable v-model="store.lines" @end="onDragEnd" tag="tbody" :options="{ handle: '.drag-handle', animation: 150 }" item-key="id">
-            <template #item="{ element }">
-              <tr :class="{ selected: isSelected(element) }">
-                <!-- Drag Handle -->
-                <td class="drag-handle">
-                  <v-icon small>mdi-drag</v-icon>
-                </td>
-                <!-- Table Data -->
-                <td v-for="heading in store.conductorTableHeadings" :key="heading.key">
-                  <ContentEditable
-                    @update:modelValue="(newValue) => onLinePropertyChange(element, heading.key, newValue)"
-                    :modelValue="element[heading.key]"
-                    :editable="heading.editable"
-                    :customClass="['conductorTableInput']"
-                    :items="heading.items"
-                  />
-                </td>
+  <v-layout class="position-absolute d-flex flex-column ml-2" style="bottom: 0">
+    <v-layout class="mb-3">
+      <v-btn> Notes </v-btn>
+    </v-layout>
+
+    <v-expansion-panels class="conductorSchedulePanel">
+      <v-expansion-panel title="Conductor Schedule">
+        <v-expansion-panel-text>
+          <table class="conductorTable">
+            <thead>
+              <tr>
+                <th></th>
+                <!-- Empty header for drag handle -->
+                <th v-for="heading in store.conductorTableHeadings" :key="heading.key">
+                  {{ heading.title.toUpperCase() }}
+                </th>
               </tr>
-            </template>
-          </draggable>
-        </table>
-      </v-expansion-panel-text>
-    </v-expansion-panel>
-  </v-expansion-panels>
+            </thead>
+            <draggable
+              v-model="store.lines"
+              @end="onDragEnd"
+              tag="tbody"
+              :options="{ handle: '.drag-handle', animation: 150 }"
+              item-key="id"
+            >
+              <template #item="{ element }">
+                <tr :class="{ selected: isSelected(element) }">
+                  <!-- Drag Handle -->
+                  <td class="drag-handle">
+                    <v-icon small>mdi-drag</v-icon>
+                  </td>
+                  <!-- Table Data -->
+                  <td v-for="heading in store.conductorTableHeadings" :key="heading.key">
+                    <ContentEditable
+                      @update:modelValue="(newValue) => onLinePropertyChange(element, heading.key, newValue)"
+                      :modelValue="element[heading.key]"
+                      :editable="heading.editable"
+                      :customClass="['conductorTableInput']"
+                      :items="heading.items"
+                    />
+                  </td>
+                </tr>
+              </template>
+            </draggable>
+          </table>
+        </v-expansion-panel-text>
+      </v-expansion-panel>
+    </v-expansion-panels>
+  </v-layout>
 </template>
 
 <script setup>

@@ -483,12 +483,11 @@ const endDrawing = () => {
 .canvas-container {
   position: relative;
   width: 100%;
-  height: calc(100vh - 150px);
+  margin-top: -42px;
+  height: calc(100vh - 110px);
 }
 .drawing-svg {
-  position: absolute;
-  top: -42px;
-  height: calc(100vh - 150px);
+  height: 100%;
 }
 .drawing-svg:active {
   cursor: grabbing;

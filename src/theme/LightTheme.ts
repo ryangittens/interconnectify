@@ -9,7 +9,7 @@ const PurpleTheme: ThemeTypes = {
   },
   colors: {
     primary: '#01a2dd',
-    secondary: '#5e35b1',
+    secondary: '#222222',
     info: '#03c9d7',
     success: '#00c853',
     accent: '#FFAB91',
