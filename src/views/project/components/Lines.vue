@@ -171,7 +171,14 @@ const finishWire = () => {
         points: [...store.currentLine],
         voltage: 240, // Or any default value
         labelPosition: null,
-        conductor: 'CU'
+        conductor: 'CU',
+        sets: 1,
+        size: null,
+        supplySide: 'N',
+        factor: 1,
+        len: 20,
+        ccc: 3,
+        temp: 75
       };
       store.addLine(newWire);
     }

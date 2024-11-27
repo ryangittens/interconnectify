@@ -5,9 +5,8 @@
         <h4 class="text-h4">Dwelling Unit Service Load Calculation</h4>
 
         <v-btn-toggle class="mr-3" v-model="calculationMethod" density="compact">
-          <v-btn> Standard </v-btn>
-
-          <v-btn> Optional </v-btn>
+          <v-btn value="Standard"> Standard </v-btn>
+          <v-btn value="Optional"> Optional </v-btn>
         </v-btn-toggle>
       </div>
       <v-form v-model="valid">
@@ -97,7 +96,10 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-end align-center">
                       <!-- <v-btn small color="primary" variant="tonal" @click="addGeneralLoadItem">Add Item</v-btn> -->
-                      <p class="font-weight-bold">Total General Load: {{ calculateGeneralLoad() }} VA</p>
+                      <p v-if="calculationMethod == 'Standard'" class="font-weight-bold">
+                        Total General Load (First 3000VA @ 100%, remainder @ 35%): {{ generalLoad }} VA
+                      </p>
+                      <p v-else class="font-weight-bold">Total General Load (100%): {{ generalLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -140,7 +142,11 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Fixed Appliance')">Add Appliance</v-btn>
-                      <p class="font-weight-bold">Total Fixed Appliances Load: {{ calculateFixedAppliancesLoad() }} VA</p>
+                      <p v-if="calculationMethod == 'Standard'" class="font-weight-bold">
+                        Total Fixed Appliances Load (4 or more appliances, 75% of total appliance, else 100%):
+                        {{ fixedAppliancesLoad }} VA
+                      </p>
+                      <p v-else class="font-weight-bold">Total Fixed Appliances(100%): {{ fixedAppliancesLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -188,7 +194,7 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Dryer')">Add Dryer</v-btn>
-                      <p class="font-weight-bold">Total Dryer Load: {{ calculateDryerLoad() }} VA</p>
+                      <p class="font-weight-bold">Total Dryer Load: {{ dryerLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -237,7 +243,10 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Cooking Equipment')">Add Equipment</v-btn>
-                      <p class="font-weight-bold">Cooking Equipment Load: {{ calculateCookingEquipmentLoad() }} VA</p>
+                      <p v-if="calculationMethod == 'Standard'" class="font-weight-bold">
+                        Cooking Equipment Load: {{ cookingEquipmentLoad }} VA
+                      </p>
+                      <p v-else class="font-weight-bold">Cooking Equipment Load: {{ cookingEquipmentLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
@@ -281,14 +290,15 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('HVAC')">Add Equipment</v-btn>
-                      <p class="font-weight-bold">Total HVAC Load: {{ calculateHVACLoad() }} VA</p>
+                      <p v-if="calculationMethod == 'Standard'" class="font-weight-bold">Total HVAC Load: {{ hvacLoad }} VA</p>
+                      <p v-else class="font-weight-bold">Total HVAC Load: {{ hvacLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
 
                 <!-- Other Loads Section -->
                 <!-- [Other Loads Section remains unchanged] -->
-                <v-card-title class="d-flex justify-space-between align-center"> Other Loads </v-card-title>
+                <v-card-title class="d-flex justify-space-between align-center"> Other Loads (Incl. EV Chargers)</v-card-title>
                 <v-divider></v-divider>
                 <v-card-text>
                   <v-row v-for="(item, index) in otherLoads" :key="index" class="align-center">
@@ -325,39 +335,41 @@
                   <v-row>
                     <v-col cols="12" class="d-flex justify-space-between align-center">
                       <v-btn small color="primary" variant="tonal" @click="openApplianceModal('Other')">Add Equipment</v-btn>
-                      <p class="font-weight-bold">Total Other Loads: {{ calculateOtherLoads() }} VA</p>
+                      <p class="font-weight-bold">Total Other Loads: {{ otherLoadsLoad }} VA</p>
                     </v-col>
                   </v-row>
                 </v-card-text>
 
                 <!-- Largest Motor Section -->
                 <!-- [Largest Motor Section remains unchanged] -->
-                <v-card-title class="d-flex justify-space-between align-center"> Largest Motor </v-card-title>
-                <v-divider></v-divider>
-                <v-card-text>
-                  <v-row class="align-center">
-                    <!-- Motor VA -->
-                    <v-col class="py-0" cols="11">
-                      <v-text-field
-                        label="Largest Motor VA"
-                        v-model.number="largestMotor.va"
-                        type="number"
-                        variant="outlined"
-                        min="0"
-                      ></v-text-field>
-                    </v-col>
-                    <!-- Delete Icon -->
-                    <v-col cols="1" class="text-center mb-5">
-                      <v-icon small @click="removeLargestMotor">mdi-delete</v-icon>
-                    </v-col>
-                  </v-row>
+                <div v-if="calculationMethod == 'Standard'">
+                  <v-card-title class="d-flex justify-space-between align-center"> Largest Motor </v-card-title>
+                  <v-divider></v-divider>
+                  <v-card-text>
+                    <v-row class="align-center">
+                      <!-- Motor VA -->
+                      <v-col class="py-0" cols="11">
+                        <v-text-field
+                          label="Largest Motor VA"
+                          v-model.number="largestMotor.va"
+                          type="number"
+                          variant="outlined"
+                          min="0"
+                        ></v-text-field>
+                      </v-col>
+                      <!-- Delete Icon -->
+                      <v-col cols="1" class="text-center mb-5">
+                        <v-icon small @click="removeLargestMotor">mdi-delete</v-icon>
+                      </v-col>
+                    </v-row>
 
-                  <v-row>
-                    <v-col cols="12" class="d-flex justify-end align-center">
-                      <p class="font-weight-bold">Largest Motor Load (25%): {{ calculateLargestMotorLoad() }} VA</p>
-                    </v-col>
-                  </v-row>
-                </v-card-text>
+                    <v-row>
+                      <v-col cols="12" class="d-flex justify-end align-center">
+                        <p class="font-weight-bold">Largest Motor Load (25%): {{ largestMotorLoad }} VA</p>
+                      </v-col>
+                    </v-row>
+                  </v-card-text>
+                </div>
               </div>
             </v-col>
           </v-row>
@@ -443,7 +455,7 @@
           <v-row class="d-flex justify-space-between align-center">
             <v-col class="py-0">
               <!-- <p>Total Calculated Load: {{ calculateTotalLoad() }} VA</p> -->
-              <p>Calculated Amperage: {{ calculateAmperage() }} A</p>
+              <p>Calculated Amperage: {{ calculatedAmperage }} A</p>
               <p>
                 <!-- <b>Main Breaker Size: {{ getStandardBreakerSize(calculateAmperage()) }} A</b> -->
                 <v-text-field
@@ -462,15 +474,15 @@
             <v-divider vertical></v-divider>
 
             <v-col class="py-0">
-              <p>Wire Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'COPPER').wire }} CU</p>
-              <p>Conduit Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'COPPER').conduit }}</p>
-              <p>GEC Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'COPPER').gec }}</p>
+              <p>Wire Size: {{ copperServiceSizing?.wire }} CU</p>
+              <p>Conduit Size: {{ copperServiceSizing?.conduit }}</p>
+              <p>GEC Size: {{ copperServiceSizing?.gec }}</p>
             </v-col>
             <v-divider vertical></v-divider>
             <v-col class="py-0">
-              <p>Wire Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'ALUMINUM').wire }} AL</p>
-              <p>Conduit Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'ALUMINUM').conduit }}</p>
-              <p>GEC Size: {{ getServiceSizing(getStandardBreakerSize(calculateAmperage()), 'ALUMINUM').gec }}</p>
+              <p>Wire Size: {{ aluminumServiceSizing?.wire }} AL</p>
+              <p>Conduit Size: {{ aluminumServiceSizing?.conduit }}</p>
+              <p>GEC Size: {{ aluminumServiceSizing?.gec }}</p>
             </v-col>
 
             <v-col cols="2">
@@ -503,11 +515,10 @@ const snackbarStore = useSnackbarStore();
 export default {
   data() {
     return {
-      calculationMethod: 0,
+      calculationMethod: 'Standard',
       valid: true,
       mainBreakerSize: 0,
       minMainBreakerSize: 0,
-      mainBreakerRules: [(v) => v >= this.minMainBreakerSize || 'Minimum is ' + this.minMainBreakerSize],
       address: '',
       propertyData: {
         yearBuilt: '',
@@ -537,7 +548,7 @@ export default {
           type: 'Water Heater',
           size: ['small', 'medium', 'large']
         },
-        { title: 'Tankless Water Heater', va: 12000, isMotor: false, category: 'Fixed Appliance', type: 'Water Heater', size: ['large'] },
+        { title: 'Tankless Water Heater', va: 12000, isMotor: false, category: 'Fixed Appliance', type: 'Water Heater', size: [] },
         {
           title: 'Dishwasher',
           va: 950,
@@ -599,9 +610,88 @@ export default {
         { title: 'Cooktop', va: 7000, isMotor: false, category: 'Cooking Equipment', type: 'Cooktop', size: [] },
 
         // HVAC
-        { title: 'Small Heat Pump', va: 6000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['small'] },
-        { title: 'Medium Heat Pump', va: 10000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['medium'] },
-        { title: 'Large Heat Pump', va: 14000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: ['large'] },
+        {
+          title: 'A/C - 1.5 Ton',
+          va: 5275, // 1.5 tons × 3.517 kW/ton × 1000
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: ['small'],
+          squareFootageRange: '600 to 1100 sqft'
+        },
+        {
+          title: 'A/C - 2 Ton',
+          va: 7034, // 2 tons × 3.517 kW/ton × 1000
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: [],
+          squareFootageRange: '901 to 1400 sqft'
+        },
+        {
+          title: 'A/C - 2.5 Ton',
+          va: 8793,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: [],
+          squareFootageRange: '1201 to 1650 sqft'
+        },
+        {
+          title: 'A/C - 3 Ton',
+          va: 10550,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: ['medium'],
+          squareFootageRange: '1501 to 2100 sqft'
+        },
+        {
+          title: 'A/C - 3.5 Ton',
+          va: 12310,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: [],
+          squareFootageRange: '1801 to 2300 sqft'
+        },
+        {
+          title: 'A/C - 4 Ton',
+          va: 14070,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: [],
+          squareFootageRange: '2101 to 2700 sqft'
+        },
+        {
+          title: 'A/C - 5 Ton',
+          va: 17585,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'A/C',
+          cooling: true,
+          size: ['large'],
+          squareFootageRange: '2401 to 3300 sqft'
+        },
+        {
+          title: 'Space Heater',
+          va: 1500,
+          isMotor: false,
+          category: 'HVAC',
+          type: 'Space Heater',
+          heating: true,
+          size: []
+        },
+        { title: 'Small Heat Pump', va: 6000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: [] },
+        { title: 'Medium Heat Pump', va: 10000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: [] },
+        { title: 'Large Heat Pump', va: 14000, isMotor: false, category: 'HVAC', type: 'Heat Pump', heating: true, size: [] },
 
         // Other Loads
         { title: 'EV Charger Level 1', va: 1440, isMotor: false, category: 'Other', type: 'EV Charger', size: ['medium'] },
@@ -619,23 +709,185 @@ export default {
       }
     };
   },
+  computed: {
+    mainBreakerRules() {
+      return [(v) => v >= this.minMainBreakerSize || `Minimum is ${this.minMainBreakerSize} A`];
+    },
+    // General Load Computation
+    generalLoad() {
+      const totalVA = this.generalLoadItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+      if (this.calculationMethod === 'Standard') {
+        const first3000VA = Math.min(3000, totalVA);
+        const remainingVA = Math.max(0, totalVA - 3000);
+        const demandVA = first3000VA + remainingVA * 0.35;
+        return Math.round(demandVA);
+      } else {
+        return Math.round(totalVA);
+      }
+    },
+
+    // Fixed Appliances Load Computation
+    fixedAppliancesLoad() {
+      const totalVA = this.fixedAppliances.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+      if (this.calculationMethod === 'Standard' && this.fixedAppliances.length >= 4) {
+        return Math.round(totalVA * 0.75);
+      }
+      return totalVA;
+    },
+
+    // Dryer Load Computation
+    dryerLoad() {
+      return this.dryerItems.reduce((total, item) => total + this.calculateDryerItemTotalVA(item), 0);
+    },
+
+    // Cooking Equipment Load Computation
+    cookingEquipmentLoad() {
+      if (this.calculationMethod === 'Standard') {
+        const applianceRatingsKW = [];
+
+        this.cookingEquipmentItems.forEach((item) => {
+          const applianceKW = (item.va * item.quantity) / 1000; // Convert VA to kW
+          applianceRatingsKW.push(applianceKW);
+        });
+
+        const totalAppliances = this.cookingEquipmentItems.reduce((total, item) => total + item.quantity, 0);
+
+        if (totalAppliances === 0) {
+          return 0;
+        }
+
+        const demandVA = this.applyNEC22055(totalAppliances, applianceRatingsKW);
+        return demandVA;
+      } else {
+        const totalVA = this.cookingEquipmentItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+        return Math.round(totalVA);
+      }
+    },
+
+    // HVAC Load Computation
+    hvacLoad() {
+      if (this.calculationMethod === 'Standard') {
+        const heatingItems = this.hvacLoadOptions.filter((item) => item?.heating);
+        const coolingItems = this.hvacLoadOptions.filter((item) => item?.cooling);
+
+        const heatingLoad = heatingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+        const coolingLoad = coolingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+        return Math.max(heatingLoad, coolingLoad);
+      } else {
+        // Optional method calculations per NFPA 70 guidelines
+        // Implement the optional method logic here
+        // For now, return the total HVAC load without demand factors
+        const heatingItems = this.hvacLoadOptions.filter((item) => item?.heating);
+
+        const coolingItems = this.hvacLoadOptions.filter((item) => item?.cooling);
+
+        const spaceHeatersLoad = this.hvacLoadOptions.filter((item) => item?.type == 'Space Heater');
+        const spaceHeaterQty = this.cookingEquipmentItems.reduce((total, item) => total + item.quantity, 0);
+        const spaceHeatingFactor = spaceHeaterQty > 4 ? 0.4 : 0.65;
+
+        const heatingLoad = heatingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+        const coolingLoad = coolingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+
+        const totalHeatingLoad = heatingLoad * 0.65 + spaceHeatersLoad * spaceHeatingFactor;
+        return Math.max(heatingLoad, coolingLoad);
+      }
+    },
+
+    // Largest Motor Load Computation
+    largestMotorVA() {
+      const motorLoads = [
+        ...this.fixedAppliances.filter((appliance) => appliance.isMotor),
+        ...this.otherLoads.filter((load) => load.isMotor),
+        ...this.hvacLoadOptions.filter((load) => load.isMotor)
+      ];
+      if (motorLoads.length > 0) {
+        const largestMotorLoad = Math.max(...motorLoads.map((item) => this.calculateItemTotalVA(item) / item.quantity));
+        return largestMotorLoad;
+      } else {
+        return 0;
+      }
+    },
+
+    largestMotorLoad() {
+      return Math.round(this.largestMotorVA * 0.25);
+    },
+
+    // Other Loads Computation
+    otherLoadsLoad() {
+      return this.otherLoads.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+    },
+
+    // Total Load Computation
+    totalLoad() {
+      if (this.calculationMethod === 'Standard') {
+        const generalLoad = this.generalLoad;
+        const fixedAppliancesLoad = this.fixedAppliancesLoad;
+        const dryerLoad = this.dryerLoad;
+        const cookingEquipmentLoad = this.cookingEquipmentLoad;
+        const hvacLoad = this.hvacLoad;
+        const largestMotorLoad = this.largestMotorLoad;
+        const otherLoads = this.otherLoadsLoad;
+
+        let subtotal = generalLoad + fixedAppliancesLoad + dryerLoad + cookingEquipmentLoad + otherLoads;
+
+        let demandLoad = subtotal + hvacLoad + largestMotorLoad;
+
+        return Math.round(demandLoad);
+      } else {
+        const generalLoad = this.generalLoad;
+        const fixedAppliancesLoad = this.fixedAppliancesLoad;
+        const dryerLoad = this.dryerLoad;
+        const cookingEquipmentLoad = this.cookingEquipmentLoad;
+        const hvacLoad = this.hvacLoad;
+        const otherLoads = this.otherLoadsLoad;
+
+        let subtotal = generalLoad + fixedAppliancesLoad + dryerLoad + cookingEquipmentLoad;
+        const first8000VA = Math.min(3000, subtotal);
+        const remainingVA = Math.max(0, subtotal - 8000);
+        const demandVA = first8000VA + remainingVA * 0.4;
+        // Apply demand factors as per Optional Method rules (if any)
+        // For simplicity, using subtotal as demandLoad
+        let demandLoad = demandVA + hvacLoad + otherLoads;
+
+        return Math.round(demandLoad);
+      }
+    },
+
+    // Calculated Amperage
+    calculatedAmperage() {
+      const voltage = parseInt(this.propertyData.voltage);
+      return Math.round(this.totalLoad / voltage);
+    },
+
+    // Standard Breaker Size
+    standardBreakerSize() {
+      const standardSizes = [100, 125, 150, 175, 200, 225, 300, 350, 400, 450, 500, 600, 700, 800, 1000, 1200, 1600, 2000];
+      for (let size of standardSizes) {
+        if (size >= this.calculatedAmperage) {
+          return size;
+        }
+      }
+      return 0;
+    },
+
+    // Copper Service Sizing
+    copperServiceSizing() {
+      return this.getServiceSizing(this.standardBreakerSize, 'COPPER');
+    },
+
+    // Aluminum Service Sizing
+    aluminumServiceSizing() {
+      return this.getServiceSizing(this.standardBreakerSize, 'ALUMINUM');
+    }
+  },
   watch: {
+    calculatedAmperage(newVal, oldVal) {
+      this.getStandardBreakerSize(newVal);
+    },
     'propertyData.squareFootage': function (newVal) {
       if (newVal && newVal > 0) {
         this.loadDefaultsBasedOnSquareFootage();
       }
-    },
-    fixedAppliances: {
-      handler() {
-        this.updateLargestMotor();
-      },
-      deep: true
-    },
-    otherLoads: {
-      handler() {
-        this.updateLargestMotor();
-      },
-      deep: true
     }
   },
   methods: {
@@ -674,25 +926,14 @@ export default {
     onPredefinedApplianceSelected() {
       if (this.selectedAppliance) {
         this.newAppliance.name = this.selectedAppliance.title;
-        this.newAppliance.va = this.selectedAppliance.va;
-        this.newAppliance.isMotor = this.selectedAppliance.isMotor;
-        console.log(this.fixedAppliances, this.newAppliance);
-      }
-    },
-    onPredefinedApplianceSelected() {
-      if (this.selectedAppliance) {
-        this.newAppliance.name = this.selectedAppliance.title;
-        this.newAppliance.isMotor = this.selectedAppliance.isMotor;
-
-        this.newAppliance.va = this.selectedAppliance.va;
+        this.newAppliance = { ...this.newAppliance, ...this.selectedAppliance };
       }
     },
     // Add appliance to the list
     addAppliance() {
       let newItem = {
-        name: this.newAppliance.name,
         quantity: 1,
-        isMotor: this.newAppliance.isMotor
+        ...this.newAppliance
       };
 
       newItem.va = this.newAppliance.va;
@@ -808,7 +1049,8 @@ export default {
                 name: appliance.title,
                 quantity: 1,
                 va: appliance.va,
-                isMotor: appliance.isMotor || false
+                isMotor: appliance.isMotor || false,
+                ...appliance
               });
               break;
             case 'Dryer':
@@ -816,14 +1058,16 @@ export default {
                 name: appliance.title,
                 quantity: 1,
                 va: appliance.va,
-                vaRules: appliance.vaRules || []
+                vaRules: appliance.vaRules || [],
+                ...appliance
               });
               break;
             case 'Cooking Equipment':
               this.cookingEquipmentItems.push({
                 name: appliance.title,
                 quantity: 1,
-                va: appliance.va
+                va: appliance.va,
+                ...appliance
               });
               break;
             case 'HVAC':
@@ -832,7 +1076,8 @@ export default {
                 quantity: 1,
                 va: appliance.va,
                 heating: appliance?.heating,
-                cooling: appliance?.cooling
+                cooling: appliance?.cooling,
+                ...appliance
               });
               break;
             case 'Other':
@@ -840,7 +1085,8 @@ export default {
                 name: appliance.title,
                 quantity: 1,
                 va: appliance.va,
-                isMotor: appliance.isMotor || false
+                isMotor: appliance.isMotor || false,
+                ...appliance
               });
               break;
           }
@@ -884,6 +1130,10 @@ export default {
       const demandVA = first3000VA + remainingVA * 0.35;
       return Math.round(demandVA);
     },
+    calculateGeneralLoadOptional() {
+      const totalVA = this.generalLoadItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+      return Math.round(totalVA);
+    },
     addFixedAppliance() {
       this.fixedAppliances.push({ name: '', quantity: 1, va: 0 });
     },
@@ -899,6 +1149,10 @@ export default {
       if (this.fixedAppliances.length >= 4) {
         return Math.round(totalVA * 0.75);
       }
+      return totalVA;
+    },
+    calculateFixedAppliancesLoadOptional() {
+      const totalVA = this.fixedAppliances.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
       return totalVA;
     },
     addDryerItem() {
@@ -940,39 +1194,64 @@ export default {
       return item.quantity * item.va || 0;
     },
     calculateCookingEquipmentLoad() {
-      let totalConnectedVA = this.cookingEquipmentItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
-      let totalAppliances = this.cookingEquipmentItems.reduce((total, item) => total + item.quantity, 0);
+      const applianceRatingsKW = [];
+
+      this.cookingEquipmentItems.forEach((item) => {
+        const applianceKW = (item.va * item.quantity) / 1000; // Convert VA to kW
+        applianceRatingsKW.push(applianceKW);
+      });
+
+      const totalAppliances = this.cookingEquipmentItems.reduce((total, item) => total + item.quantity, 0);
 
       if (totalAppliances === 0) {
         return 0;
       }
 
-      let averageVA = totalConnectedVA / totalAppliances;
-      let demandVA = this.applyNEC22055(totalAppliances, averageVA);
-      return Math.round(demandVA);
-    },
-    applyNEC22055(totalAppliances, averageVA) {
-      let demandVA = 0;
-
-      if (totalAppliances === 1) {
-        demandVA = averageVA * 0.8;
-      } else if (totalAppliances === 2) {
-        demandVA = averageVA * 2 * 0.65;
-      } else if (totalAppliances === 3) {
-        demandVA = averageVA * 3 * 0.55;
-      } else if (totalAppliances === 4) {
-        demandVA = averageVA * 4 * 0.5;
-      } else {
-        demandVA = averageVA * totalAppliances * 0.45;
-      }
-
-      if (averageVA > 12000) {
-        let extraVA = averageVA - 12000;
-        let demandFactorIncrease = Math.ceil(extraVA) * 0.05;
-        demandVA *= 1 + demandFactorIncrease;
-      }
-
+      const demandVA = this.applyNEC22055(totalAppliances, applianceRatingsKW);
       return demandVA;
+    },
+    calculateCookingEquipmentLoadOptional() {
+      let totalConnectedVA = this.cookingEquipmentItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+      return Math.round(totalConnectedVA);
+    },
+    applyNEC22055(totalAppliances, applianceRatings) {
+      let demandLoad = 0;
+
+      if (totalAppliances === 0) return 0;
+      // Calculate the average rating
+      const totalConnectedLoadKW = applianceRatings.reduce((sum, rating) => sum + rating, 0);
+      const averageRatingKW = totalConnectedLoadKW / totalAppliances;
+
+      // Determine demand factor percentage based on the number of appliances
+      let demandFactorPercentage;
+      if (totalAppliances === 1) {
+        demandFactorPercentage = 80; // 80%
+      } else if (totalAppliances === 2) {
+        demandFactorPercentage = 65; // 65%
+      } else if (totalAppliances === 3) {
+        demandFactorPercentage = 55; // 55%
+      } else if (totalAppliances >= 4 && totalAppliances <= 6) {
+        demandFactorPercentage = 50; // 50%
+      } else if (totalAppliances >= 7 && totalAppliances <= 12) {
+        demandFactorPercentage = 45; // 45%
+      } else if (totalAppliances >= 13 && totalAppliances <= 23) {
+        demandFactorPercentage = 35; // 35%
+      } else {
+        demandFactorPercentage = 25; // 25% for more than 23 appliances
+      }
+
+      // Initial demand load calculation
+      demandLoad = totalConnectedLoadKW * (demandFactorPercentage / 100) * 1000; // Convert kW to VA
+
+      // Adjustment for appliances over 12 kW (per NEC 220.55 Note 1)
+      if (averageRatingKW > 12) {
+        const additionalKWPerAppliance = averageRatingKW - 12;
+        const totalAdditionalKW = additionalKWPerAppliance * totalAppliances;
+        const additionalDemand = totalAdditionalKW * 0.05 * 1000; // 5% increase per kW over 12 kW
+        demandLoad += additionalDemand;
+      }
+
+      return Math.round(demandLoad);
     },
     addHVACLoadItem() {
       this.hvacLoadOptions.push({ label: '', quantity: 1, va: 0 });
@@ -993,6 +1272,22 @@ export default {
       const coolingLoad = coolingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
 
       return Math.max(heatingLoad, coolingLoad);
+    },
+    calculateHVACLoadOptional() {
+      const heatingItems = this.hvacLoadOptions.filter((item) => item?.heating);
+
+      const coolingItems = this.hvacLoadOptions.filter((item) => item?.cooling);
+
+      console.log(heatingItems, coolingItems);
+
+      const spaceHeatersLoad = this.hvacLoadOptions.filter((item) => item?.type == 'Space Heater');
+      const spaceHeaterQty = this.cookingEquipmentItems.reduce((total, item) => total + item.quantity, 0);
+      const spaceHeatingFactor = spaceHeaterQty > 4 ? 0.4 : 0.65;
+
+      const heatingLoad = heatingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+      const coolingLoad = coolingItems.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
+
+      return heatingLoad + coolingLoad + spaceHeatersLoad * spaceHeatingFactor;
     },
     removeLargestMotor() {
       this.largestMotor.va = 0;
@@ -1015,21 +1310,36 @@ export default {
       return this.otherLoads.reduce((total, item) => total + this.calculateItemTotalVA(item), 0);
     },
     calculateTotalLoad() {
-      const generalLoad = this.calculateGeneralLoad();
-      const fixedAppliancesLoad = this.calculateFixedAppliancesLoad();
-      const dryerLoad = this.calculateDryerLoad();
-      const cookingEquipmentLoad = this.calculateCookingEquipmentLoad();
-      const hvacLoad = this.calculateHVACLoad();
-      const largestMotorLoad = this.calculateLargestMotorLoad();
-      const otherLoads = this.calculateOtherLoads();
+      if (this.calculationMethod == 0) {
+        const generalLoad = this.calculateGeneralLoadOptional();
+        const fixedAppliancesLoad = this.calculateFixedAppliancesLoadOptional();
+        const dryerLoad = this.calculateDryerLoad();
+        const cookingEquipmentLoad = this.calculateCookingEquipmentLoadOptional();
+        const hvacLoad = this.calculateHVACLoadOptional();
+        const otherLoads = this.calculateOtherLoads();
 
-      let subtotal = generalLoad + fixedAppliancesLoad + dryerLoad + cookingEquipmentLoad + otherLoads;
+        let subtotal = generalLoad + hvacLoad + fixedAppliancesLoad + dryerLoad + cookingEquipmentLoad + otherLoads;
 
-      let demandLoad = subtotal + hvacLoad + largestMotorLoad;
+        let demandLoad = subtotal;
 
-      return Math.round(demandLoad);
+        return Math.round(demandLoad);
+      } else {
+        const generalLoad = this.calculateGeneralLoad();
+        const fixedAppliancesLoad = this.calculateFixedAppliancesLoad();
+        const dryerLoad = this.calculateDryerLoad();
+        const cookingEquipmentLoad = this.calculateCookingEquipmentLoad();
+        const hvacLoad = this.calculateHVACLoad();
+        const largestMotorLoad = this.calculateLargestMotorLoad();
+        const otherLoads = this.calculateOtherLoads();
+
+        let subtotal = generalLoad + fixedAppliancesLoad + dryerLoad + cookingEquipmentLoad + otherLoads;
+
+        let demandLoad = subtotal + hvacLoad + largestMotorLoad;
+
+        return Math.round(demandLoad);
+      }
     },
-    calculateAmperage() {
+    calculateAmperage(calculationMethod) {
       const totalLoad = this.calculateTotalLoad();
       const voltage = parseInt(this.propertyData.voltage);
       return Math.round(totalLoad / voltage);
@@ -1224,7 +1534,7 @@ export default {
       // Prepare data for the PDF
       const docDefinition = {
         content: [
-          { text: 'Dwelling Unit Standard Service Load Calculation', style: 'header' },
+          { text: 'Dwelling Unit ' + this.calculationMethod + ' Service Load Calculation', style: 'header' },
           {
             columns: [
               { text: `Property Address: ${this.address || 'N/A'}`, style: 'subheader' },

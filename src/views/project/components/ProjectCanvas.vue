@@ -22,7 +22,7 @@
       <ConnectionPointsTool />
       <TextTool />
     </svg>
-    <ConductorSchedule />
+    <BottomSection :project="props.project" @update:project="emitUpdateProject" />
   </div>
 </template>
 
@@ -32,7 +32,7 @@ import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 import { useCustomizerStore } from '@/stores/customizer';
 
-import ConductorSchedule from './ConductorSchedule.vue';
+import BottomSection from './BottomSection.vue';
 import InfoPanel from './InfoPanel.vue';
 
 import GridLines from './GridLines.vue';
@@ -62,6 +62,8 @@ const props = defineProps({
   project: Object || null,
   mode: String || null
 });
+
+const emit = defineEmits(['update:isOpen', 'update:project']);
 
 const drawing = props.project?.drawing;
 
@@ -476,6 +478,11 @@ const endDrawing = () => {
     linesRef.value.endLineDrawing();
   }
   store.endDrawing();
+};
+
+// Emit updated project to parent
+const emitUpdateProject = (updatedProject) => {
+  emit('update:project', updatedProject);
 };
 </script>
 

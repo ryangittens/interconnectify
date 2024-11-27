@@ -38,6 +38,22 @@ const fetchProject = async () => {
   }
 };
 
+// Handle project updates from ProjectCanvas.vue
+const handleProjectUpdate = async (updatedNotes) => {
+  project.value.notes = updatedNotes;
+  try {
+    const { data, error: persistError } = await supabase.from(table.value).update({ notes: updatedNotes }).eq('id', projectId).single();
+
+    if (persistError) {
+      throw persistError;
+    }
+  } catch (err) {
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
+};
+
 onMounted(() => {
   fetchProject();
 });
@@ -85,7 +101,7 @@ function closeImportSvgDialog() {
       @open-block-dialog="openBlockSearchDialog"
       @open-import-svg-dialog="openImportSvgDialog"
     />
-    <ProjectCanvas :project="project" :mode="mode" />
+    <ProjectCanvas :project="project" @update:project="handleProjectUpdate" :mode="mode" />
     <BlockSearchDialog :show="blockSearchDialog" @close-block-dialog="closeBlockSearchDialog" />
     <ImportSvgDialog :show="importSvgDialog" @close-import-svg-dialog="closeImportSvgDialog" />
   </div>

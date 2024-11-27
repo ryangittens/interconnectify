@@ -26,7 +26,7 @@
       :key="cp.id"
       :cx="cp.x"
       :cy="cp.y"
-      r="5"
+      r="3"
       :fill="cp.color"
       @click.stop="handleConnectionPointClick(cp, block, $event)"
       style="cursor: crosshair"

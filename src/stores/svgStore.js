@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { UpdateLineCommand } from '@/commands'
 import { updateLinePoints } from '@/utils/lineUtils'
 import { lineRefs } from '@/views/project/refs/lineRefs.js'
+import { useSnackbarStore } from './snackbar'
 // PDF Fonts
 const pdfFonts = {
   // download default Roboto font from cdnjs.com
@@ -37,6 +38,7 @@ import { useHistoryStore } from './history'
 import { addTable, createTblock, exportImage } from '@/views/project/pdf/pdfFunctions'
 
 const historyStore = useHistoryStore()
+const snackbarStore = useSnackbarStore()
 
 export const useSvgStore = defineStore('svgStore', {
   state: () => ({
@@ -167,145 +169,219 @@ export const useSvgStore = defineStore('svgStore', {
     conductorData: {
       CU: {
         "#12": {
-          "75": { ampacity: 25, resistance: 1.98 },
-          "90": { ampacity: 30, resistance: 1.98 },
+          area: 0.0133,
+          resistance: 1.98,
+          "75": { ampacity: 25 },
+          "90": { ampacity: 30 },
         },
         "#10": {
-          "75": { ampacity: 35, resistance: 1.24 },
-          "90": { ampacity: 40, resistance: 1.24 },
+          area: 0.02,
+          resistance: 1.24,
+          "75": { ampacity: 35 },
+          "90": { ampacity: 40 },
         },
         "#8": {
-          "75": { ampacity: 50, resistance: 0.778 },
-          "90": { ampacity: 55, resistance: 0.778 },
+          area: 0.04,
+          resistance: 0.778,
+          "75": { ampacity: 50 },
+          "90": { ampacity: 55 },
         },
         "#6": {
-          "75": { ampacity: 65, resistance: 0.491 },
-          "90": { ampacity: 75, resistance: 0.491 },
+          area: 0.05,
+          resistance: 0.491,
+          "75": { ampacity: 65 },
+          "90": { ampacity: 75 },
         },
         "#4": {
-          "75": { ampacity: 85, resistance: 0.308 },
-          "90": { ampacity: 95, resistance: 0.308 },
+          area: 0.08,
+          resistance: 0.308,
+          "75": { ampacity: 85 },
+          "90": { ampacity: 95 },
         },
         "#3": {
-          "75": { ampacity: 100, resistance: 0.245 },
-          "90": { ampacity: 115, resistance: 0.245 },
+          area: 0.1,
+          resistance: 0.245,
+          "75": { ampacity: 100 },
+          "90": { ampacity: 115 },
         },
         "#2": {
-          "75": { ampacity: 115, resistance: 0.194 },
-          "90": { ampacity: 130, resistance: 0.194 },
+          area: 0.12,
+          resistance: 0.194,
+          "75": { ampacity: 115 },
+          "90": { ampacity: 130 },
         },
         "#1": {
-          "75": { ampacity: 130, resistance: 0.154 },
-          "90": { ampacity: 145, resistance: 0.154 },
+          area: 0.16,
+          resistance: 0.154,
+          "75": { ampacity: 130 },
+          "90": { ampacity: 145 },
         },
         "#1/0": {
-          "75": { ampacity: 150, resistance: 0.122 },
-          "90": { ampacity: 170, resistance: 0.122 },
+          area: 0.19,
+          resistance: 0.122,
+          "75": { ampacity: 150 },
+          "90": { ampacity: 170 },
         },
         "#2/0": {
-          "75": { ampacity: 175, resistance: 0.0967 },
-          "90": { ampacity: 195, resistance: 0.0967 },
+          area: 0.22,
+          resistance: 0.0967,
+          "75": { ampacity: 175 },
+          "90": { ampacity: 195 },
         },
         "#3/0": {
-          "75": { ampacity: 200, resistance: 0.0766 },
-          "90": { ampacity: 225, resistance: 0.0766 },
+          area: 0.27,
+          resistance: 0.0766,
+          "75": { ampacity: 200 },
+          "90": { ampacity: 225 },
         },
         "#4/0": {
-          "75": { ampacity: 230, resistance: 0.0608 },
-          "90": { ampacity: 260, resistance: 0.0608 },
+          area: 0.32,
+          resistance: 0.0608,
+          "75": { ampacity: 230 },
+          "90": { ampacity: 260 },
         },
         "250MCM": {
-          "75": { ampacity: 255, resistance: 0.0515 },
-          "90": { ampacity: 290, resistance: 0.0515 },
+          area: 0.4,
+          resistance: 0.0515,
+          "75": { ampacity: 255 },
+          "90": { ampacity: 290 },
         },
         "300MCM": {
-          "75": { ampacity: 285, resistance: 0.0429 },
-          "90": { ampacity: 320, resistance: 0.0429 },
+          area: 0.46,
+          resistance: 0.0429,
+          "75": { ampacity: 285 },
+          "90": { ampacity: 320 },
         },
         "350MCM": {
-          "75": { ampacity: 310, resistance: 0.0367 },
-          "90": { ampacity: 350, resistance: 0.0367 },
+          area: 0.52,
+          resistance: 0.0367,
+          "75": { ampacity: 310 },
+          "90": { ampacity: 350 },
         },
         "400MCM": {
-          "75": { ampacity: 335, resistance: 0.0321 },
-          "90": { ampacity: 380, resistance: 0.0321 },
+          area: 0.59,
+          resistance: 0.0321,
+          "75": { ampacity: 335 },
+          "90": { ampacity: 380 },
         },
         "500MCM": {
-          "75": { ampacity: 380, resistance: 0.0258 },
-          "90": { ampacity: 430, resistance: 0.0258 },
+          area: 0.71,
+          resistance: 0.0258,
+          "75": { ampacity: 380 },
+          "90": { ampacity: 430 },
         },
       },
       AL: {
         "#12": {
-          "75": { ampacity: 20, resistance: 3.25 },
-          "90": { ampacity: 35, resistance: 3.25 },
+          area: 0.0133,
+          resistance: 3.25,
+          "75": { ampacity: 20 },
+          "90": { ampacity: 35 },
         },
         "#10": {
-          "75": { ampacity: 30, resistance: 2.04 },
-          "90": { ampacity: 35, resistance: 2.04 },
+          area: 0.02,
+          resistance: 2.04,
+          "75": { ampacity: 30 },
+          "90": { ampacity: 35 },
         },
         "#8": {
-          "75": { ampacity: 40, resistance: 1.28 },
-          "90": { ampacity: 45, resistance: 1.28 },
+          area: 0.04,
+          resistance: 1.28,
+          "75": { ampacity: 40 },
+          "90": { ampacity: 45 },
         },
         "#6": {
-          "75": { ampacity: 50, resistance: 0.808 },
-          "90": { ampacity: 55, resistance: 0.808 },
+          area: 0.05,
+          resistance: 0.808,
+          "75": { ampacity: 50 },
+          "90": { ampacity: 55 },
         },
         "#4": {
-          "75": { ampacity: 65, resistance: 0.508 },
-          "90": { ampacity: 75, resistance: 0.508 },
+          area: 0.08,
+          resistance: 0.508,
+          "75": { ampacity: 65 },
+          "90": { ampacity: 75 },
         },
         "#3": {
-          "75": { ampacity: 75, resistance: 0.403 },
-          "90": { ampacity: 85, resistance: 0.403 },
+          area: 0.1,
+          resistance: 0.403,
+          "75": { ampacity: 75 },
+          "90": { ampacity: 85 },
         },
         "#2": {
-          "75": { ampacity: 90, resistance: 0.319 },
-          "90": { ampacity: 100, resistance: 0.319 },
+          area: 0.12,
+          resistance: 0.319,
+          "75": { ampacity: 90 },
+          "90": { ampacity: 100 },
         },
         "#1": {
-          "75": { ampacity: 100, resistance: 0.253 },
-          "90": { ampacity: 115, resistance: 0.253 },
+          area: 0.16,
+          resistance: 0.253,
+          "75": { ampacity: 100 },
+          "90": { ampacity: 115 },
         },
         "#1/0": {
-          "75": { ampacity: 120, resistance: 0.201 },
-          "90": { ampacity: 135, resistance: 0.201 },
+          area: 0.19,
+          resistance: 0.201,
+          "75": { ampacity: 120 },
+          "90": { ampacity: 135 },
         },
         "#2/0": {
-          "75": { ampacity: 135, resistance: 0.159 },
-          "90": { ampacity: 150, resistance: 0.159 },
+          area: 0.22,
+          resistance: 0.159,
+          "75": { ampacity: 135 },
+          "90": { ampacity: 150 },
         },
         "#3/0": {
-          "75": { ampacity: 155, resistance: 0.126 },
-          "90": { ampacity: 175, resistance: 0.126 },
+          area: 0.27,
+          resistance: 0.126,
+          "75": { ampacity: 155 },
+          "90": { ampacity: 175 },
         },
         "#4/0": {
-          "75": { ampacity: 180, resistance: 0.1 },
-          "90": { ampacity: 205, resistance: 0.1 },
+          area: 0.32,
+          resistance: 0.1,
+          "75": { ampacity: 180 },
+          "90": { ampacity: 205 },
         },
         "250MCM": {
-          "75": { ampacity: 205, resistance: 0.0847 },
-          "90": { ampacity: 230, resistance: 0.0847 },
+          area: 0.4,
+          resistance: 0.0847,
+          "75": { ampacity: 205 },
+          "90": { ampacity: 230 },
         },
         "300MCM": {
-          "75": { ampacity: 230, resistance: 0.0707 },
-          "90": { ampacity: 260, resistance: 0.0707 },
+          area: 0.46,
+          resistance: 0.0707,
+          "75": { ampacity: 230 },
+          "90": { ampacity: 260 },
         },
         "350MCM": {
-          "75": { ampacity: 250, resistance: 0.0605 },
-          "90": { ampacity: 280, resistance: 0.0605 },
+          area: 0.52,
+          resistance: 0.0605,
+          "75": { ampacity: 250 },
+          "90": { ampacity: 280 },
         },
         "400MCM": {
-          "75": { ampacity: 270, resistance: 0.0529 },
-          "90": { ampacity: 305, resistance: 0.0529 },
+          area: 0.59,
+          resistance: 0.0529,
+          "75": { ampacity: 270 },
+          "90": { ampacity: 305 },
         },
         "500MCM": {
-          "75": { ampacity: 310, resistance: 0.0424 },
-          "90": { ampacity: 350, resistance: 0.0424 },
+          area: 0.71,
+          resistance: 0.0424,
+          "75": { ampacity: 310 },
+          "90": { ampacity: 350 },
         },
       },
-    }
+    },
+    pvcConduits: [['3/4"', 0.51], ['1"', 0.83], ['1-1/4"', 1.45], ['1-1/2"', 1.99], ['2"', 3.29], ['2-1/2"', 4.69], ['3"', 7.27], ['3-1/2"', 9.73], ['4"', 12.54],],
+    standardOCPDRatings: [
+      0, 15, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 125, 150, 175, 200, 225, 250,
+      300, 350, 400, 450, 500, 600, 700, 800, 10000, 1200, 1600, 2000, 2500, 3000,
+      4000, 5000, 6000,
+    ]
   }),
   getters: {
     conductorTableHeadings(state) {
@@ -315,13 +391,18 @@ export const useSvgStore = defineStore('svgStore', {
         { title: 'voltage', key: 'voltage', editable: true },
         { title: 'current', key: 'current', editable: true },
         { title: 'vd', key: 'vd', editable: false },
-        { title: 'len', key: 'len', editable: false },
-        { title: 'ccc', key: 'ccc', editable: false },
+        { title: 'len', key: 'len', editable: true },
+        { title: 'ccc', key: 'ccc', editable: true },
+        { title: 'sets', key: 'sets', editable: false },
         { title: 'egc', key: 'egc', editable: false },
         { title: 'ocpd', key: 'ocpd', editable: false },
         { title: 'size', key: 'size', editable: true, items: state.wireSizes },
         { title: 'conductor', key: 'conductor', editable: true, items: ['CU', 'AL'] },
+        { title: 'temp', key: 'temp', editable: false, items: [75, 90] },
+        { title: 'factor', key: 'factor', editable: true },
         { title: 'ohms', key: 'ohms', editable: false },
+        { title: 'conduitSize', key: 'conduitSize', editable: true },
+        { title: 'supplySide', key: 'supplySide', editable: true, items: ['Y', 'N'] },
       ]
     },
   },
@@ -348,20 +429,305 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     recalculateLine(line) {
-      line.ccc = this.calculateCcc(line.voltage, line.current)
+      line.ocpd = this.getOCPD(line.current)
+      line.factor = this.getFillFactor(line.ccc)
+      line.size = this.calculateWireSize(line.ocpd, line.supplySide, line.conductor, line.sets, line.factor, line.temp)
       line.ohms = this.calculateOhms(line.size, line.conductor)
-
+      line.vd = this.getVoltageDropPercentage(
+        line.current,
+        line.ohms,
+        line.len,
+        line.voltage
+      )
+      line.egc = this.getEGC(line.ocpd, line.supplySide, line.conductor)
+      line.conduitSize = this.getConduitSize(line.size, line.ccc, line.egc, line.conductor,)
       // Recalculate other dependent fields if necessary
-    },
-    calculateWireSize(voltage, current) {
-      //watch located in conductor schedule component
-      return (voltage * current) / 1000 // Replace with your actual logic
     },
     calculateCcc(voltage, current) {
       return voltage * current * 3 // Replace with your actual logic
     },
-    calculateOhms(wireSize, conductor) {
-      return this.conductorData?.[conductor]?.[wireSize]?.["75"]?.resistance
+    calculateOhms(wireSize, conductor, sets) {
+      return this.conductorData?.[conductor]?.[wireSize]?.resistance / (sets || 1)
+    },
+    getOCPD(current) {
+      for (var i = this.standardOCPDRatings.length - 1; i >= 0; i--) {
+        if (
+          current * 1.25 <= this.standardOCPDRatings[i] &&
+          current * 1.25 > this.standardOCPDRatings[i - 1]
+        ) {
+          //round down 0.5
+          let ocpd = this.standardOCPDRatings[i]
+          return ocpd
+        }
+      }
+      snackbarStore.showSnackbar(`No suitable OCPD size found`)
+    },
+    /**
+    * Calculates the minimum wire size required based on the provided parameters, considering temperature and supply side.
+    *
+    * @param {number} ocpd - Overcurrent Protection Device rating.
+    * @param {string} supplySide - Supply side identifier ('Y' or 'N').
+    * @param {string} conductor - Type of conductor (e.g., "CU").
+    * @param {number} [sets=1] - Number of sets to divide the ampacity.
+    * @param {number} [factor=1] - Multiplicative factor for ampacity.
+    * @param {number} [temp=75] - Temperature rating to consider (e.g., 75 or 90).
+    * @returns {string|null} - The minimum wire size that meets the required ampacity or null if not found.
+    */
+    calculateWireSize(ocpd, supplySide, conductor, sets, factor, temp) {
+      // Special case for IQ CABLE
+      if (conductor === "IQ CABLE") {
+        return "#12"
+      }
+
+      // Calculate the required ampacity
+      let requiredAmpacity = ocpd
+
+      // Adjust ampacity based on the number of sets
+      if (sets > 1) {
+        requiredAmpacity = ocpd / sets
+      }
+
+      // Retrieve the wire ratings for the specified conductor
+      const wireData = this.conductorData[conductor]
+
+      if (!wireData || Object.keys(wireData).length === 0) {
+        snackbarStore.showSnackbar(`No wire ratings found for conductor: ${conductor}`, 'error')
+        return null
+      }
+
+      // Define wire size order from smallest to largest
+      const wireSizeOrder = ["#12", "#10", "#8", "#6", "#4", "#3", "#2", "#1", "#1/0", "#2/0", "#3/0", "#4/0", "250MCM", "300MCM", "350MCM", "400MCM", "500MCM"]
+
+      // Define minimum wire size per conductor type when supplySide is 'Y'
+      const minWireSizes = {
+        'CU': '#6',
+        'AL': '#4'
+      }
+
+      // Determine the minimum wire size if supplySide is 'Y'
+      let minWireSize = null
+      if (supplySide === 'Y') {
+        minWireSize = minWireSizes[conductor]
+        if (!minWireSize) {
+          snackbarStore.showSnackbar(`Minimum wire size not defined for conductor type: ${conductor}`, 'error')
+          return null
+        }
+      }
+
+      // Extract wire sizes and sort them based on their ampacity for the specified temperature in ascending order
+      const sortedWireSizes = Object.keys(wireData).sort((a, b) => {
+        const aAmpacity = wireData[a][temp]?.ampacity || 0
+        const bAmpacity = wireData[b][temp]?.ampacity || 0
+        return aAmpacity - bAmpacity
+      })
+
+      // Traverse the sorted wire sizes to find the minimum wire size that meets the required ampacity at the specified temperature
+      for (const wireSize of sortedWireSizes) {
+        // If supplySide is 'Y', enforce a minimum wire size based on conductor type
+        if (supplySide === 'Y') {
+          const minIndex = wireSizeOrder.indexOf(minWireSize)
+          const currentIndex = wireSizeOrder.indexOf(wireSize)
+          if (currentIndex === -1 || currentIndex < minIndex) {
+            continue // Skip wire sizes smaller than the minimum
+          }
+        }
+
+        const rating = wireData[wireSize][temp]
+
+        if (!rating) {
+          continue // Skip if no rating exists for the specified temperature
+        }
+
+        const ampacity = rating.ampacity
+
+        if (ampacity >= requiredAmpacity * factor) {
+          return wireSize
+        }
+      }
+
+      // If no suitable wire size is found for the specified temperature, show a snackbar and return null
+      snackbarStore.showSnackbar(`No suitable wire size found`, 'error')
+      return null
+    },
+    getFillFactor(numCCC) {
+      switch (true) {
+        case numCCC > 3 && numCCC < 7:
+          return 0.8
+          break
+        case numCCC > 6 && numCCC < 10:
+          return 0.7
+          break
+        case numCCC > 9 && numCCC < 21:
+          return 0.5
+          break
+        case numCCC > 20 && numCCC < 31:
+          return 0.45
+          break
+        case numCCC > 30 && numCCC < 41:
+          return 0.4
+          break
+        case numCCC > 40:
+          return 0.35
+          break
+        default:
+          return 1
+      }
+    },
+    getVoltageDropPercentage(
+      current,
+      wireResistance,
+      wireLength,
+      voltage
+    ) {
+      // Calculate the voltage drop
+      let voltageDrop = (2 * wireResistance * current * wireLength) / 1000
+      // Calculate the percentage of the voltage drop
+      let voltageDropPercentage = (voltageDrop / voltage) * 100
+      return round2(voltageDropPercentage)
+    },
+    /**
+ * Calculates the appropriate conduit size based on the provided wire sizes, number of CCC (Combined Cable Conduits),
+ * and EGC (Equipment Grounding Conductor) size by traversing the conductorData.
+ *
+ * @param {string} wire - The wire size (e.g., "#12").
+ * @param {number} numCCC - The number of Combined Cable Conduits.
+ * @param {string} egc - The EGC (Equipment Grounding Conductor) size.
+ * @param {string} conductorType - The type of conductor (e.g., "CU").
+ * @param {number} temp - The temperature rating to consider (default is 75°F).
+ * @returns {string} - The minimum conduit size that can accommodate the total wire area or "err" if not found.
+ */
+    getConduitSize(wire, numCCC, egc, conductorType,) {
+      let cccArea = 0
+      let egcArea = 0
+      let totalWireArea = 0
+
+      // Ensure conductorData and conductorType exist
+      if (
+        !this.conductorData ||
+        !this.conductorData[conductorType] ||
+        typeof this.conductorData[conductorType] !== 'object'
+      ) {
+        snackbarStore.showSnackbar(`Invalid conductor type: ${conductorType}`, 'error')
+        return "err"
+      }
+
+      const conductorInfo = this.conductorData[conductorType]
+
+      // Retrieve area for the main wire
+      if (conductorInfo[wire] && conductorInfo[wire].area) {
+        cccArea = conductorInfo[wire].area
+      } else {
+        snackbarStore.showSnackbar(`Wire size ${wire} not found or area not defined for conductor type ${conductorType}`, 'error')
+        return "err"
+      }
+
+      // Retrieve area for the EGC
+      if (conductorInfo[egc] && conductorInfo[egc].area) {
+        egcArea = conductorInfo[egc].area
+      } else {
+        snackbarStore.showSnackbar(`EGC size ${egc} not found or area not defined for conductor type ${conductorType}`, 'error')
+        return "err"
+      }
+
+      // Calculate total wire area and round to 2 decimal places
+      totalWireArea = round2(cccArea * numCCC + egcArea)
+
+      // Ensure pvcConduits array exists
+      if (!Array.isArray(this.pvcConduits)) {
+        snackbarStore.showSnackbar(`Conduit data is not properly defined`, 'error')
+        return "err"
+      }
+
+      // Traverse the pvcConduits to find the minimum suitable conduit size
+      for (let i = 0; i < this.pvcConduits.length; i++) {
+        const conduitSize = this.pvcConduits[i][0]
+        const conduitArea = this.pvcConduits[i][1]
+
+        // Assuming the pvcConduits array structure is [ConduitSize, Area]
+        if (totalWireArea <= conduitArea * 0.4) { // 40% fill factor
+          return conduitSize
+        }
+      }
+
+      // If no suitable conduit size is found
+      snackbarStore.showSnackbar(`No suitable conduit size found for the given wire area`, 'error')
+      return "err"
+    },
+    getAdjAmp(wire, factor1, factor2) {
+      for (var i = wires.length - 1; i >= 0; i--) {
+        if (wire == wires[i][0]) {
+          if (wires[i][1] < wires[i][2] * factor1 * factor2) {
+            return wires[i][1]
+          } else return Math.round(wires[i][2] * factor1 * factor2)
+        }
+      }
+      return "err"
+    },
+    getEGC(ocpd, supplySide, conductor) {
+      if (
+        !supplySide
+      ) {
+        return "NA"
+      }
+      if (conductor == "AL") {
+        switch (true) {
+          case ocpd <= 60:
+            return "#10"
+            break
+          case ocpd <= 100:
+            return "#8"
+            break
+          case ocpd <= 200:
+            return "#6"
+            break
+          case ocpd <= 300:
+            return "#4"
+          case ocpd <= 400:
+            return "#3"
+          case ocpd <= 500:
+            return "#2"
+          case ocpd <= 600:
+            return "#1"
+          case ocpd <= 800:
+            return "#1/0"
+          case ocpd <= 1000:
+            return "#2/0"
+          case ocpd <= 1200:
+            return "#3/0"
+            break
+          default:
+            return "err"
+        }
+      } else {
+        switch (true) {
+          case ocpd <= 60:
+            return "#10"
+            break
+          case ocpd <= 100:
+            return "#8"
+            break
+          case ocpd <= 200:
+            return "#6"
+            break
+          case ocpd <= 300:
+            return "#4"
+          case ocpd <= 400:
+            return "#3"
+          case ocpd <= 500:
+            return "#2"
+          case ocpd <= 600:
+            return "#1"
+          case ocpd <= 800:
+            return "#1/0"
+          case ocpd <= 1000:
+            return "#2/0"
+          case ocpd <= 1200:
+            return "#3/0"
+            break
+          default:
+            return "err"
+        }
+      }
     },
     //----------------- SVG FUNCTIONS -----------------//
     handleSvgClick(event) {
@@ -1328,7 +1694,15 @@ export const useSvgStore = defineStore('svgStore', {
           color: this.lineColor,
           points: [...this.currentLine],
           voltage: 240,
-          labelPosition: null
+          labelPosition: null,
+          conductor: 'CU',
+          sets: 1,
+          size: null,
+          supplySide: 'N',
+          factor: 1,
+          len: 20,
+          ccc: 3,
+          temp: 75
         }
 
         this.addLine(newLine)
@@ -2097,7 +2471,7 @@ export const useSvgStore = defineStore('svgStore', {
         heading: "row",
         columnWidths: [],
         x: 60,
-        y: 340,
+        y: 60,
         data: [
         ],
       }
@@ -2226,7 +2600,15 @@ export const useSvgStore = defineStore('svgStore', {
 
 })
 
-
+/**
+ * Rounds a number to two decimal places.
+ *
+ * @param {number} num - The number to round.
+ * @returns {number} - The rounded number.
+ */
+function round2(num) {
+  return Math.round(num * 100) / 100
+}
 
 const calculatePathBoundingBox = (d) => {
   const path = new Path2D(d)

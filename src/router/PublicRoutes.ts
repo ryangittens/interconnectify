@@ -1,5 +1,5 @@
-const MainRoutes = {
-  path: '/main',
+const PublicRoutes = {
+  path: '/',
   meta: {
     requiresAuth: false
   },
@@ -13,4 +13,4 @@ const MainRoutes = {
   ]
 };
 
-export default MainRoutes;
+export default PublicRoutes;
