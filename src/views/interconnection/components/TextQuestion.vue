@@ -10,9 +10,9 @@ const props = defineProps(['question', 'answer']);
 const emit = defineEmits(['answer']);
 const inputValue = ref(props.answer || '');
 
-watch(inputValue, (newValue) => {
-  emit('answer', { key: props.question.key, value: newValue });
-});
+// watch(inputValue, (newValue) => {
+//   emit('answer', { key: props.question.key, value: newValue });
+// });
 
 watch(
   () => props.answer,
