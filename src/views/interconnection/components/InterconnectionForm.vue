@@ -45,6 +45,9 @@ import TextQuestion from './TextQuestion.vue';
 import InterconnectionQuestion from './InterconnectionQuestion.vue'; // New component
 import { ChevronRightIcon, ChevronLeftIcon } from 'vue-tabler-icons';
 import { Inverters } from '@/utils/inverters';
+import { useSnackbarStore } from '@/stores/snackbar';
+
+const snackbarStore = useSnackbarStore();
 
 // Import your interconnection logic and data
 import { getInterconnections } from '@/utils/interconnection';
@@ -88,30 +91,14 @@ const serviceStyleOptions = [
 // Define your question groups
 const questionGroups = [
   {
-    key: 'serviceStyle',
-    questions: [
-      {
-        type: 'image',
-        label: 'Select your service type:',
-        key: 'serviceStyle',
-        options: serviceStyleOptions
-      }
-    ],
-    next: 'panelCount'
-  },
-  {
-    key: 'panelCount',
-    questions: [{ type: 'text', label: 'Enter the panel count:', key: 'panelCount' }],
-    next: 'inverterMake'
-  },
-  {
     key: 'inverterMake',
     questions: [
       {
         type: 'image',
         label: 'Select your inverter make:',
         key: 'inverterMake',
-        options: inverterMakes
+        options: inverterMakes,
+        required: true
       }
     ],
     next: 'inverterModel' // Proceed to inverterModel after make is selected
@@ -122,12 +109,38 @@ const questionGroups = [
       {
         type: 'image',
         label: 'Select your inverter model:',
-        key: 'inverterModel'
+        key: 'inverterModel',
+        required: true
         // We'll set the options dynamically based on selected make
+      }
+    ],
+    next: (answers) => {
+      let inverter = Inverters.find((inv) => inv.value === answers.inverterModel);
+      if (inverter && inverter.type === 'micro') {
+        return 'panelCount';
+      } else {
+        return 'serviceStyle';
+      }
+    }
+  },
+  {
+    key: 'panelCount',
+    questions: [{ type: 'text', label: 'Enter the panel count:', key: 'panelCount' }],
+    next: 'inverterMake'
+  },
+  {
+    key: 'serviceStyle',
+    questions: [
+      {
+        type: 'image',
+        label: 'Select your service type:',
+        key: 'serviceStyle',
+        options: serviceStyleOptions
       }
     ],
     next: 'mainBreakerBusRatings'
   },
+
   {
     key: 'mainBreakerBusRatings',
     questions: [
@@ -297,6 +310,19 @@ const handleAnswer = ({ key, value }) => {
 };
 
 const goToNextGroup = () => {
+  // Validate required questions
+  const unansweredRequiredQuestions = currentGroupQuestions.value.filter((question) => {
+    const answer = answers.value[question.key];
+    return question.required && (answer === undefined || answer === null || answer === '');
+  });
+
+  if (unansweredRequiredQuestions.length > 0) {
+    // Use snackbar to notify the user
+    snackbarStore.showSnackbar('Please answer all required questions before proceeding.', 'error');
+    return;
+  }
+
+  // Proceed to next group
   const nextGroupKey = typeof currentGroup.value.next === 'function' ? currentGroup.value.next(answers.value) : currentGroup.value.next;
 
   if (nextGroupKey) {
@@ -304,8 +330,6 @@ const goToNextGroup = () => {
     if (nextGroupIndex !== -1) {
       groupHistory.value.push(currentGroupIndex.value);
       currentGroupIndex.value = nextGroupIndex;
-    } else {
-      // Handle form submission or go to the result page
     }
   }
 };

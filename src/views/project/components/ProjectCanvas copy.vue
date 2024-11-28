@@ -1,11 +1,6 @@
 <template>
   <div ref="canvasContainer" class="canvas-container">
     <InfoPanel />
-    <!-- Controls -->
-    <div class="controls" style="position: absolute; top: 50px">
-      <v-btn @click="setActiveSpace('paper')" :color="activeSpace == 'paper' ? 'background' : null">Paper Space</v-btn>
-      <v-btn @click="setActiveSpace('model')" :color="activeSpace == 'model' ? 'background' : null">Model Space</v-btn>
-    </div>
     <svg
       ref="svg"
       class="drawing-svg"
@@ -14,32 +9,25 @@
       @mousedown="startInteraction"
       @mousemove="handleMouseMove"
       @mouseup="endCanvasInteraction($event)"
-      @wheel="handleWheel"
+      @wheel="zoom"
       @dblclick="handleDoubleClick"
     >
-      <!-- Paper Space Group -->
-      <g ref="paperSpaceGroup">
-        <!-- Model Space Group -->
+      <g ref="axesContainer"></g>
+      <GridLines />
 
-        <g ref="modelSpaceGroup" :transform="modelSpaceTransform">
-          <g ref="axesContainer"></g>
-          <GridLines :viewBox="modelViewBox" />
-          <Lines ref="linesRef" />
-          <Blocks @startWire="handleStartWire" />
-          <RectangleTool />
-          <ConnectionPointsTool />
-        </g>
-        <!-- Paper Space Elements -->
-        <PaperTitleBlock />
-        <TextTool />
-      </g>
+      <!-- Pass a ref to the Lines component -->
+      <Lines ref="linesRef" />
+      <Blocks @startWire="handleStartWire" />
+      <RectangleTool />
+      <ConnectionPointsTool />
+      <TextTool />
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, onMounted, onBeforeUnmount, defineProps } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 import { useCustomizerStore } from '@/stores/customizer';
@@ -53,7 +41,6 @@ import Lines from './Lines.vue';
 import RectangleTool from './RectangleTool.vue';
 import TextTool from './TextTool.vue';
 import ConnectionPointsTool from './ConnectionPointsTool.vue';
-import PaperTitleBlock from './PaperTitleBlock.vue'; // New component
 
 import {
   StopDrawingCommand,
@@ -81,61 +68,6 @@ const emit = defineEmits(['update:isOpen', 'update:project']);
 const drawing = props.project?.drawing;
 
 const svg = ref(null);
-const modelSpaceGroup = ref(null);
-
-const activeSpace = computed(() => store.activeSpace);
-
-const viewBox = reactive({
-  x: 0,
-  y: 0,
-  width: 1000, // Initial width
-  height: 1000 // Initial height
-});
-
-// Function to handle wheel events
-const handleWheel = (event) => {
-  if (activeSpace.value === 'paper') {
-    zoom(event);
-  } else if (activeSpace.value === 'model') {
-    modelZoom(event);
-  }
-};
-
-const modelViewBox = ref({ x: 0, y: 0, width: 0, height: 0 });
-
-const setActiveSpace = (space) => {
-  if (space === 'model') {
-    store.setActiveSpace(space);
-    updateModelViewBox();
-  } else {
-    store.setActiveSpace(space);
-  }
-};
-
-const updateModelViewBox = () => {
-  const scale = modelSpaceScale.value;
-  const translateX = modelSpaceTranslate.x;
-  const translateY = modelSpaceTranslate.y;
-
-  const x = (store.viewBox.x - translateX) / scale;
-  const y = (store.viewBox.y - translateY) / scale;
-  const width = store.viewBox.width / scale;
-  const height = store.viewBox.height / scale;
-  modelViewBox.value = { x, y, width, height };
-
-  modelSpaceGroup.value.setAttribute(
-    'transform',
-    `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`
-  );
-};
-
-// Transformations for model space
-const modelSpaceScale = ref(1);
-const modelSpaceTranslate = reactive({ x: 0, y: 0 });
-
-const modelSpaceTransform = computed(() => {
-  return `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`;
-});
 
 const axesContainer = ref(null);
 
@@ -143,8 +75,7 @@ const axesContainer = ref(null);
 const linesRef = ref(null);
 
 // Local variables for line drawing
-const isPanning = ref(false);
-const isModelPanning = ref(false);
+let isPanning = false;
 let panStart = { x: 0, y: 0 };
 let viewBoxStart = { x: 0, y: 0 };
 let initialBlockPosition = { x: 0, y: 0 };
@@ -152,14 +83,11 @@ let animationFrameId = null;
 const zoomFactor = 0.04;
 
 function endCanvasInteraction(event) {
-  if (isPanning.value) {
-    isPanning.value = false;
+  if (isPanning) {
+    isPanning = false;
     const viewBoxValues = svg.value.getAttribute('viewBox').split(' ').map(parseFloat);
     store.viewBox.x = viewBoxValues[0];
     store.viewBox.y = viewBoxValues[1];
-  } else if (isModelPanning.value) {
-    isModelPanning.value = false;
-    updateModelViewBox();
   } else if (store.isDraggingLineSegment) {
     linesRef.value.handleLineMouseUp(event);
   }
@@ -182,22 +110,25 @@ const {
   minZoomLevel
 } = store;
 
-const zoom = (event) => {
-  if (activeSpace.value !== 'paper') return; // Only zoom when paper space is active
+const pan = (event) => {
+  if (!store.panning) return;
+  const dx = (event.clientX - panStart.x) / store.zoomLevel;
+  const dy = (event.clientY - panStart.y) / store.zoomLevel;
+  panStart = { x: event.clientX, y: event.clientY };
 
+  store.viewBox.x -= dx;
+  store.viewBox.y -= dy;
+};
+
+const zoom = (event) => {
   event.preventDefault();
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
-  // Determine the zoom direction
+  // Determine the new zoom level
   const zoomDirection = deltaY > 0 ? -1 : 1;
-
-  // Adjust zoom factor based on current zoom level for consistent zoom speed
-  const adjustedZoomFactor = zoomFactor / store.paperZoomLevel;
-
-  // Compute the new zoom level
-  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.paperZoomLevel * (1 + zoomDirection * adjustedZoomFactor)));
-  if (newZoomLevel === store.paperZoomLevel) return;
+  const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.zoomLevel * (1 + zoomDirection * zoomFactor)));
+  if (newZoomLevel === store.zoomLevel) return;
 
   // Calculate the new viewBox dimensions based on the new zoom level
   const newWidth = store.initialViewBox.width / newZoomLevel;
@@ -208,90 +139,8 @@ const zoom = (event) => {
   const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
 
   // Update the zoom level and viewBox in the store
-
-  store.paperZoomLevel = newZoomLevel;
+  store.zoomLevel = newZoomLevel;
   store.setViewBox(newX, newY, newWidth, newHeight);
-};
-
-const modelZoom = (event) => {
-  if (activeSpace.value !== 'model') return;
-
-  event.preventDefault();
-
-  const { clientX, clientY, deltaY } = event;
-
-  // Get mouse position in SVG coordinates
-  const point = svg.value.createSVGPoint();
-  point.x = clientX;
-  point.y = clientY;
-  const svgP = point.matrixTransform(svg.value.getScreenCTM().inverse());
-
-  // Determine the zoom direction
-  const zoomDirection = deltaY > 0 ? -1 : 1;
-
-  // Compute combined scale (paper zoom level * model zoom level)
-  const combinedScale = store.paperZoomLevel * modelSpaceScale.value;
-
-  // Adjust zoom factor for consistent zoom speed
-  const adjustedZoomFactor = zoomFactor / combinedScale;
-
-  // Calculate the zoom amount
-  const zoomAmount = 1 + zoomDirection * adjustedZoomFactor;
-
-  // Compute the new model space scale within bounds
-  const newScale = Math.max(minZoomLevel, Math.min(maxZoomLevel, modelSpaceScale.value * zoomAmount));
-  if (newScale === modelSpaceScale.value) return;
-
-  // Get the point's coordinates in model space before scaling
-  const modelPointX = (svgP.x - modelSpaceTranslate.x) / modelSpaceScale.value;
-  const modelPointY = (svgP.y - modelSpaceTranslate.y) / modelSpaceScale.value;
-
-  // Update the model space scale
-  modelSpaceScale.value = newScale;
-
-  // Adjust the translation to keep the point under the cursor fixed
-  modelSpaceTranslate.x = svgP.x - modelPointX * newScale;
-  modelSpaceTranslate.y = svgP.y - modelPointY * newScale;
-
-  updateModelViewBox();
-};
-
-const pan = (event) => {
-  if (activeSpace.value !== 'paper') return;
-
-  const dx = (event.clientX - panStart.x) / store.paperZoomLevel;
-  const dy = (event.clientY - panStart.y) / store.paperZoomLevel;
-
-  const newViewBoxX = viewBoxStart.x - dx;
-  const newViewBoxY = viewBoxStart.y - dy;
-
-  // Cancel any pending animation frame
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-  }
-
-  // Schedule the viewBox update
-  animationFrameId = requestAnimationFrame(() => {
-    svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
-  });
-
-  // Update the viewBox in the store
-  store.setViewBox(newViewBoxX, newViewBoxY, store.viewBox.width, store.viewBox.height);
-};
-
-const modelPan = (event) => {
-  if (activeSpace.value !== 'model') return;
-
-  // Compute combined zoom level
-  const combinedZoomLevel = store.zoomLevel;
-
-  const dx = (event.clientX - panStart.x) / combinedZoomLevel;
-  const dy = (event.clientY - panStart.y) / combinedZoomLevel;
-
-  panStart = { x: event.clientX, y: event.clientY };
-
-  modelSpaceTranslate.x += dx * store.modelZoomLevel;
-  modelSpaceTranslate.y += dy * store.modelZoomLevel;
 };
 
 const initSVG = () => {
@@ -301,11 +150,9 @@ const initSVG = () => {
   svg.value.setAttribute('width', clientWidth);
   svg.value.setAttribute('height', clientHeight);
   store.setSvgElement(svg.value);
-  store.setModelSpaceGroup(modelSpaceGroup.value);
   store.setAxesContainer(axesContainer.value);
   store.deserializeState(drawing);
   store.setMode(props.mode);
-  updateModelViewBox();
 };
 
 const resizeSVG = () => {
@@ -421,10 +268,22 @@ const handleMouseMove = (event) => {
     const dy = coords.y - initialBlockPosition.y;
     const snappedCoords = store.snapToGrid(store.initialTextPosition.x + dx, store.initialTextPosition.y + dy);
     store.moveText(store.movingText, snappedCoords.x - store.movingText.x, snappedCoords.y - store.movingText.y, store);
-  } else if (isPanning.value) {
-    pan(event);
-  } else if (isModelPanning.value) {
-    modelPan(event);
+  } else if (isPanning) {
+    const dx = (event.clientX - panStart.x) / store.zoomLevel;
+    const dy = (event.clientY - panStart.y) / store.zoomLevel;
+
+    const newViewBoxX = viewBoxStart.x - dx;
+    const newViewBoxY = viewBoxStart.y - dy;
+
+    // Cancel any pending animation frame
+    if (animationFrameId) {
+      cancelAnimationFrame(animationFrameId);
+    }
+
+    // Schedule the viewBox update
+    animationFrameId = requestAnimationFrame(() => {
+      svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
+    });
   }
 };
 
@@ -480,17 +339,9 @@ const startInteraction = (event) => {
   } else if (store.activeTool == 'rectangle') {
     //startRectangle(event);
   } else if (!store.dragging && !store.isDrawing && !store.activeTool) {
-    if (activeSpace.value === 'paper') {
-      // Handle paper space interactions
-      isPanning.value = true;
-      panStart = { x: event.clientX, y: event.clientY };
-      viewBoxStart = { x: store.viewBox.x, y: store.viewBox.y };
-    } else if (activeSpace.value === 'model') {
-      // Handle model space interactions
-      panStart = { x: event.clientX, y: event.clientY };
-      isModelPanning.value = true;
-      viewBoxStart = { x: store.viewBox.x, y: store.viewBox.y };
-    }
+    isPanning = true;
+    panStart = { x: event.clientX, y: event.clientY };
+    viewBoxStart = { x: store.viewBox.x, y: store.viewBox.y };
   }
 };
 

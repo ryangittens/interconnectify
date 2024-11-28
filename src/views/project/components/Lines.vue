@@ -328,9 +328,10 @@ const handleLabelMouseMove = (event) => {
 
   event.preventDefault();
 
+  // Use SVG coordinates
   const coords = store.getSVGCoordinates(event);
-  const dx = coords.x - labelDragStart.value.x;
-  const dy = coords.y - labelDragStart.value.y;
+  const dx = coords.x - labelDragStart.value.x / store.modelZoomLevel;
+  const dy = coords.y - labelDragStart.value.y / store.modelZoomLevel;
 
   const newX = labelInitialPosition.value.x + dx;
   const newY = labelInitialPosition.value.y + dy;
@@ -536,6 +537,7 @@ const handleLabelMouseDown = (line, event) => {
   isLabelDragging.value = true;
   draggedLineId.value = line.id;
 
+  // Use SVG coordinates
   const coords = store.getSVGCoordinates(event);
   labelDragStart.value = { x: coords.x, y: coords.y };
   const currentPos = getLabelPosition(line);

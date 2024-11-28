@@ -49,6 +49,8 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'paths', type: 'path' },
       { prop: 'blocks', type: 'block' },
     ],
+    activeSpace: 'paper',
+    modelSpaceTranslate: { x: 0, y: 0 },
     blocks: [],
     lines: [],
     selectedBlock: null,
@@ -59,8 +61,11 @@ export const useSvgStore = defineStore('svgStore', {
     currentLine: [],
     activeTool: null,
     svg: null,
+    modelSpaceGroup: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
-    zoomLevel: 1,
+
+    modelZoomLevel: 1,
+    paperZoomLevel: 1,
     gridSize: 10,
     showGrid: true,
     initialViewBox: { width: 0, height: 0 },
@@ -384,6 +389,9 @@ export const useSvgStore = defineStore('svgStore', {
     ]
   }),
   getters: {
+    zoomLevel(state) {
+      return state.paperZoomLevel * state.modelZoomLevel
+    },
     conductorTableHeadings(state) {
       return [
         { title: 'alias', key: 'alias', editable: false },
@@ -404,6 +412,9 @@ export const useSvgStore = defineStore('svgStore', {
         { title: 'conduitSize', key: 'conduitSize', editable: true },
         { title: 'supplySide', key: 'supplySide', editable: true, items: ['Y', 'N'] },
       ]
+    },
+    modelSpaceTransform(state) {
+      return `translate(${state.modelSpaceTranslate.x}, ${state.modelSpaceTranslate.y}) scale(${state.modelSpaceScale})`
     },
   },
   actions: {
@@ -730,6 +741,25 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     //----------------- SVG FUNCTIONS -----------------//
+    getTransformedSVGCoordinates(event) {
+      // Create an SVGPoint to store the screen coordinates
+      const point = this.svg.createSVGPoint()
+      point.x = event.clientX
+      point.y = event.clientY
+
+      // Get the inverse of the screen CTM
+      let ctm = this.svg.getScreenCTM().inverse()
+
+      // If in model space, adjust for model transformations
+      if (this.activeSpace === 'model') {
+        const modelCTM = this.modelSpaceGroup.getCTM()
+        ctm = ctm.multiply(modelCTM.inverse())
+      }
+
+      // Apply the combined transformation matrix to the point
+      const svgPoint = point.matrixTransform(ctm)
+      return { x: svgPoint.x, y: svgPoint.y }
+    },
     handleSvgClick(event) {
       if (
         !this.activeTool &&
@@ -1380,16 +1410,27 @@ export const useSvgStore = defineStore('svgStore', {
 
       return newPoints
     },
+    setActiveSpace(space) {
+      this.activeSpace = space
+    },
     getSVGCoordinates(event) {
-      const { left, top } = this.svg.getBoundingClientRect()
-      const svgPoint = this.svg.createSVGPoint()
-      svgPoint.x = event.clientX
-      svgPoint.y = event.clientY
-      const point = svgPoint.matrixTransform(this.svg.getScreenCTM().inverse())
-      return {
-        x: point.x,
-        y: point.y
+      const point = this.svg.createSVGPoint()
+      point.x = event.clientX
+      point.y = event.clientY
+
+      let ctm
+      if (this.activeSpace === 'model') {
+        // Use the CTM of the modelSpaceGroup to get coordinates in model space
+        ctm = this.modelSpaceGroup.getScreenCTM().inverse()
+      } else {
+        // Use the CTM of the svg element to get coordinates in paper space
+        ctm = this.svg.getScreenCTM().inverse()
       }
+
+      // Apply the inverse transformation to get coordinates in the active space
+      const svgPoint = point.matrixTransform(ctm)
+
+      return { x: svgPoint.x, y: svgPoint.y }
     },
     isPointOnSegment(point, startPoint, endPoint) {
       const buffer = 5 // Tolerance for clicking near the segment
@@ -1757,7 +1798,8 @@ export const useSvgStore = defineStore('svgStore', {
         rectangles: this.rectangles,
         connectionPoints: this.connectionPoints,
         viewBox: this.viewBox,
-        zoomLevel: this.zoomLevel
+        modelZoomLevel: this.modelZoomLevel,
+        paperZoomLevel: this.paperZoomLevel
       })
     },
     svgToDataUrl(svgElement) {
@@ -1774,7 +1816,8 @@ export const useSvgStore = defineStore('svgStore', {
       this.rectangles = data?.rectangles || []
       this.lines = data?.lines || []
       this.texts = data?.texts || []
-      this.zoomLevel = data?.zoomLevel || 1 // Restore the zoom level
+      this.modelZoomLevel = data?.modelZoomLevel || 1 // Restore the zoom level
+      this.paperZoomLevel = data?.paperZoomLevel || 1
       this.connectionPoints = data?.connectionPoints || []
 
       // Calculate the center of the old viewBox
@@ -1782,8 +1825,8 @@ export const useSvgStore = defineStore('svgStore', {
       const centerY = (data?.viewBox?.y || 0) + (data?.viewBox?.height || this.initialViewBox.height) / 2
 
       // Calculate the new viewBox dimensions based on the new zoom level
-      const newWidth = this.initialViewBox.width / this.zoomLevel
-      const newHeight = this.initialViewBox.height / this.zoomLevel
+      const newWidth = this.initialViewBox.width / this.paperZoomLevel
+      const newHeight = this.initialViewBox.height / this.paperZoomLevel
 
       // Calculate the new viewBox position to center the viewBox around the saved center
       const newX = centerX - newWidth / 2
@@ -2162,12 +2205,15 @@ export const useSvgStore = defineStore('svgStore', {
     setSvgElement(svg) {
       this.svg = svg
     },
+    setModelSpaceGroup(svg) {
+      this.modelSpaceGroup = svg
+    },
     setAxesContainer(element) {
       this.axesContainer = element
     },
     setViewBox(x, y, width, height) {
       this.viewBox = { x, y, width, height }
-      this.zoomLevel = this.initialViewBox.width / width // Update zoomLevel based on the new viewBox dimensions
+      this.paperZoomLevel = this.initialViewBox.width / width // Update zoomLevel based on the new viewBox dimensions
     },
     // initializeViewBox() {
     //   if (this.svg) {
