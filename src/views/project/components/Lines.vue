@@ -18,7 +18,7 @@
 
       <!-- Render the label for the line -->
       <g
-        style="cursor: pointer; pointer-events: all"
+        :class="['interactive-element', { 'disabled-interactions': activeSpace !== 'model' }]"
         @mousedown.stop="handleLabelMouseDown(line, $event)"
         @mouseup.stop="handleLabelMouseUp($event)"
         @click="handleLabelClick(line)"
@@ -50,7 +50,7 @@
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount, watch } from 'vue';
+import { ref, onBeforeUnmount, watch, computed } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { lineRefs } from '../refs/lineRefs.js'; // Import the shared lineRefs Map
 import { defineExpose } from 'vue';
@@ -60,6 +60,8 @@ import { AddLinePointCommand } from '@/commands/AddLinePointCommand';
 
 const historyStore = useHistoryStore();
 const store = useSvgStore();
+
+const activeSpace = computed(() => store.activeSpace);
 
 // Utility function to compare two positions
 const isPositionEqual = (pos1, pos2) => {
@@ -771,5 +773,14 @@ onBeforeUnmount(() => {
 }
 circle {
   cursor: grab;
+}
+.interactive-element {
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.disabled-interactions {
+  pointer-events: none !important;
+  user-select: none;
 }
 </style>

@@ -18,20 +18,21 @@
       @dblclick="handleDoubleClick"
     >
       <!-- Paper Space Group -->
-      <g ref="paperSpaceGroup">
-        <!-- Model Space Group -->
-
-        <g ref="modelSpaceGroup" :transform="modelSpaceTransform">
-          <g ref="axesContainer"></g>
-          <GridLines :viewBox="modelViewBox" />
-          <Lines ref="linesRef" />
-          <Blocks @startWire="handleStartWire" />
-          <RectangleTool />
-          <ConnectionPointsTool />
-        </g>
+      <g ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
         <!-- Paper Space Elements -->
+        <Logo :x="860" :y="39" />
         <PaperTitleBlock />
+        <ConductorScheduleSvg :x="55" :y="65" />
         <TextTool />
+      </g>
+      <!-- Model Space Group -->
+      <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
+        <g ref="axesContainer"></g>
+        <GridLines :viewBox="modelViewBox" />
+        <Lines ref="linesRef" />
+        <Blocks @startWire="handleStartWire" />
+        <RectangleTool />
+        <ConnectionPointsTool />
       </g>
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" />
@@ -43,9 +44,12 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 import { useCustomizerStore } from '@/stores/customizer';
+import { throttle } from 'lodash';
 
 import BottomSection from './BottomSection.vue';
 import InfoPanel from './InfoPanel.vue';
+import ConductorScheduleSvg from './ConductorScheduleSvg.vue';
+import Logo from './Logo.vue';
 
 import GridLines from './GridLines.vue';
 import Blocks from './Blocks.vue';
@@ -256,7 +260,7 @@ const modelZoom = (event) => {
   updateModelViewBox();
 };
 
-const pan = (event) => {
+const pan = throttle((event) => {
   if (activeSpace.value !== 'paper') return;
 
   const dx = (event.clientX - panStart.x) / store.paperZoomLevel;
@@ -265,21 +269,14 @@ const pan = (event) => {
   const newViewBoxX = viewBoxStart.x - dx;
   const newViewBoxY = viewBoxStart.y - dy;
 
-  // Cancel any pending animation frame
-  if (animationFrameId) {
-    cancelAnimationFrame(animationFrameId);
-  }
-
-  // Schedule the viewBox update
-  animationFrameId = requestAnimationFrame(() => {
-    svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
-  });
+  // Directly update the viewBox attribute
+  svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
 
   // Update the viewBox in the store
   store.setViewBox(newViewBoxX, newViewBoxY, store.viewBox.width, store.viewBox.height);
-};
+}, 16); // Throttle to 60fps (1000ms / 60 = ~16ms)
 
-const modelPan = (event) => {
+const modelPan = throttle((event) => {
   if (activeSpace.value !== 'model') return;
 
   // Compute combined zoom level
@@ -292,7 +289,13 @@ const modelPan = (event) => {
 
   modelSpaceTranslate.x += dx * store.modelZoomLevel;
   modelSpaceTranslate.y += dy * store.modelZoomLevel;
-};
+
+  // Update the transform attribute of the model space group
+  modelSpaceGroup.value.setAttribute(
+    'transform',
+    `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`
+  );
+}, 16); // Throttle to 60fps (1000ms / 60 = ~16ms)
 
 const initSVG = () => {
   const container = svg.value.parentElement;
@@ -654,5 +657,9 @@ const emitUpdateProject = (updatedProject) => {
 }
 .conductorScheduleTable {
   max-height: 200px;
+}
+.disabled-interactions {
+  pointer-events: none;
+  user-select: none;
 }
 </style>

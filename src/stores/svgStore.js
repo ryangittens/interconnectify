@@ -2362,10 +2362,10 @@ export const useSvgStore = defineStore('svgStore', {
       if (!this.svg) return
 
       // Apply the fit to extent adjustment
-      this.fitSVGToExtent()
+      //this.fitSVGToExtent()
 
       // Wait for the DOM to update after the fitSVGToExtent call
-      await nextTick()
+      //await nextTick()
 
       // Serialize the SVG content
       const svgContent = this.getCleanedSVGMarkup()
@@ -2405,6 +2405,23 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Serialize the modified SVG
       return new XMLSerializer().serializeToString(clonedSvgElement)
+    }, getSVGPortion(viewport) {
+      if (!this.svg) return ''
+
+      // Clone the SVG element
+      const clonedSvgElement = this.svg.cloneNode(true)
+
+      const backgroundElement = clonedSvgElement.querySelector('.grid-container')
+      if (backgroundElement) {
+        backgroundElement.parentNode.removeChild(backgroundElement)
+      }
+
+      // Set the viewBox attribute to match the desired viewport dimensions
+      const { x, y, width, height } = viewport
+      clonedSvgElement.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
+
+      // Serialize the modified SVG
+      return new XMLSerializer().serializeToString(clonedSvgElement)
     }, createDocument() {
       var doc = new PDFDocument({
         margin: 0,
@@ -2418,13 +2435,21 @@ export const useSvgStore = defineStore('svgStore', {
     },
     async downloadPDF() {
       // First, apply the fit to extent to adjust the SVG
-      this.fitSVGToExtent()
+      //this.fitSVGToExtent()
+
+      // Define the desired viewport dimensions
+      const viewport = {
+        x: 0,
+        y: 0,
+        width: 1224,
+        height: 792
+      }
 
       // Wait for the DOM to update after the fitSVGToExtent changes
-      await nextTick()
+      //await nextTick()
 
       // Get the updated SVG markup
-      const svgMarkup = this.getCleanedSVGMarkup()
+      const svgMarkup = this.getSVGPortion(viewport)
       if (!svgMarkup) {
         console.error('No SVG content to convert to PDF')
         return
@@ -2496,11 +2521,11 @@ export const useSvgStore = defineStore('svgStore', {
       let documentObj = this.createDocument()
 
       // Create header content using the modified `createTitleBlock` function
-      await createTblock(documentObj, projectData)
+      // await createTblock(documentObj, projectData)
 
-      documentObj.addSVG(svgMarkup, 54, 54, { width: documentObj.page.width - 108 })
-      let conductorScheduleTable = this.createConductorScheduleTable()
-      addTable(documentObj, conductorScheduleTable)
+      documentObj.addSVG(svgMarkup, 0, 0, { width: 1224 })
+      // let conductorScheduleTable = this.createConductorScheduleTable()
+      // addTable(documentObj, conductorScheduleTable)
       const stream = documentObj.pipe(blobStream())
 
       const a = document.createElement("a")
