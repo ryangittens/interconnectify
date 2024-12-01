@@ -164,28 +164,34 @@ const toggleGrid = () => {
 
 const saveDrawing = async () => {
   try {
-    const drawing = serializeState();
-    const { data, error: updateError } = await supabase.from('projects').update({ drawing }).eq('id', project.id);
+    // Serialize the current page before saving
+    store.serializeCurrentPage();
 
-    if (updateError) {
-      throw updateError;
-    }
+    // Get all serialized pages
+    const allPages = store.pageStates;
 
-    snackbarStore.showSnackbar('Drawing Saved Successfully', 'success');
-  } catch (err: any) {
-    error.value = err.message;
-    snackbarStore.showSnackbar('Error Saving Drawing', 'error');
-  }
-  try {
+    console.log(allPages);
+
+    // Convert to SVG or other format as needed
+    // const project_svg = allPages.map((pageState) => {
+    //   // Convert each page's serialized state to SVG data URL
+    //   return svgToDataUrl(store.deserializeState(pageState));
+    // });
+
     const project_svg = svgToDataUrl(store.svg);
-    const { data, error: updateError } = await supabase.from('projects').update({ project_svg }).eq('id', project.id);
 
-    if (updateError) {
-      throw updateError;
+    // Update the project in the database
+    const { data, error } = await supabase.from('projects').update({ drawing: allPages, project_svg }).eq('id', project.id);
+
+    if (error) {
+      throw error;
     }
+
+    // Mark history as saved, show success message, etc.
     historyStore.markSaved();
     snackbarStore.showSnackbar('Drawing Saved Successfully', 'success');
-  } catch (err: any) {
+  } catch (err) {
+    // Handle errors
     error.value = err.message;
     snackbarStore.showSnackbar('Error Saving Drawing', 'error');
   }

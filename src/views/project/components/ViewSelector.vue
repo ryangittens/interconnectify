@@ -1,8 +1,8 @@
 <template>
   <!-- Controls -->
-  <div class="controls">
-    <v-btn @click="setActiveSpace('paper')" :color="activeSpace == 'paper' ? 'background' : null">Paper Space</v-btn>
-    <v-btn @click="setActiveSpace('model')" :color="activeSpace == 'model' ? 'background' : null">Model Space</v-btn>
+  <div class="controls d-flex flex-row">
+    <v-btn class="mx-1" @click="setActiveSpace('paper')" :color="activeSpace == 'paper' ? 'primary' : null">Paper Space</v-btn>
+    <v-btn class="mx-1" @click="setActiveSpace('model')" :color="activeSpace == 'model' ? 'primary' : null">Model Space</v-btn>
   </div>
 </template>
 

@@ -49,7 +49,9 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'blocks', type: 'block' },
     ],
     activeSpace: 'paper',
-    pageIndex: 0,
+    pageStates: [],
+    currentPageIndex: 0,
+    isProjectLoaded: false,
     modelSpaceTranslate: { x: 0, y: 0 },
     modelSpaceScale: 1,
     blocks: [],
@@ -132,7 +134,7 @@ export const useSvgStore = defineStore('svgStore', {
     initialTextPosition: { x: 0, y: 0 },
     linesRef: null,
     pageSize: { width: 1224, height: 792 },
-    showConductorSchedulePanel: [],
+    showConductorSchedulePanel: false,
     pageOptions: [
       { id: 1, name: 'Cover' },
       { id: 2, name: 'Electrical' },
@@ -406,9 +408,7 @@ export const useSvgStore = defineStore('svgStore', {
     ]
   }),
   getters: {
-    setPageIndex(index) {
-      this.pageIndex = index
-    },
+
     wireRuns(state) {
       return state.lines.filter(line => line.category == 'run')
     },
@@ -764,8 +764,62 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     //----------------- SVG FUNCTIONS -----------------//
+    initializePaperSpace() {
+      const paperWidth = this.pageSize.width || this.initialViewBox.width
+      const paperHeight = this.pageSize.height || this.initialViewBox.height
+
+      // Get the current zoom level; default to 1 if not set
+      const zoomLevel = this.paperZoomLevel || 1
+
+      // Calculate the viewBox width and height based on the zoom level
+      const viewBoxWidth = paperWidth / zoomLevel
+      const viewBoxHeight = paperHeight / zoomLevel
+
+      // Calculate the top-left coordinates to center the SVG within the page
+      const newX = (paperWidth - viewBoxWidth) / 2
+      const newY = (paperHeight - viewBoxHeight) / 2
+
+      // Update the viewBox in the store
+      this.setViewBox(newX, newY, viewBoxWidth, viewBoxHeight)
+    },
+    setcurrentPageIndex(index) {
+      this.currentPageIndex = index
+    },
+    addNewPage() {
+      // Add a new empty page state
+      this.pageStates.push(null)
+
+      // Set current page index to the new page
+      this.currentPageIndex = this.pageStates.length - 1
+
+    },
+    loadPages(states) {
+      this.pageStates = states
+    },
+    switchPage(newPageIndex, oldPageIndex) {
+      if (oldPageIndex !== undefined || oldPageIndex !== null) {
+        //serialize state with oldPageIndex before loading newPage
+        this.serializeCurrentPage(oldPageIndex)
+      }
+      this.loadPage(newPageIndex)
+    },
+    loadPage(index) {
+      // Update current page index
+      this.currentPageIndex = index
+      // Deserialize and load the new page's state
+      const serializedState = this.pageStates[index]
+      if (serializedState) {
+        this.deserializeState(serializedState)
+      } else {
+        // Initialize a new page if no state exists
+        this.resetState()
+      }
+    },
     openConductorSchedulePanel() {
-      this.showConductorSchedulePanel = [0]
+      this.showConductorSchedulePanel = true
+    },
+    closeConductorSchedulePanel() {
+      this.showConductorSchedulePanel = false
     },
     getTransformedSVGCoordinates(event) {
       // Create an SVGPoint to store the screen coordinates
@@ -1764,44 +1818,45 @@ export const useSvgStore = defineStore('svgStore', {
         modelSpaceScale: this.modelSpaceScale
       })
     },
+
+    serializeCurrentPage(pageIndex) {
+      const serializedState = this.serializeState()
+      const index = (pageIndex !== undefined && pageIndex !== null) ? pageIndex : this.currentPageIndex
+      this.pageStates[index] = serializedState
+    },
     svgToDataUrl(svgElement) {
       const serializer = new XMLSerializer()
       const svgString = serializer.serializeToString(svgElement)
       const encodedData = encodeURIComponent(svgString)
       return `data:image/svg+xml;charset=utf-8,${encodedData}`
     },
+    resetState() {
+      const { clientWidth, clientHeight } = this.svg
+      this.blocks = []
+      this.rectangles = []
+      this.lines = []
+      this.texts = []
+      this.connectionPoints = []
+    },
     deserializeState(serializedState) {
       let data
       if (serializedState) {
         data = JSON.parse(serializedState)
+        const { clientWidth, clientHeight } = this.svg
+        this.initializeViewBox()
       }
-      const { clientWidth, clientHeight } = this.svg
-      this.initializeViewBox()
+
       this.blocks = data?.blocks || []
       this.rectangles = data?.rectangles || []
       this.lines = data?.lines || []
       this.texts = data?.texts || []
       this.modelZoomLevel = data?.modelZoomLevel || 1 // Restore the zoom level
-      this.paperZoomLevel = data?.paperZoomLevel || 1
+      this.paperZoomLevel = data?.paperZoomLevel || this.paperZoomLevel // Restore the zoom level
       this.connectionPoints = data?.connectionPoints || []
       this.savedViewBox = data?.savedViewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight }
       this.modelSpaceTranslate = data?.modelSpaceTranslate || { x: 0, y: 0 }
       this.modelSpaceScale = data?.modelSpaceScale || 1
 
-      // // Calculate the center of the old viewBox
-      // const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2
-      // const centerY = (data?.viewBox?.y || 0) + (data?.viewBox?.height || this.initialViewBox.height) / 2
-
-      // // Calculate the new viewBox dimensions based on the new zoom level
-      // const newWidth = this.initialViewBox.width / this.paperZoomLevel
-      // const newHeight = this.initialViewBox.height / this.paperZoomLevel
-
-      // Calculate the new viewBox position to center the viewBox around the saved center
-      // const newX = centerX - newWidth / 2
-      // const newY = centerY - newHeight / 2
-
-      // // Update the viewBox in the store
-      // this.setViewBox(newX, newY, newWidth, newHeight)
     },
     startImportTemplate(template, event) {
       this.selectBlock(null)
@@ -2181,22 +2236,10 @@ export const useSvgStore = defineStore('svgStore', {
     },
     setViewBox(x, y, width, height) {
       this.viewBox = { x, y, width, height }
-      this.paperZoomLevel = this.initialViewBox.width / width // Update zoomLevel based on the new viewBox dimensions
     },
-    // initializeViewBox() {
-    //   if (this.svg) {
-    //     const { clientWidth, clientHeight } = this.svg;
-    //     this.viewBox.x = 0;
-    //     this.viewBox.y = 0;
-    //     this.viewBox.width = clientWidth;
-    //     this.viewBox.height = clientHeight;
-    //     this.zoomLevel = 1;
-    //   }
-    // },
     initializeViewBox() {
       if (this.svg) {
         const { clientWidth, clientHeight } = this.svg
-        this.viewBox = { x: 0, y: 0, width: clientWidth, height: clientHeight }
         this.initialViewBox = { width: clientWidth, height: clientHeight } // Initialize the initial viewBox dimensions
       }
     },
@@ -2401,10 +2444,10 @@ export const useSvgStore = defineStore('svgStore', {
 
       return doc
     },
+    changePage(pageIndex) {
+      this.currentPageIndex = pageIndex
+    },
     async downloadPDF() {
-      // First, apply the fit to extent to adjust the SVG
-      //this.fitSVGToExtent()
-
       // Define the desired viewport dimensions
       const viewport = {
         x: 0,
@@ -2413,18 +2456,7 @@ export const useSvgStore = defineStore('svgStore', {
         height: 792
       }
 
-      // Wait for the DOM to update after the fitSVGToExtent changes
-      //await nextTick()
-
-      // Get the updated SVG markup
-      const svgMarkup = this.getSVGPortion(viewport)
-      if (!svgMarkup) {
-        console.error('No SVG content to convert to PDF')
-        return
-      }
-
-      //example projectdata
-
+      // Example project data
       let projectData = {
         "name": "AUSTIN DANIELS",
         "id": "10182024-4340",
@@ -2482,27 +2514,53 @@ export const useSvgStore = defineStore('svgStore', {
         "state": "Florida"
       }
 
+      // Store the initial page index
+      const initialPageIndex = this.currentPageIndex
 
-      // Preload images
-      //const images = await preloadImages(projectData)
-
+      // Create a new PDF document
       let documentObj = this.createDocument()
 
-      // Create header content using the modified `createTitleBlock` function
-      // await createTblock(documentObj, projectData)
+      // Iterate through each page
+      for (let i = 0; i < this.pageStates.length; i++) {
+        // Serialize the current page
+        this.serializeCurrentPage()
 
-      documentObj.addSVG(svgMarkup, 0, 0, { width: 1224 })
-      // let conductorScheduleTable = this.createConductorScheduleTable()
-      // addTable(documentObj, conductorScheduleTable)
+        // Load the next page
+        this.changePage(i)
+
+        // Wait for the DOM to update after loading the page
+        await nextTick()
+
+        // Get the updated SVG markup for the current page
+        const svgMarkup = this.getSVGPortion(viewport)
+        if (!svgMarkup) {
+          console.error('No SVG content to convert to PDF for page', i)
+          continue
+        }
+
+        // Add the SVG content to the PDF document
+        documentObj.addSVG(svgMarkup, 0, 0, { width: 1224 })
+
+        // Add a new page to the PDF document if it's not the last page
+        if (i < this.pageStates.length - 1) {
+          documentObj.addPage()
+        }
+      }
+
+      // Restore the initial page index
+      this.changePage(initialPageIndex)
+
+      // Pipe the PDF document to a blob stream
       const stream = documentObj.pipe(blobStream())
 
+      // Create a download link
       const a = document.createElement("a")
       document.body.appendChild(a)
       a.style = "display: none"
       let filename = projectData?.name
 
+      // Export the PDF document
       exportImage(documentObj, stream, a, filename)
-
     },
     createConductorScheduleTable() {
 
