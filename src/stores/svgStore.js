@@ -5,7 +5,6 @@ import * as pdfMake from 'pdfmake/build/pdfmake'
 import { nextTick } from 'vue'
 import { UpdateLineCommand } from '@/commands'
 import { updateLinePoints } from '@/utils/lineUtils'
-import { lineRefs } from '@/views/project/refs/lineRefs.js'
 import { useSnackbarStore } from './snackbar'
 // PDF Fonts
 const pdfFonts = {
@@ -50,7 +49,9 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'blocks', type: 'block' },
     ],
     activeSpace: 'paper',
+    pageIndex: 0,
     modelSpaceTranslate: { x: 0, y: 0 },
+    modelSpaceScale: 1,
     blocks: [],
     lines: [],
     selectedBlock: null,
@@ -58,12 +59,13 @@ export const useSvgStore = defineStore('svgStore', {
     isDrawing: false,
     lineType: 'solid',
     lineColor: '#000000',
+    lineCategory: null,
     currentLine: [],
     activeTool: null,
     svg: null,
     modelSpaceGroup: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
-
+    savedViewBox: { x: 0, y: 0, width: 0, height: 0 },
     modelZoomLevel: 1,
     paperZoomLevel: 1,
     gridSize: 10,
@@ -89,7 +91,6 @@ export const useSvgStore = defineStore('svgStore', {
     panning: false,
     wireEnd: null,
     wireStart: null,
-    hoverPoint: { x: null, y: null },
     isCreatingRectangle: false,
     currentRectangle: null,
     rectangles: [],
@@ -129,6 +130,13 @@ export const useSvgStore = defineStore('svgStore', {
     initialRectPosition: { x: 0, y: 0 },
     initialCPPosition: { x: 0, y: 0 },
     initialTextPosition: { x: 0, y: 0 },
+    linesRef: null,
+    pageSize: { width: 1224, height: 792 },
+    showConductorSchedulePanel: [],
+    pageOptions: [
+      { id: 1, name: 'Cover' },
+      { id: 2, name: 'Electrical' },
+    ],
     wireSizes: [
       "#12",
       "#10",
@@ -153,20 +161,29 @@ export const useSvgStore = defineStore('svgStore', {
     connectionPointTypes: ['conductor', 'ground', 'neutral'],
     connectionPointColors: { conductor: 'black', ground: 'green', neutral: 'gray' },
     lineIds: {
+      'run': {
+        type: 'solid',
+        color: 'black',
+        width: 2,
+        category: 'run',
+      },
       'solid-conductor': {
         type: 'solid',
         color: 'black',
-        width: 1
+        width: 1,
+        category: 'conductor',
       },
       'solid-ground': {
         type: 'solid',
         color: 'green',
-        width: 1
+        width: 1,
+        category: 'ground',
       },
       'dashed-communication': {
         type: 'dashed',
         color: 'gray',
-        width: 1
+        width: 1,
+        category: 'communication',
       },
     },
 
@@ -389,6 +406,12 @@ export const useSvgStore = defineStore('svgStore', {
     ]
   }),
   getters: {
+    setPageIndex(index) {
+      this.pageIndex = index
+    },
+    wireRuns(state) {
+      return state.lines.filter(line => line.category == 'run')
+    },
     zoomLevel(state) {
       return state.paperZoomLevel * state.modelZoomLevel
     },
@@ -741,6 +764,9 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     //----------------- SVG FUNCTIONS -----------------//
+    openConductorSchedulePanel() {
+      this.showConductorSchedulePanel = [0]
+    },
     getTransformedSVGCoordinates(event) {
       // Create an SVGPoint to store the screen coordinates
       const point = this.svg.createSVGPoint()
@@ -782,8 +808,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.startAddConnectionPoint(event)
       }
       if (this.isDrawing) {
-        const coords = this.getSVGCoordinates(event)
-        this.addPoint(coords, event.ctrlKey)
+        this.linesRef.handleSvgClickLineDrawing(event)
       }
       if (this.activeTool == 'rectangle' && this.isCreatingRectangle) {
         this.endRectangle(event)
@@ -1193,40 +1218,6 @@ export const useSvgStore = defineStore('svgStore', {
         this.currentPoint = { x: 0, y: 0 }
       }
     },
-    finishWire() {
-      if (this.wireStart && this.wireEnd) {
-        this.wireStart = null
-        this.wireEnd = null
-        this.drawingWire = false
-        this.endDrawing()
-      }
-    },
-    startWire(cp, block, event) {
-      if (this.isDrawing) {
-        if (this.drawingWire) {
-          this.wireEnd = { block, cp }
-          const endPoint = {
-            x: this.wireEnd.block.x + this.wireEnd.cp.x,
-            y: this.wireEnd.block.y + this.wireEnd.cp.y,
-            blockId: this.wireEnd.block.id,
-            connectionPointId: this.wireEnd.cp.id
-          }
-          this.addPoint(endPoint, event.ctrlKey)
-          this.finishWire()
-        } else {
-          this.drawingWire = true
-          this.wireStart = { block, cp }
-          const startPoint = {
-            x: this.wireStart.block.x + this.wireStart.cp.x,
-            y: this.wireStart.block.y + this.wireStart.cp.y,
-            blockId: this.wireStart.block.id,
-            connectionPointId: this.wireStart.cp.id
-          }
-          this.addPoint(startPoint, event.ctrlKey)
-        }
-      }
-    },
-
     addPoint(point, ctrlKey) {
       const lastPoint = this.currentLine[this.currentLine.length - 1]
       let { x, y } = point
@@ -1365,51 +1356,6 @@ export const useSvgStore = defineStore('svgStore', {
         }
       })
     },
-
-
-
-    cleanUpPoints(points) {
-      if (points.length <= 2) return points
-
-      const newPoints = [points[0]]
-
-      for (let i = 1; i < points.length - 1; i++) {
-        const prevPoint = newPoints[newPoints.length - 1]
-        const currentPoint = points[i]
-        const nextPoint = points[i + 1]
-
-        // Check if the current point is necessary
-        // CHECK IF POINT IS ALONG STRAIGHT LINE
-        const isHorizontal = prevPoint.y === currentPoint.y && currentPoint.y === nextPoint.y
-        const isVertical = prevPoint.x === currentPoint.x && currentPoint.x === nextPoint.x
-
-        // Prevent points connected to blocks from being removed
-        // IF IS HORIZONAL OR VERTICAL, DONT ADD
-        // IF CONNECTED TO BLOCK, ADD
-
-        if (currentPoint.blockId || (!isHorizontal && !isVertical)) {
-          // Avoid adding duplicate points
-          if (currentPoint.x !== prevPoint.x || currentPoint.y !== prevPoint.y) {
-            newPoints.push(currentPoint)
-          }
-        }
-      }
-
-      // Ensure the last point is always added and avoid duplicates
-      const lastPoint = points[points.length - 1]
-      const lastNewPoint = newPoints[newPoints.length - 1]
-      if (lastPoint.x == lastNewPoint.x && lastPoint.y == lastNewPoint.y) {
-        if (lastPoint?.blockId || lastPoint?.connectionPointId) {
-          newPoints[newPoints.length - 1] = lastPoint
-        }
-      } else if (!(lastNewPoint.blockId || lastNewPoint.connectionPointId) && (lastPoint.blockId || lastPoint.connectionPointId)) {
-        newPoints.push(lastPoint)
-      } else if (newPoints.length == 1) {
-        newPoints.push(lastPoint)
-      }
-
-      return newPoints
-    },
     setActiveSpace(space) {
       this.activeSpace = space
     },
@@ -1467,6 +1413,9 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedConnectionPoint) {
         historyStore.executeCommand(new DeleteConnectionPointCommand(this.selectedConnectionPoint, this))
       }
+    },
+    setLinesRef(refs) {
+      this.linesRef = refs
     },
     startLineDrag(line, event) {
 
@@ -1713,7 +1662,8 @@ export const useSvgStore = defineStore('svgStore', {
       return alias
     },
     updateAliases() {
-      this.lines.forEach((line, index) => {
+      this.wireRuns.forEach((line, index) => {
+        console.log(index)
         line.alias = this.generateAlias(index)
       })
     },
@@ -1721,38 +1671,44 @@ export const useSvgStore = defineStore('svgStore', {
       if (line) {
         this.addLine(line)
       } else if (this.currentLine.length > 1) {
-        // Calculate the index for the new line
-        const index = this.lines.length
-
-        // Generate the alias using the index
-        const alias = this.generateAlias(index)
-
-        let newLine = {
-          object: 'line',
-          id: uuid.v1(),
-          alias: alias,
-          type: this.lineType,
-          color: this.lineColor,
-          points: [...this.currentLine],
-          voltage: 240,
-          labelPosition: null,
-          conductor: 'CU',
-          sets: 1,
-          size: null,
-          supplySide: 'N',
-          factor: 1,
-          len: 20,
-          ccc: 3,
-          temp: 75
-        }
-
-        this.addLine(newLine)
-        this.currentLine = []
+        this.linesRef.endLineDrawing()
       }
-      this.currentLine = []
       this.isDrawing = false
       this.clearAxes()
       this.endInteraction()
+    },
+    calculateMidpoint(points) {
+      if (points.length === 0) return { x: 0, y: 0 }
+      const totalLength = points.reduce((acc, point, idx, arr) => {
+        if (idx === 0) return acc
+        const prev = arr[idx - 1]
+        return acc + Math.hypot(point.x - prev.x, point.y - prev.y)
+      }, 0)
+
+      let distance = totalLength / 2
+      let accumulatedLength = 0
+      let index = 0
+
+      while (
+        index < points.length - 1 &&
+        accumulatedLength + Math.hypot(points[index + 1].x - points[index].x, points[index + 1].y - points[index].y) < distance
+      ) {
+        accumulatedLength += Math.hypot(points[index + 1].x - points[index].x, points[index + 1].y - points[index].y)
+        index++
+      }
+
+      if (index >= points.length - 1) {
+        index = points.length - 2
+      }
+
+      const segmentLength = Math.hypot(points[index + 1].x - points[index].x, points[index + 1].y - points[index].y)
+      const remaining = distance - accumulatedLength
+      const t = segmentLength === 0 ? 0 : remaining / segmentLength
+
+      return {
+        x: points[index].x + t * (points[index + 1].x - points[index].x),
+        y: points[index].y + t * (points[index + 1].y - points[index].y)
+      }
     },
     addLinePoint(point) {
       this.currentLine.push(point)
@@ -1761,12 +1717,16 @@ export const useSvgStore = defineStore('svgStore', {
       this.currentLineId = lineId
       this.setLineType(this.lineIds[lineId]?.type)
       this.setLineColor(this.lineIds[lineId]?.color)
+      this.setLineCategory(this.lineIds[lineId]?.category)
     },
     setLineType(type) {
       this.lineType = type
     },
     setLineColor(color) {
       this.lineColor = color
+    },
+    setLineCategory(cat) {
+      this.lineCategory = cat
     },
     selectLine(line) {
       if (!this.activeTool) {
@@ -1797,9 +1757,11 @@ export const useSvgStore = defineStore('svgStore', {
         lines: this.lines,
         rectangles: this.rectangles,
         connectionPoints: this.connectionPoints,
-        viewBox: this.viewBox,
+        savedViewBox: this.viewBox,
         modelZoomLevel: this.modelZoomLevel,
-        paperZoomLevel: this.paperZoomLevel
+        paperZoomLevel: this.paperZoomLevel,
+        modelSpaceTranslate: this.modelSpaceTranslate,
+        modelSpaceScale: this.modelSpaceScale
       })
     },
     svgToDataUrl(svgElement) {
@@ -1809,7 +1771,10 @@ export const useSvgStore = defineStore('svgStore', {
       return `data:image/svg+xml;charset=utf-8,${encodedData}`
     },
     deserializeState(serializedState) {
-      const data = JSON.parse(serializedState)
+      let data
+      if (serializedState) {
+        data = JSON.parse(serializedState)
+      }
       const { clientWidth, clientHeight } = this.svg
       this.initializeViewBox()
       this.blocks = data?.blocks || []
@@ -1819,21 +1784,24 @@ export const useSvgStore = defineStore('svgStore', {
       this.modelZoomLevel = data?.modelZoomLevel || 1 // Restore the zoom level
       this.paperZoomLevel = data?.paperZoomLevel || 1
       this.connectionPoints = data?.connectionPoints || []
+      this.savedViewBox = data?.savedViewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight }
+      this.modelSpaceTranslate = data?.modelSpaceTranslate || { x: 0, y: 0 }
+      this.modelSpaceScale = data?.modelSpaceScale || 1
 
-      // Calculate the center of the old viewBox
-      const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2
-      const centerY = (data?.viewBox?.y || 0) + (data?.viewBox?.height || this.initialViewBox.height) / 2
+      // // Calculate the center of the old viewBox
+      // const centerX = (data?.viewBox?.x || 0) + (data?.viewBox?.width || this.initialViewBox.width) / 2
+      // const centerY = (data?.viewBox?.y || 0) + (data?.viewBox?.height || this.initialViewBox.height) / 2
 
-      // Calculate the new viewBox dimensions based on the new zoom level
-      const newWidth = this.initialViewBox.width / this.paperZoomLevel
-      const newHeight = this.initialViewBox.height / this.paperZoomLevel
+      // // Calculate the new viewBox dimensions based on the new zoom level
+      // const newWidth = this.initialViewBox.width / this.paperZoomLevel
+      // const newHeight = this.initialViewBox.height / this.paperZoomLevel
 
       // Calculate the new viewBox position to center the viewBox around the saved center
-      const newX = centerX - newWidth / 2
-      const newY = centerY - newHeight / 2
+      // const newX = centerX - newWidth / 2
+      // const newY = centerY - newHeight / 2
 
-      // Update the viewBox in the store
-      this.setViewBox(newX, newY, newWidth, newHeight)
+      // // Update the viewBox in the store
+      // this.setViewBox(newX, newY, newWidth, newHeight)
     },
     startImportTemplate(template, event) {
       this.selectBlock(null)

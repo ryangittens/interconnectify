@@ -1,11 +1,12 @@
 <!-- BottomSection.vue -->
 <template>
-  <v-layout class="position-absolute d-flex flex-column ml-2" style="bottom: 0">
-    <v-layout class="mb-3">
+  <v-layout class="position-absolute d-flex flex-column ml-2" style="bottom: 0; width: 100%">
+    <ConductorSchedule style="width: 100%" />
+    <v-layout class="mb-0 mt-1 d-flex flex-row justify-space-between align-center">
       <v-btn @click="openNotesDialog">Notes</v-btn>
+      <ViewSelector @update:view="updateView" />
+      <PageSelector />
     </v-layout>
-
-    <ConductorSchedule />
 
     <!-- Notes Dialog Component -->
     <NotesDialog
@@ -21,6 +22,8 @@
 import { ref } from 'vue';
 import ConductorSchedule from './ConductorSchedule.vue';
 import NotesDialog from './NotesDialog.vue';
+import PageSelector from './PageSelector.vue';
+import ViewSelector from './ViewSelector.vue';
 
 const props = defineProps({
   project: {
@@ -29,7 +32,7 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['update:project']);
+const emit = defineEmits(['update:project', 'update:view']);
 
 const isNotesDialogOpen = ref(false);
 
@@ -41,6 +44,10 @@ const openNotesDialog = () => {
 // Update the project when notes are saved from NotesDialog
 const updateProject = (updatedProject) => {
   emit('update:project', updatedProject);
+};
+
+const updateView = (view) => {
+  emit('update:view', view);
 };
 </script>
 

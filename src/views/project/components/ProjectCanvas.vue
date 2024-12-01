@@ -1,11 +1,6 @@
 <template>
   <div ref="canvasContainer" class="canvas-container">
     <InfoPanel />
-    <!-- Controls -->
-    <div class="controls" style="position: absolute; top: 50px">
-      <v-btn @click="setActiveSpace('paper')" :color="activeSpace == 'paper' ? 'background' : null">Paper Space</v-btn>
-      <v-btn @click="setActiveSpace('model')" :color="activeSpace == 'model' ? 'background' : null">Model Space</v-btn>
-    </div>
     <svg
       ref="svg"
       class="drawing-svg"
@@ -20,7 +15,7 @@
       <!-- Paper Space Group -->
       <g ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
         <!-- Paper Space Elements -->
-        <Logo :x="860" :y="39" />
+
         <PaperTitleBlock />
         <ConductorScheduleSvg :x="55" :y="65" />
         <TextTool />
@@ -29,13 +24,13 @@
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
         <g ref="axesContainer"></g>
         <GridLines :viewBox="modelViewBox" />
-        <Lines ref="linesRef" />
         <Blocks @startWire="handleStartWire" />
         <RectangleTool />
+        <Lines ref="linesRef" />
         <ConnectionPointsTool />
       </g>
     </svg>
-    <BottomSection :project="props.project" @update:project="emitUpdateProject" />
+    <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
   </div>
 </template>
 
@@ -49,7 +44,6 @@ import { throttle } from 'lodash';
 import BottomSection from './BottomSection.vue';
 import InfoPanel from './InfoPanel.vue';
 import ConductorScheduleSvg from './ConductorScheduleSvg.vue';
-import Logo from './Logo.vue';
 
 import GridLines from './GridLines.vue';
 import Blocks from './Blocks.vue';
@@ -80,14 +74,21 @@ const props = defineProps({
   mode: String || null
 });
 
+const pageOptions = computed(() => store.pages);
+const pageIndex = computed(() => store.pageIndex);
+
 const emit = defineEmits(['update:isOpen', 'update:project']);
 
-const drawing = props.project?.drawing;
+const drawing = props.project?.drawing?.[pageIndex || 0];
 
 const svg = ref(null);
 const modelSpaceGroup = ref(null);
 
 const activeSpace = computed(() => store.activeSpace);
+
+// Transformations for model space
+const modelSpaceScale = ref(1);
+const modelSpaceTranslate = reactive({ x: 0, y: 0 });
 
 const viewBox = reactive({
   x: 0,
@@ -107,15 +108,6 @@ const handleWheel = (event) => {
 
 const modelViewBox = ref({ x: 0, y: 0, width: 0, height: 0 });
 
-const setActiveSpace = (space) => {
-  if (space === 'model') {
-    store.setActiveSpace(space);
-    updateModelViewBox();
-  } else {
-    store.setActiveSpace(space);
-  }
-};
-
 const updateModelViewBox = () => {
   const scale = modelSpaceScale.value;
   const translateX = modelSpaceTranslate.x;
@@ -132,10 +124,6 @@ const updateModelViewBox = () => {
     `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`
   );
 };
-
-// Transformations for model space
-const modelSpaceScale = ref(1);
-const modelSpaceTranslate = reactive({ x: 0, y: 0 });
 
 const modelSpaceTransform = computed(() => {
   return `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`;
@@ -187,31 +175,21 @@ const {
 } = store;
 
 const zoom = (event) => {
-  if (activeSpace.value !== 'paper') return; // Only zoom when paper space is active
+  if (activeSpace.value !== 'paper') return;
 
   event.preventDefault();
   const { offsetX, offsetY, deltaY } = event;
   const { width, height } = svg.value.getBoundingClientRect();
 
-  // Determine the zoom direction
   const zoomDirection = deltaY > 0 ? -1 : 1;
-
-  // Adjust zoom factor based on current zoom level for consistent zoom speed
   const adjustedZoomFactor = zoomFactor / store.paperZoomLevel;
-
-  // Compute the new zoom level
   const newZoomLevel = Math.max(minZoomLevel, Math.min(maxZoomLevel, store.paperZoomLevel * (1 + zoomDirection * adjustedZoomFactor)));
   if (newZoomLevel === store.paperZoomLevel) return;
 
-  // Calculate the new viewBox dimensions based on the new zoom level
   const newWidth = store.initialViewBox.width / newZoomLevel;
   const newHeight = store.initialViewBox.height / newZoomLevel;
-
-  // Calculate the new viewBox position to keep the mouse position fixed
   const newX = store.viewBox.x + (offsetX / width) * (store.viewBox.width - newWidth);
   const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
-
-  // Update the zoom level and viewBox in the store
 
   store.paperZoomLevel = newZoomLevel;
   store.setViewBox(newX, newY, newWidth, newHeight);
@@ -224,38 +202,30 @@ const modelZoom = (event) => {
 
   const { clientX, clientY, deltaY } = event;
 
-  // Get mouse position in SVG coordinates
   const point = svg.value.createSVGPoint();
   point.x = clientX;
   point.y = clientY;
   const svgP = point.matrixTransform(svg.value.getScreenCTM().inverse());
 
-  // Determine the zoom direction
   const zoomDirection = deltaY > 0 ? -1 : 1;
-
-  // Compute combined scale (paper zoom level * model zoom level)
   const combinedScale = store.paperZoomLevel * modelSpaceScale.value;
-
-  // Adjust zoom factor for consistent zoom speed
   const adjustedZoomFactor = zoomFactor / combinedScale;
-
-  // Calculate the zoom amount
   const zoomAmount = 1 + zoomDirection * adjustedZoomFactor;
-
-  // Compute the new model space scale within bounds
   const newScale = Math.max(minZoomLevel, Math.min(maxZoomLevel, modelSpaceScale.value * zoomAmount));
   if (newScale === modelSpaceScale.value) return;
 
-  // Get the point's coordinates in model space before scaling
   const modelPointX = (svgP.x - modelSpaceTranslate.x) / modelSpaceScale.value;
   const modelPointY = (svgP.y - modelSpaceTranslate.y) / modelSpaceScale.value;
 
-  // Update the model space scale
   modelSpaceScale.value = newScale;
 
-  // Adjust the translation to keep the point under the cursor fixed
   modelSpaceTranslate.x = svgP.x - modelPointX * newScale;
   modelSpaceTranslate.y = svgP.y - modelPointY * newScale;
+
+  // Save the new scale and translation
+  store.modelSpaceScale = modelSpaceScale.value;
+  store.modelSpaceTranslate.x = modelSpaceTranslate.x;
+  store.modelSpaceTranslate.y = modelSpaceTranslate.y;
 
   updateModelViewBox();
 };
@@ -269,17 +239,13 @@ const pan = throttle((event) => {
   const newViewBoxX = viewBoxStart.x - dx;
   const newViewBoxY = viewBoxStart.y - dy;
 
-  // Directly update the viewBox attribute
   svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
-
-  // Update the viewBox in the store
   store.setViewBox(newViewBoxX, newViewBoxY, store.viewBox.width, store.viewBox.height);
-}, 16); // Throttle to 60fps (1000ms / 60 = ~16ms)
+}, 16);
 
 const modelPan = throttle((event) => {
   if (activeSpace.value !== 'model') return;
 
-  // Compute combined zoom level
   const combinedZoomLevel = store.zoomLevel;
 
   const dx = (event.clientX - panStart.x) / combinedZoomLevel;
@@ -290,12 +256,93 @@ const modelPan = throttle((event) => {
   modelSpaceTranslate.x += dx * store.modelZoomLevel;
   modelSpaceTranslate.y += dy * store.modelZoomLevel;
 
-  // Update the transform attribute of the model space group
   modelSpaceGroup.value.setAttribute(
     'transform',
     `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`
   );
-}, 16); // Throttle to 60fps (1000ms / 60 = ~16ms)
+
+  // Save the new translation
+  store.modelSpaceTranslate.x = modelSpaceTranslate.x;
+  store.modelSpaceTranslate.y = modelSpaceTranslate.y;
+
+  updateModelViewBox();
+}, 16);
+
+// const initializePaperSpace = () => {
+//   // Get the saved center coordinates from the saved viewBox
+//   const centerX = (store.savedViewBox?.x || 0) + (store.savedViewBox?.width || store.initialViewBox.width) / 2;
+//   const centerY = (store.savedViewBox?.y || 0) + (store.savedViewBox?.height || store.initialViewBox.height) / 2;
+
+//   // Get the current dimensions of the SVG container (client area)
+//   const container = svg.value.parentElement;
+//   const clientWidth = container.clientWidth;
+//   const clientHeight = container.clientHeight;
+
+//   // Calculate the new viewBox dimensions based on the current client size and zoom level
+//   const newWidth = clientWidth / store.paperZoomLevel;
+//   const newHeight = clientHeight / store.paperZoomLevel;
+
+//   // Calculate the new viewBox position to center it around the saved center
+//   const newX = centerX - newWidth / 2;
+//   const newY = centerY - newHeight / 2;
+
+//   // Update the viewBox in the store and on the SVG element
+//   store.setViewBox(newX, newY, newWidth, newHeight);
+//   svg.value.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+// };
+
+const initializePaperSpace = () => {
+  // Get the dimensions of the paper space (e.g., the size of your drawing or page)
+  const paperWidth = store.pageSize.width || store.initialViewBox.width;
+  const paperHeight = store.pageSize.height || store.initialViewBox.height;
+
+  // Get the current dimensions of the SVG container (viewport size)
+  const container = svg.value.parentElement;
+  const clientWidth = container.clientWidth;
+  const clientHeight = container.clientHeight;
+
+  // Calculate the aspect ratios
+  const paperAspectRatio = paperWidth / paperHeight;
+  const clientAspectRatio = clientWidth / clientHeight;
+
+  // Determine the scaling factor to fit the paper into the viewport
+  let scale;
+  if (clientAspectRatio > paperAspectRatio) {
+    // Viewport is wider than paper; scale based on height
+    scale = paperHeight / clientHeight;
+  } else {
+    // Viewport is narrower than paper; scale based on width
+    scale = paperWidth / clientWidth;
+  }
+
+  // Calculate the new viewBox dimensions
+  const newWidth = (clientWidth * scale) / store.paperZoomLevel;
+  const newHeight = (clientHeight * scale) / store.paperZoomLevel;
+
+  // Calculate the new viewBox position to center the paper
+  const newX = (paperWidth - newWidth) / 2;
+  const newY = (paperHeight - newHeight) / 2;
+
+  // Update the viewBox in the store and on the SVG element
+  store.setViewBox(newX, newY, newWidth, newHeight);
+  svg.value.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
+};
+
+const initializeModelSpace = () => {
+  // Set the model space scale and translate to saved values
+  modelSpaceScale.value = store.modelSpaceScale;
+  modelSpaceTranslate.x = store.modelSpaceTranslate.x;
+  modelSpaceTranslate.y = store.modelSpaceTranslate.y;
+
+  // Update the model space group's transform
+  modelSpaceGroup.value.setAttribute(
+    'transform',
+    `translate(${modelSpaceTranslate.x}, ${modelSpaceTranslate.y}) scale(${modelSpaceScale.value})`
+  );
+
+  // Update the model viewBox
+  updateModelViewBox();
+};
 
 const initSVG = () => {
   const container = svg.value.parentElement;
@@ -308,7 +355,10 @@ const initSVG = () => {
   store.setAxesContainer(axesContainer.value);
   store.deserializeState(drawing);
   store.setMode(props.mode);
-  updateModelViewBox();
+  initializePaperSpace();
+  initializeModelSpace();
+
+  store.setLinesRef(linesRef.value);
 };
 
 const resizeSVG = () => {
@@ -618,11 +668,7 @@ const handleKeyDown = (event) => {
 
 // Function to handle drawing logic locally
 const handleSvgClick = (event) => {
-  if (store.activeTool === 'line') {
-    linesRef.value.handleSvgClickLineDrawing(event);
-  } else {
-    store.handleSvgClick(event);
-  }
+  store.handleSvgClick(event);
 };
 
 const endDrawing = () => {

@@ -1,6 +1,7 @@
 <template>
   <g
     :transform="`translate(${currentX}, ${currentY})`"
+    @click="isDragging ? null : store.openConductorSchedulePanel()"
     @mousedown.stop="startDrag"
     @touchstart.stop="startDrag"
     v-html="svgTableContent"
@@ -39,7 +40,7 @@ const generateSvgTable = () => {
       }))
     },
     // Data rows
-    ...store.lines.map((line) => ({
+    ...store.wireRuns.map((line) => ({
       cells: store.conductorTableHeadings.map((heading) => ({
         content: line[heading.key]?.toString() || ''
       }))
@@ -72,7 +73,7 @@ onMounted(() => {
 
 // Update SVG table when data changes
 watch(
-  () => [store.lines, store.conductorTableHeadings],
+  () => [store.wireRuns, store.conductorTableHeadings],
   () => {
     svgTableContent.value = generateSvgTable();
   },

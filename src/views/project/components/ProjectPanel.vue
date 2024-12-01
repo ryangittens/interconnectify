@@ -15,7 +15,15 @@ import {
   GridPatternIcon,
   CubePlusIcon
 } from 'vue-tabler-icons';
-import { IconSquarePlus2, IconLetterCase, IconPointFilled, IconFileTypeSvg, IconFileTypePdf, IconFileArrowLeft } from '@tabler/icons-vue';
+import {
+  IconRoute2,
+  IconSquarePlus2,
+  IconLetterCase,
+  IconPointFilled,
+  IconFileTypeSvg,
+  IconFileTypePdf,
+  IconFileArrowLeft
+} from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
 import { supabase } from '@/utils/supabaseClient';
@@ -328,6 +336,16 @@ const saveDrawingAsBlock = async () => {
       :variant="isActive('rectangle') ? 'tonal' : 'flat'"
     >
       <IconSquarePlus2 size="20" stroke-width="1.5" />
+    </v-btn>
+    <v-btn
+      @click="setLine('run')"
+      class="text-secondary ml-2"
+      icon
+      outlined
+      rounded="sm"
+      :variant="store.isDrawing && store.currentLineId == 'solid-conductor' ? 'tonal' : 'flat'"
+    >
+      <IconRoute2 style="color: black" size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       @click="setLine('solid-conductor')"

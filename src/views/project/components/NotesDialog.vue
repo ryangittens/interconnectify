@@ -3,7 +3,7 @@
   <v-dialog v-model="isDialogOpen" persistent max-width="600px">
     <v-card>
       <v-card-title class="headline">Project Notes</v-card-title>
-
+      {{ store.conductors }}
       <v-card-text>
         <v-textarea v-model="editableNotes" label="Enter your notes here" rows="10" outlined></v-textarea>
       </v-card-text>
@@ -20,9 +20,11 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue';
 import { useSnackbarStore } from '@/stores/snackbar';
+import { useSvgStore } from '@/stores/svgStore';
 
 // Use the snackbar store
 const snackbarStore = useSnackbarStore();
+const store = useSvgStore();
 
 // Define props
 const props = defineProps({

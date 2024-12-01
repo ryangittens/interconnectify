@@ -1,5 +1,5 @@
 <template>
-  <v-expansion-panels class="conductorSchedulePanel">
+  <v-expansion-panels class="conductorSchedulePanel" v-model="store.showConductorSchedulePanel">
     <v-expansion-panel title="Conductor Schedule">
       <v-expansion-panel-text>
         <table class="conductorTable">
@@ -12,7 +12,13 @@
               </th>
             </tr>
           </thead>
-          <draggable v-model="store.lines" @end="onDragEnd" tag="tbody" :options="{ handle: '.drag-handle', animation: 150 }" item-key="id">
+          <draggable
+            v-model="store.wireRuns"
+            @end="onDragEnd"
+            tag="tbody"
+            :options="{ handle: '.drag-handle', animation: 150 }"
+            item-key="id"
+          >
             <template #item="{ element }">
               <tr :class="{ selected: isSelected(element) }">
                 <!-- Drag Handle -->

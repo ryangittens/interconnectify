@@ -1,12 +1,25 @@
 <!-- PaperTitleBlock.vue -->
 <template>
   <g>
+    <rect
+      :x="x"
+      :y="y"
+      :width="store.pageSize.width"
+      :height="store.pageSize.height"
+      :fill="store.activeSpace === 'paper' ? 'white' : 'none'"
+      stroke="gray"
+      stroke-width="0.5"
+      stroke-dasharray="5, 5"
+    />
+  </g>
+
+  <g>
     <svg
       version="1.1"
       id="svg1"
-      width="1224"
-      height="792"
-      viewBox="0 0 1224 792"
+      :width="store.pageSize.width"
+      :height="store.pageSize.height"
+      :viewBox="'0 0 ' + store.pageSize.width + ' ' + store.pageSize.height"
       xmlns="http://www.w3.org/2000/svg"
       xmlns:svg="http://www.w3.org/2000/svg"
     >
@@ -501,8 +514,8 @@
       </g>
     </svg>
   </g>
+  <Logo :x="860" :y="39" />
   <g>
-    <rect :x="x" :y="y" :width="blockWidth" :height="blockHeight" fill="none" stroke="gray" stroke-width="0.5" stroke-dasharray="5, 5" />
     <!-- <rect :x="x" :y="y" :width="width" :height="height" fill="white" stroke="black" />
     <text :x="x + 10" :y="y + 20" fill="black">Title: {{ title }}</text> -->
     <!-- Other text elements -->
@@ -997,16 +1010,9 @@
   </g>
 </template>
 
-<script>
-export default {
-  props: {
-    x: { type: Number, default: 0 },
-    y: { type: Number, default: 0 },
-    width: { type: Number, default: 200 },
-    height: { type: Number, default: 50 },
-    blockWidth: { type: Number, default: 1224 },
-    blockHeight: { type: Number, default: 792 },
-    title: { type: String, default: 'My Drawing' }
-  }
-};
+<script setup>
+import { useSvgStore } from '@/stores/svgStore';
+import Logo from './Logo.vue';
+const props = defineProps(['x', 'y', 'width', 'height', 'blockWidth', 'blockHeight', 'title']);
+const store = useSvgStore();
 </script>

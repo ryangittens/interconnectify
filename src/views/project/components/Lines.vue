@@ -18,6 +18,7 @@
 
       <!-- Render the label for the line -->
       <g
+        v-if="line.category == 'run'"
         :class="['interactive-element', { 'disabled-interactions': activeSpace !== 'model' }]"
         @mousedown.stop="handleLabelMouseDown(line, $event)"
         @mouseup.stop="handleLabelMouseUp($event)"
@@ -167,9 +168,10 @@ const finishWire = () => {
       const newWire = {
         object: 'line',
         id: uuid.v1(),
-        alias: store.generateAlias(store.lines.length),
+        alias: store.generateAlias(store.wireRuns.length),
         type: store.lineType,
         color: store.lineColor,
+        category: store.lineCategory,
         points: [...store.currentLine],
         voltage: 240, // Or any default value
         labelPosition: null,
@@ -216,7 +218,6 @@ const handleSvgClickLineDrawing = (event) => {
   if (store.isDrawing) {
     const coords = store.getSVGCoordinates(event);
     const snappedCoords = store.snapToGrid(coords.x, coords.y);
-    console.log('coords', snappedCoords);
     addPointToLine(snappedCoords, event.ctrlKey);
   }
 };
@@ -296,17 +297,44 @@ const clearHoverLine = () => {
   }
 };
 
+// Function to remove duplicate points
+function removeDuplicatePoints(points) {
+  const uniquePoints = [];
+  const pointSet = new Set();
+
+  for (const point of points) {
+    const key = `${point.x},${point.y}`;
+    if (!pointSet.has(key)) {
+      uniquePoints.push(point);
+      pointSet.add(key);
+    }
+  }
+
+  return uniquePoints;
+}
+
 const endLineDrawing = () => {
   // Only add to store if more than one point
+  const cleanedLinePoints = removeDuplicatePoints(store.currentLine);
   if (store.currentLine.length > 1) {
     const newLine = {
       object: 'line',
       id: uuid.v1(),
-      alias: store.generateAlias(store.lines.length),
+      alias: store.generateAlias(store.wireRuns.length),
       type: store.lineType,
       color: store.lineColor,
+      category: store.lineCategory,
       points: [...store.currentLine],
-      voltage: 240
+      voltage: 240,
+      labelPosition: null,
+      conductor: 'CU',
+      sets: 1,
+      size: null,
+      supplySide: 'N',
+      factor: 1,
+      len: 20,
+      ccc: 3,
+      temp: 75
     };
 
     // Add the line to the store
@@ -317,7 +345,7 @@ const endLineDrawing = () => {
   clearHoverLine();
 
   // Recalculate label positions for all lines without manual positions
-  store.lines.forEach((line) => {
+  store.wireRuns.forEach((line) => {
     if (!line.labelPosition) {
       const newPos = calculateMidpoint(line.points);
       store.updateLine({ id: line.id, labelPosition: newPos });
@@ -391,15 +419,23 @@ const handleMouseMove = (event) => {
   tempLinePoints = initialLinePoints.map((point) => ({ ...point }));
   const lineCopy = { ...currentLine, points: tempLinePoints };
 
-  const index = currentSegmentIndex;
-  const startPoint = tempLinePoints[index];
-  const endPoint = tempLinePoints[index + 1];
+  let index = currentSegmentIndex;
+  let startPoint = tempLinePoints[index];
+  let endPoint = tempLinePoints[index + 1];
+
+  // For lines with only two points, ensure index is 0
+  if (tempLinePoints.length === 2) {
+    currentSegmentIndex = 0;
+    index = 0;
+    startPoint = tempLinePoints[0];
+    endPoint = tempLinePoints[1];
+  }
 
   // Capture original first and last points of the line
-  const originalFirstPoint = { ...tempLinePoints[0] };
-  const originalLastPoint = { ...tempLinePoints[tempLinePoints.length - 1] };
+  const originalFirstPoint = { ...initialLinePoints[0] };
+  const originalLastPoint = { ...initialLinePoints[initialLinePoints.length - 1] };
 
-  // Check if the segment is connected to a block
+  // Check if the segment's endpoints are connected to blocks
   const startPointConnectedToBlock = startPoint.blockId ? true : false;
   const endPointConnectedToBlock = endPoint.blockId ? true : false;
 
@@ -407,10 +443,10 @@ const handleMouseMove = (event) => {
   const isHorizontal = startPoint.y === endPoint.y;
   const isVertical = startPoint.x === endPoint.x;
 
+  // Restrict movement based on segment orientation
   let adjustedDx = dx;
   let adjustedDy = dy;
 
-  // Restrict movement based on segment orientation
   if (isHorizontal) {
     adjustedDx = 0; // No horizontal movement for horizontal segments
   } else if (isVertical) {
@@ -431,15 +467,15 @@ const handleMouseMove = (event) => {
       // Both endpoints are connected to blocks
       if (snappedStartPoint.y !== startPoint.y) {
         if (tempLinePoints.length === 2) {
-          tempLinePoints.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y });
-          tempLinePoints.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y });
-        }
-        if (tempLinePoints.length === 4) {
+          tempLinePoints.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: '' });
+          tempLinePoints.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: '' });
+          currentSegmentIndex = 1;
+          index = 1;
+        } else if (tempLinePoints.length === 4) {
           tempLinePoints[1] = snappedStartPoint;
           tempLinePoints[2] = snappedEndPoint;
         }
       }
-
       if (snappedStartPoint.y === startPoint.y && tempLinePoints.length === 4) {
         tempLinePoints.splice(1, 2);
       }
@@ -448,9 +484,9 @@ const handleMouseMove = (event) => {
       tempLinePoints[index] = snappedStartPoint;
       tempLinePoints[index + 1] = snappedEndPoint;
     } else if (startPointConnectedToBlock) {
-      tempLinePoints.splice(index + 1, 0, { x: endPoint.x, y: snappedEndPoint.y });
-      tempLinePoints[index] = snappedStartPoint;
-      tempLinePoints[index + 1] = snappedEndPoint;
+      tempLinePoints.splice(1, 0, { x: endPoint.x, y: snappedEndPoint.y });
+      tempLinePoints[1] = snappedStartPoint;
+      tempLinePoints[2] = snappedEndPoint;
     } else {
       tempLinePoints[index] = { ...tempLinePoints[index], ...snappedStartPoint };
       tempLinePoints[index + 1] = { ...tempLinePoints[index + 1], ...snappedEndPoint };
@@ -462,15 +498,15 @@ const handleMouseMove = (event) => {
       // Both endpoints are connected to blocks
       if (snappedStartPoint.x !== startPoint.x) {
         if (tempLinePoints.length === 2) {
-          tempLinePoints.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y });
-          tempLinePoints.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y });
-        }
-        if (tempLinePoints.length === 4) {
+          tempLinePoints.splice(index + 1, 0, { x: snappedStartPoint.x, y: snappedStartPoint.y, blockId: '' });
+          tempLinePoints.splice(index + 2, 0, { x: snappedEndPoint.x, y: snappedEndPoint.y, blockId: '' });
+          currentSegmentIndex = 1;
+          index = 1;
+        } else if (tempLinePoints.length === 4) {
           tempLinePoints[1] = snappedStartPoint;
           tempLinePoints[2] = snappedEndPoint;
         }
       }
-
       if (snappedStartPoint.x === startPoint.x && tempLinePoints.length === 4) {
         tempLinePoints.splice(1, 2);
       }
@@ -479,16 +515,16 @@ const handleMouseMove = (event) => {
       tempLinePoints[index] = snappedStartPoint;
       tempLinePoints[index + 1] = snappedEndPoint;
     } else if (startPointConnectedToBlock) {
-      tempLinePoints.splice(index + 1, 0, { x: snappedEndPoint.x, y: endPoint.y });
-      tempLinePoints[index] = snappedStartPoint;
-      tempLinePoints[index + 1] = snappedEndPoint;
+      tempLinePoints.splice(1, 0, { x: snappedEndPoint.x, y: endPoint.y });
+      tempLinePoints[1] = snappedStartPoint;
+      tempLinePoints[2] = snappedEndPoint;
     } else {
       tempLinePoints[index] = { ...tempLinePoints[index], ...snappedStartPoint };
       tempLinePoints[index + 1] = { ...tempLinePoints[index + 1], ...snappedEndPoint };
     }
   }
 
-  // Optionally reset the first and last points to original positions
+  // Reset the first and last points to the original block connection points
   resetEndPointsToOriginal(tempLinePoints, originalFirstPoint, originalLastPoint);
 
   // Update the SVG path directly using lineRefs
@@ -559,7 +595,7 @@ const handleLabelMouseUp = (event) => {
   const snappedCoords = snapLabelToLine(draggedLineId.value, coords.x, coords.y);
 
   if (snappedCoords) {
-    const line = store.lines.find((l) => l.id === draggedLineId.value);
+    const line = store.wireRuns.find((l) => l.id === draggedLineId.value);
     if (line) {
       // Save the final position
       store.updateLine({
@@ -582,7 +618,7 @@ const handleLabelClick = (line) => {
 
 // Utility to snap label to the nearest point on the line
 const snapLabelToLine = (lineId, x, y) => {
-  const line = store.lines.find((l) => l.id === lineId);
+  const line = store.wireRuns.find((l) => l.id === lineId);
   if (!line || !line.points.length) return null;
 
   const nearestPoint = findNearestPointOnLine(line.points, { x, y });
