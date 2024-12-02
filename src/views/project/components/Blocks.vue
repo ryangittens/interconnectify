@@ -67,7 +67,8 @@ const handleBlockMouseDown = (block, event) => {
   event.preventDefault();
 
   isDraggingBlock = true;
-  dragStartCoords = { x: event.clientX, y: event.clientY };
+  let coords = store.getTransformedSVGCoordinates(event);
+  dragStartCoords = { x: coords.x, y: coords.y };
   initialBlockPosition = { x: block.x, y: block.y };
   currentBlock = block;
   currentBlockElement = blockRefs.get(block.id);
@@ -87,11 +88,16 @@ const handleBlockMouseDown = (block, event) => {
 };
 
 const handleMouseMove = (event) => {
+  if (store.activeTool) {
+    return;
+  }
   if (isDraggingBlock && currentBlockElement) {
     event.preventDefault();
 
-    const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-    const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+    let coords = store.getTransformedSVGCoordinates(event);
+
+    const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+    const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
     const newX = initialBlockPosition.x + deltaX;
     const newY = initialBlockPosition.y + deltaY;
@@ -150,8 +156,10 @@ const handleMouseMove = (event) => {
 const handleBlockMouseUp = (event) => {
   if (isDraggingBlock && currentBlock) {
     // Update the reactive state
-    const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-    const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+    let coords = store.getTransformedSVGCoordinates(event);
+
+    const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+    const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
     const newX = initialBlockPosition.x + deltaX;
     const newY = initialBlockPosition.y + deltaY;

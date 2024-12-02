@@ -96,7 +96,10 @@ const drawerFields = computed(() => {
     ];
   }
   if (selectedObject.value?.object === 'text') {
-    return [{ label: 'Content', key: 'content', type: 'text' }];
+    return [
+      { label: 'Content', key: 'content', type: 'text' },
+      { label: 'Font Size', key: 'fontSize', type: 'number', step: 1 }
+    ];
   }
   if (selectedObject.value?.object === 'line') {
     return [

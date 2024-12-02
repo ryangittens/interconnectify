@@ -58,6 +58,9 @@ const primary = ref('rgb(var(--v-theme-primary))');
 const secondary = ref('rgb(var(--v-theme-secondary))');
 
 const handleCPMouseDown = (cp, event) => {
+  if (store.activeTool) {
+    return;
+  }
   store.mouseDown = true; // Set mouseDown flag to true
   store.mouseDownCP = cp; // Store the line being dragged
   store.isCPDragging = false; // Reset dragging flag

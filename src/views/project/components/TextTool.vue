@@ -42,10 +42,14 @@ const handleTextClick = (text, event) => {
 };
 
 const handleTextMouseDown = (text, event) => {
+  if (store.activeTool) {
+    return;
+  }
   event.preventDefault();
 
   isDraggingText = true;
-  dragStartCoords = { x: event.clientX, y: event.clientY };
+  let coords = store.getTransformedSVGCoordinates(event);
+  dragStartCoords = { x: coords.x, y: coords.y };
   initialTextPosition = { x: text.x, y: text.y };
   currentText = text;
   currentTextElement = textRefs.get(text.id);
@@ -61,13 +65,15 @@ const handleMouseMove = (event) => {
 
   event.preventDefault();
 
-  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+  let coords = store.getTransformedSVGCoordinates(event);
+
+  const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+  const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
   const newX = initialTextPosition.x + deltaX;
   const newY = initialTextPosition.y + deltaY;
 
-  const snappedCoords = snapToGrid(newX, newY);
+  const snappedCoords = snapToGrid(newX, newY, event);
 
   // Update the text's position directly in the DOM
   currentTextElement.setAttribute('x', snappedCoords.x);
@@ -80,13 +86,15 @@ const handleTextMouseUp = (event) => {
   event.preventDefault();
 
   // Calculate final position
-  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+  let coords = store.getTransformedSVGCoordinates(event);
+
+  const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+  const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
   const newX = initialTextPosition.x + deltaX;
   const newY = initialTextPosition.y + deltaY;
 
-  const snappedCoords = snapToGrid(newX, newY);
+  const snappedCoords = snapToGrid(newX, newY, event);
 
   // Update the text's position in the reactive store
   currentText.x = snappedCoords.x;

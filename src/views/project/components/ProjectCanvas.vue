@@ -13,12 +13,11 @@
       @dblclick="handleDoubleClick"
     >
       <!-- Paper Space Group -->
-      <g ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
+      <g v-if="props.mode == 'project'" ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
         <!-- Paper Space Elements -->
 
         <PaperTitleBlock />
         <ConductorScheduleSvg :x="55" :y="65" />
-        <TextTool />
       </g>
       <!-- Model Space Group -->
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
@@ -28,6 +27,7 @@
         <RectangleTool />
         <Lines ref="linesRef" />
         <ConnectionPointsTool />
+        <TextTool />
       </g>
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
@@ -35,7 +35,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue';
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { useHistoryStore } from '@/stores/history';
 import { useCustomizerStore } from '@/stores/customizer';
@@ -247,11 +247,25 @@ const modelZoom = (event) => {
 const pan = throttle((event) => {
   if (activeSpace.value !== 'paper') return;
 
-  const dx = (event.clientX - panStart.x) / store.paperZoomLevel;
-  const dy = (event.clientY - panStart.y) / store.paperZoomLevel;
+  event.preventDefault();
 
-  const newViewBoxX = viewBoxStart.x - dx;
-  const newViewBoxY = viewBoxStart.y - dy;
+  const point = svg.value.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+
+  const startPoint = svg.value.createSVGPoint();
+  startPoint.x = panStart.x;
+  startPoint.y = panStart.y;
+
+  // Transform points to SVG coordinate space
+  const svgP = point.matrixTransform(svg.value.getScreenCTM().inverse());
+  const svgStartP = startPoint.matrixTransform(svg.value.getScreenCTM().inverse());
+
+  const dx = svgStartP.x - svgP.x;
+  const dy = svgStartP.y - svgP.y;
+
+  const newViewBoxX = viewBoxStart.x + dx;
+  const newViewBoxY = viewBoxStart.y + dy;
 
   svg.value.setAttribute('viewBox', `${newViewBoxX} ${newViewBoxY} ${store.viewBox.width} ${store.viewBox.height}`);
   store.setViewBox(newViewBoxX, newViewBoxY, store.viewBox.width, store.viewBox.height);
@@ -260,15 +274,27 @@ const pan = throttle((event) => {
 const modelPan = throttle((event) => {
   if (activeSpace.value !== 'model') return;
 
-  const combinedZoomLevel = store.zoomLevel;
+  event.preventDefault();
 
-  const dx = (event.clientX - panStart.x) / combinedZoomLevel;
-  const dy = (event.clientY - panStart.y) / combinedZoomLevel;
+  const point = svg.value.createSVGPoint();
+  point.x = event.clientX;
+  point.y = event.clientY;
+
+  const startPoint = svg.value.createSVGPoint();
+  startPoint.x = panStart.x;
+  startPoint.y = panStart.y;
+
+  // Transform points to SVG coordinate space
+  const svgP = point.matrixTransform(svg.value.getScreenCTM().inverse());
+  const svgStartP = startPoint.matrixTransform(svg.value.getScreenCTM().inverse());
+
+  const dx = svgP.x - svgStartP.x;
+  const dy = svgP.y - svgStartP.y;
 
   panStart = { x: event.clientX, y: event.clientY };
 
-  modelSpaceTranslate.x += dx * store.modelZoomLevel;
-  modelSpaceTranslate.y += dy * store.modelZoomLevel;
+  modelSpaceTranslate.x += dx;
+  modelSpaceTranslate.y += dy;
 
   modelSpaceGroup.value.setAttribute(
     'transform',
@@ -354,11 +380,13 @@ const resizeSVG = () => {
 onMounted(() => {
   customizer.CLOSE_SIDEBAR();
 
+  store.setActiveSpace('model');
+
   const sidebarElement = document.querySelector('.leftSidebar'); // Replace with actual selector
 
   const onTransitionEnd = () => {
     initSVG();
-
+    updateModelViewBox();
     // Remove the event listener after it's called
     sidebarElement.removeEventListener('transitionend', onTransitionEnd);
   };

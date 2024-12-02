@@ -48,7 +48,7 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'paths', type: 'path' },
       { prop: 'blocks', type: 'block' },
     ],
-    activeSpace: 'paper',
+    activeSpace: 'model', //model or paper
     pageStates: [],
     currentPageIndex: 0,
     isProjectLoaded: false,
@@ -68,7 +68,6 @@ export const useSvgStore = defineStore('svgStore', {
     modelSpaceGroup: null,
     viewBox: { x: 0, y: 0, width: 0, height: 0 },
     savedViewBox: { x: 0, y: 0, width: 0, height: 0 },
-    modelZoomLevel: 1,
     paperZoomLevel: 1,
     gridSize: 10,
     showGrid: true,
@@ -413,7 +412,7 @@ export const useSvgStore = defineStore('svgStore', {
       return state.lines.filter(line => line.category == 'run')
     },
     zoomLevel(state) {
-      return state.paperZoomLevel * state.modelZoomLevel
+      return state.paperZoomLevel * state.modelSpaceScale
     },
     conductorTableHeadings(state) {
       return [
@@ -822,22 +821,14 @@ export const useSvgStore = defineStore('svgStore', {
       this.showConductorSchedulePanel = false
     },
     getTransformedSVGCoordinates(event) {
-      // Create an SVGPoint to store the screen coordinates
       const point = this.svg.createSVGPoint()
       point.x = event.clientX
       point.y = event.clientY
+      const ctm = this.svg.getScreenCTM()
 
-      // Get the inverse of the screen CTM
-      let ctm = this.svg.getScreenCTM().inverse()
-
-      // If in model space, adjust for model transformations
-      if (this.activeSpace === 'model') {
-        const modelCTM = this.modelSpaceGroup.getCTM()
-        ctm = ctm.multiply(modelCTM.inverse())
-      }
 
       // Apply the combined transformation matrix to the point
-      const svgPoint = point.matrixTransform(ctm)
+      const svgPoint = point.matrixTransform(ctm.inverse())
       return { x: svgPoint.x, y: svgPoint.y }
     },
     handleSvgClick(event) {
@@ -864,10 +855,11 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.isDrawing) {
         this.linesRef.handleSvgClickLineDrawing(event)
       }
-      if (this.activeTool == 'rectangle' && this.isCreatingRectangle) {
-        this.endRectangle(event)
-      } else if (this.activeTool == 'rectangle') {
+      if (this.activeTool == 'rectangle' && !this.isCreatingRectangle) {
         this.startRectangle(event)
+      }
+      else if (this.activeTool == 'rectangle' && this.isCreatingRectangle) {
+        this.endRectangle(event)
       }
       if (this.activeTool === 'text') {
         const coords = this.getSVGCoordinates(event)
@@ -988,9 +980,11 @@ export const useSvgStore = defineStore('svgStore', {
       this.startCreatingRectangle(snappedCoords)
     },
     endRectangle() {
+      console.log("got here")
       if (this.isCreatingRectangle) {
         historyStore.executeCommand(new AddRectangleCommand(this.currentRectangle, this))
       }
+      this.isCreatingRectangle = false
     },
     selectConnectionPoint(cp) {
       if (!this.activeTool) {
@@ -1676,7 +1670,10 @@ export const useSvgStore = defineStore('svgStore', {
         line.points[line.points.length - 1] = originalLastPoint
       }
     },
-    snapToGrid(x, y) {
+    snapToGrid(x, y, event) {
+      if (event && (event.ctrlKey || event.metaKey)) {
+        return { x, y }
+      }
       return {
         x: Math.round(x / this.gridSize) * this.gridSize,
         y: Math.round(y / this.gridSize) * this.gridSize
@@ -1812,7 +1809,6 @@ export const useSvgStore = defineStore('svgStore', {
         rectangles: this.rectangles,
         connectionPoints: this.connectionPoints,
         savedViewBox: this.viewBox,
-        modelZoomLevel: this.modelZoomLevel,
         paperZoomLevel: this.paperZoomLevel,
         modelSpaceTranslate: this.modelSpaceTranslate,
         modelSpaceScale: this.modelSpaceScale
@@ -1850,7 +1846,6 @@ export const useSvgStore = defineStore('svgStore', {
       this.rectangles = data?.rectangles || []
       this.lines = data?.lines || []
       this.texts = data?.texts || []
-      this.modelZoomLevel = data?.modelZoomLevel || 1 // Restore the zoom level
       this.paperZoomLevel = data?.paperZoomLevel || this.paperZoomLevel // Restore the zoom level
       this.connectionPoints = data?.connectionPoints || []
       this.savedViewBox = data?.savedViewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight }

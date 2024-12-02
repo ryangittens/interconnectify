@@ -1574,7 +1574,7 @@ export default {
           ),
 
           // Largest Motor Section
-          this.createLargestMotorTable(),
+          this.createLargestMotorTable(this.calculationMethod),
 
           // Other Loads Section
           this.createTable(this.otherLoads, ['Other Loads', 'Quantity', 'VA per Unit', 'Total VA'], ['*', 'auto', 'auto', 'auto']),
@@ -1670,22 +1670,26 @@ export default {
     },
 
     // Helper method to create Largest Motor table
-    createLargestMotorTable() {
-      return {
-        style: 'tableExample',
-        layout: 'lightHorizontalLines',
-        table: {
-          headerRows: 1,
-          widths: ['*', '*'],
-          body: [
-            [
-              { text: 'Largest Motor VA', style: 'tableHeader' },
-              { text: '25% of Largest Motor VA', style: 'tableHeader' }
-            ],
-            [this.largestMotor.va || 'N/A', this.largestMotor.va ? this.calculateLargestMotorLoad() : 'N/A']
-          ]
-        }
-      };
+    createLargestMotorTable(method) {
+      if (method?.toLowerCase() == 'optional') {
+        return;
+      } else {
+        return {
+          style: 'tableExample',
+          layout: 'lightHorizontalLines',
+          table: {
+            headerRows: 1,
+            widths: ['*', '*'],
+            body: [
+              [
+                { text: 'Largest Motor VA', style: 'tableHeader' },
+                { text: '25% of Largest Motor VA', style: 'tableHeader' }
+              ],
+              [this.largestMotor.va || 'N/A', this.largestMotor.va ? this.calculateLargestMotorLoad() : 'N/A']
+            ]
+          }
+        };
+      }
     },
 
     // Helper method to create Final Calculations table

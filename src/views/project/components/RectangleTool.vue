@@ -24,7 +24,7 @@
       :stroke-width="rect.strokeWidth"
       @mousedown.stop="handleRectangleMouseDown(rect, $event)"
       @click="handleRectangleClick(rect, $event)"
-      style="cursor: grab"
+      :class="{ dragging: isDraggingRectangle && currentRectangle && currentRectangle.id === rect.id }"
     />
   </g>
 </template>
@@ -49,9 +49,7 @@ let currentRectangleElement = null;
 let currentRectangle = null;
 
 const handleRectangleClick = (rect, event) => {
-  if (store.activeTool) {
-    store.handleSvgClick(event);
-  } else {
+  if (!store.activeTool) {
     store.selectRectangle(rect);
   }
 };
@@ -60,7 +58,8 @@ const handleRectangleMouseDown = (rect, event) => {
   event.preventDefault();
 
   isDraggingRectangle = true;
-  dragStartCoords = { x: event.clientX, y: event.clientY };
+  let coords = store.getTransformedSVGCoordinates(event);
+  dragStartCoords = { x: coords.x, y: coords.y };
   initialRectanglePosition = { x: rect.x, y: rect.y };
   currentRectangle = rect;
   currentRectangleElement = rectangleRefs.get(rect.id);
@@ -76,8 +75,10 @@ const handleMouseMove = (event) => {
 
   event.preventDefault();
 
-  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+  let coords = store.getTransformedSVGCoordinates(event);
+
+  const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+  const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
   const newX = initialRectanglePosition.x + deltaX;
   const newY = initialRectanglePosition.y + deltaY;
@@ -94,9 +95,10 @@ const handleRectangleMouseUp = (event) => {
 
   event.preventDefault();
 
-  // Calculate final position
-  const deltaX = (event.clientX - dragStartCoords.x) / store.zoomLevel;
-  const deltaY = (event.clientY - dragStartCoords.y) / store.zoomLevel;
+  let coords = store.getTransformedSVGCoordinates(event);
+
+  const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
+  const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
 
   const newX = initialRectanglePosition.x + deltaX;
   const newY = initialRectanglePosition.y + deltaY;
@@ -130,6 +132,6 @@ watchEffect(() => {
 }
 
 rect {
-  cursor: grab;
+  cursor: default;
 }
 </style>
