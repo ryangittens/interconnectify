@@ -1,20 +1,18 @@
 <!-- NotesDialog.vue -->
 <template>
-  <v-dialog v-model="isDialogOpen" persistent max-width="600px">
-    <v-card>
-      <v-card-title class="headline">Project Notes</v-card-title>
-      {{ store.conductors }}
-      <v-card-text>
-        <v-textarea v-model="editableNotes" label="Enter your notes here" rows="10" outlined></v-textarea>
-      </v-card-text>
+  <v-card max-width="600px" class="position-absolute">
+    <v-card-title class="headline">Project Notes</v-card-title>
+    {{ store.conductors }}
+    <v-card-text>
+      <v-textarea v-model="editableNotes" label="Enter your notes here" rows="10" outlined></v-textarea>
+    </v-card-text>
 
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn color="grey" text @click="closeDialog">Cancel</v-btn>
-        <v-btn color="primary" text @click="saveNotes">Save</v-btn>
-      </v-card-actions>
-    </v-card>
-  </v-dialog>
+    <v-card-actions>
+      <v-spacer></v-spacer>
+      <v-btn color="grey" text @click="closeDialog">Cancel</v-btn>
+      <v-btn color="primary" text @click="saveNotes">Save</v-btn>
+    </v-card-actions>
+  </v-card>
 </template>
 
 <script setup lang="ts">

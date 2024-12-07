@@ -1,9 +1,11 @@
 <template>
   <g
     v-for="block in store.blocks"
+    :id="`block-${block.id}`"
     :key="block.id"
     :ref="(el) => blockRefs.set(block.id, el)"
     :transform="`translate(${block.x}, ${block.y})`"
+    :opacity="block?.active ? 1 : 0.3"
     @mousedown.stop="handleBlockMouseDown(block, $event)"
     @click="handleBlockClick(block)"
   >
@@ -11,7 +13,7 @@
     <rect :x="0" :y="0" :width="block.width" :height="block.height" fill="transparent" style="cursor: pointer" />
     <!-- Existing content -->
     <rect
-      v-if="!block.content"
+      v-if="!block.configurations[block.selectedConfiguration].svg"
       :x="0"
       :y="0"
       :width="block.width"
@@ -20,16 +22,39 @@
       :stroke="isBlockSelected(block) ? primary : 'black'"
       :stroke-width="isBlockSelected(block) ? 2 : 1"
     />
-    <g v-else v-html="block.content"></g>
+    <g v-else v-html="block.configurations[block.selectedConfiguration].svg"></g>
+    <!-- Selectable block elements -->
+    <g
+      v-for="component in block.configurations[block.selectedConfiguration].components"
+      :key="component.id"
+      :id="`block-${component.id}`"
+      @click.stop="handleBlockClick(component)"
+      @dblclick.stop="handleCompunentDblClick(component)"
+      :transform="`translate(${component.x}, ${component.y})`"
+      :opacity="component?.active ? 1 : 0.3"
+      ><g v-html="component.configurations[component.selectedConfiguration].svg"></g>
+      <circle
+        v-for="cp in component.configurations[component.selectedConfiguration].connectionPoints"
+        :id="`cp-${cp.id}`"
+        :key="cp.id"
+        :cx="cp.x"
+        :cy="cp.y"
+        r="3"
+        :fill="cp.color"
+        @click.stop="handleConnectionPointClick(cp, block, $event)"
+        :style="store.isDrawing ? 'cursor: crosshair' : 'cursor: default'"
+      />
+    </g>
     <circle
-      v-for="cp in block.connectionPoints"
+      v-for="cp in block.configurations[block.selectedConfiguration].connectionPoints"
+      :id="`cp-${cp.id}`"
       :key="cp.id"
       :cx="cp.x"
       :cy="cp.y"
       r="3"
       :fill="cp.color"
       @click.stop="handleConnectionPointClick(cp, block, $event)"
-      style="cursor: crosshair"
+      :style="store.isDrawing ? 'cursor: crosshair' : 'cursor: default'"
     />
   </g>
 </template>
@@ -62,6 +87,10 @@ let connectedLines = []; // Store connected lines
 let connectedLineElements = []; // Store references to line elements
 
 let updatedLinePoints = new Map(); // Map to store updated points
+
+const handleCompunentDblClick = (component) => {
+  store.updateComponentState(component, !component.active);
+};
 
 const handleBlockMouseDown = (block, event) => {
   event.preventDefault();
@@ -251,9 +280,5 @@ const handleConnectionPointClick = (cp, block, event) => {
 <style scoped>
 .dragging {
   cursor: grabbing;
-}
-
-g {
-  cursor: grab;
 }
 </style>

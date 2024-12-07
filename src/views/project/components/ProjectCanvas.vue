@@ -23,8 +23,8 @@
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
         <g ref="axesContainer"></g>
         <GridLines :viewBox="modelViewBox" />
-        <Blocks @startWire="handleStartWire" />
         <RectangleTool />
+        <Blocks @startWire="handleStartWire" />
         <Lines ref="linesRef" />
         <ConnectionPointsTool />
         <TextTool />
@@ -183,7 +183,7 @@ const zoom = (event) => {
   const zoomDirection = deltaY > 0 ? -1 : 1;
 
   // Use a fixed zoom factor
-  const zoomFactor = 0.1; // Adjust this value for desired zoom speed (e.g., 0.1 for 10%)
+  const zoomFactor = 0.05; // Adjust this value for desired zoom speed (e.g., 0.1 for 10%)
 
   // Calculate the scale amount
   const scaleAmount = 1 + zoomDirection * zoomFactor;
@@ -205,7 +205,7 @@ const zoom = (event) => {
   const newY = store.viewBox.y + (offsetY / height) * (store.viewBox.height - newHeight);
 
   // Update the zoom level and viewBox in the store
-  store.paperZoomLevel = newZoomLevel;
+  store.setPaperZoomLevel(newZoomLevel);
   store.setViewBox(newX, newY, newWidth, newHeight);
 };
 
@@ -308,29 +308,6 @@ const modelPan = throttle((event) => {
   updateModelViewBox();
 }, 16);
 
-// const initializePaperSpace = () => {
-//   // Get the saved center coordinates from the saved viewBox
-//   const centerX = (store.savedViewBox?.x || 0) + (store.savedViewBox?.width || store.initialViewBox.width) / 2;
-//   const centerY = (store.savedViewBox?.y || 0) + (store.savedViewBox?.height || store.initialViewBox.height) / 2;
-
-//   // Get the current dimensions of the SVG container (client area)
-//   const container = svg.value.parentElement;
-//   const clientWidth = container.clientWidth;
-//   const clientHeight = container.clientHeight;
-
-//   // Calculate the new viewBox dimensions based on the current client size and zoom level
-//   const newWidth = clientWidth / store.paperZoomLevel;
-//   const newHeight = clientHeight / store.paperZoomLevel;
-
-//   // Calculate the new viewBox position to center it around the saved center
-//   const newX = centerX - newWidth / 2;
-//   const newY = centerY - newHeight / 2;
-
-//   // Update the viewBox in the store and on the SVG element
-//   store.setViewBox(newX, newY, newWidth, newHeight);
-//   svg.value.setAttribute('viewBox', `${newX} ${newY} ${newWidth} ${newHeight}`);
-// };
-
 const initializeModelSpace = () => {
   // Set the model space scale and translate to saved values
   modelSpaceScale.value = store.modelSpaceScale;
@@ -369,31 +346,36 @@ const initSVG = () => {
 const resizeSVG = () => {
   const container = svg.value.parentElement;
   if (container) {
-    const containerPaddingLeft = parseFloat(window.getComputedStyle(container).paddingLeft);
-    svg.value.setAttribute('width', container.clientWidth);
-    svg.value.setAttribute('height', container.clientHeight);
-    svg.value.style.left = `${-containerPaddingLeft}px`;
-    store.setViewBox(0, 0, container.clientWidth, container.clientHeight);
+    const width = container.offsetWidth;
+    const height = container.offsetHeight;
+
+    svg.value.setAttribute('width', width);
+    svg.value.setAttribute('height', height);
+
+    store.setViewBox(0, 0, width, height);
+    store.initializePaperSpace();
+    updateModelViewBox();
   }
 };
-
+let resizeObserver;
 onMounted(() => {
   customizer.CLOSE_SIDEBAR();
 
   store.setActiveSpace('model');
 
-  const sidebarElement = document.querySelector('.leftSidebar'); // Replace with actual selector
+  // Initialize the ResizeObserver
+  resizeObserver = new ResizeObserver(() => {
+    resizeSVG();
+  });
 
-  const onTransitionEnd = () => {
-    initSVG();
-    updateModelViewBox();
-    // Remove the event listener after it's called
-    sidebarElement.removeEventListener('transitionend', onTransitionEnd);
-  };
-
-  if (sidebarElement) {
-    sidebarElement.addEventListener('transitionend', onTransitionEnd);
+  // Start observing the container
+  const container = svg.value.parentElement;
+  if (container) {
+    resizeObserver.observe(container);
   }
+
+  initSVG();
+
   window.addEventListener('keydown', handleKeyDown);
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
@@ -408,6 +390,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   customizer.OPEN_SIDEBAR();
+  store.resetState();
   window.removeEventListener('keydown', handleKeyDown);
   window.removeEventListener('resize', resizeSVG);
   svg.value.removeEventListener('mousemove', handleMouseMove);
@@ -418,6 +401,10 @@ onBeforeUnmount(() => {
   svg.value.removeEventListener('click', handleSvgClick);
   window.removeEventListener('beforeunload', beforeUnloadHandler);
   svg.value.removeEventListener('dblclick', handleDoubleClick);
+  // Disconnect the ResizeObserver
+  if (resizeObserver && resizeObserver.disconnect) {
+    resizeObserver.disconnect();
+  }
 });
 
 /* COMMON */
@@ -697,6 +684,7 @@ const emitUpdateProject = (updatedProject) => {
   width: 100%;
   margin-top: -42px;
   height: calc(100vh - 110px);
+  box-sizing: content-box;
 }
 .drawing-svg {
   height: 100%;

@@ -14,28 +14,38 @@
     <v-list density="compact" nav>
       <v-list-item v-for="(field, index) in drawerFields" :key="index">
         <!-- Conditionally render v-select if options exist, else render v-text-field -->
-        <template v-if="field.options">
-          <v-select
-            :rounded="false"
-            :label="field.label"
-            :items="field.options"
-            :modelValue="selectedObject[field.key]"
-            @update:modelValue="handleInput(field, $event)"
-            :multiple="field.multiple || false"
-            :clearable="field.clearable || false"
-            :disabled="field.disabled || false"
-            class="w-100"
-          ></v-select>
-        </template>
-        <template v-else>
-          <v-text-field
-            :rounded="false"
-            :label="field.label"
-            :modelValue="selectedObject[field.key]"
-            :type="field.type"
-            @input="handleInput(field, $event.target.value)"
-            :step="field?.step"
-          ></v-text-field>
+        <template v-if="!field?.mode || field.mode === store.mode">
+          <template v-if="field.inputType === 'select' || field?.options?.length">
+            <v-select
+              :rounded="false"
+              :label="field.label"
+              :items="field.options"
+              :modelValue="selectedObject[field.key]"
+              @update:modelValue="handleInput(field, $event)"
+              :multiple="field.multiple || false"
+              :clearable="field.clearable || false"
+              :disabled="field.disabled || false"
+              class="w-100"
+            ></v-select>
+          </template>
+          <template v-else-if="field.inputType === 'checkbox'">
+            <v-checkbox
+              :rounded="false"
+              :label="field.label"
+              :modelValue="selectedObject[field.key]"
+              @input="handleInput(field, $event.target.value)"
+            ></v-checkbox>
+          </template>
+          <template v-else>
+            <v-text-field
+              :rounded="false"
+              :label="field.label"
+              :modelValue="selectedObject[field.key]"
+              :type="field.type"
+              @input="handleInput(field, $event.target.value)"
+              :step="field?.step"
+            ></v-text-field>
+          </template>
         </template>
       </v-list-item>
     </v-list>
@@ -47,7 +57,7 @@ import { useSvgStore } from '@/stores/svgStore';
 import { computed } from 'vue';
 import { TrashXIcon } from 'vue-tabler-icons';
 import { useHistoryStore } from '@/stores/history';
-import { DeleteBlockCommand, DeleteLineCommand, ScaleBlockCommand } from '@/commands';
+import { DeleteBlockCommand, DeleteLineCommand, ScaleBlockCommand, SetBlockConfigCommand } from '@/commands';
 
 const historyStore = useHistoryStore();
 const store = useSvgStore();
@@ -118,6 +128,7 @@ const drawerFields = computed(() => {
       {
         label: 'Size',
         key: 'size',
+        inputType: 'select',
         type: 'number',
         options: store.wireSizes, // Reference to wireSizes from store
         onUpdate: updateWireSize
@@ -132,6 +143,33 @@ const drawerFields = computed(() => {
         type: 'number',
         step: 0.01,
         onUpdate: scaleBlock
+      },
+      {
+        label: 'Config',
+        key: 'selectedConfiguration',
+        inputType: 'select',
+        type: 'number',
+        options: selectedObject.value.configurations.map((_, index) => index),
+        onUpdate: (element, key, newValue) => {
+          historyStore.executeCommand(new SetBlockConfigCommand(element, newValue, store));
+        }
+      },
+      {
+        label: 'Selectable',
+        key: 'selectable',
+        inputType: 'checkbox',
+        mode: 'block',
+        onUpdate: (element, key, newValue) => {
+          store.updateComponentSelectability(element, newValue);
+        }
+      },
+      {
+        label: 'Active',
+        key: 'active',
+        inputType: 'checkbox',
+        onUpdate: (element, key, newValue) => {
+          store.updateComponentState(element, newValue);
+        }
       }
     ];
   }

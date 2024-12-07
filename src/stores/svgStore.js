@@ -6,6 +6,7 @@ import { nextTick } from 'vue'
 import { UpdateLineCommand } from '@/commands'
 import { updateLinePoints } from '@/utils/lineUtils'
 import { useSnackbarStore } from './snackbar'
+import { debounce } from 'lodash'
 // PDF Fonts
 const pdfFonts = {
   // download default Roboto font from cdnjs.com
@@ -771,8 +772,12 @@ export const useSvgStore = defineStore('svgStore', {
       const zoomLevel = this.paperZoomLevel || 1
 
       // Calculate the viewBox width and height based on the zoom level
-      const viewBoxWidth = paperWidth / zoomLevel
-      const viewBoxHeight = paperHeight / zoomLevel
+      let viewBoxWidth = paperWidth / zoomLevel
+      let viewBoxHeight = paperHeight / zoomLevel
+
+      //add padding
+      viewBoxHeight += 100
+      viewBoxWidth += 100
 
       // Calculate the top-left coordinates to center the SVG within the page
       const newX = (paperWidth - viewBoxWidth) / 2
@@ -805,6 +810,10 @@ export const useSvgStore = defineStore('svgStore', {
     loadPage(index) {
       // Update current page index
       this.currentPageIndex = index
+
+      if (!this.pageStates.length) {
+        this.serializeCurrentPage()
+      }
       // Deserialize and load the new page's state
       const serializedState = this.pageStates[index]
       if (serializedState) {
@@ -1406,6 +1415,7 @@ export const useSvgStore = defineStore('svgStore', {
     },
     setActiveSpace(space) {
       this.activeSpace = space
+      this.deselectAll()
     },
     getSVGCoordinates(event) {
       const point = this.svg.createSVGPoint()
@@ -1814,6 +1824,9 @@ export const useSvgStore = defineStore('svgStore', {
         modelSpaceScale: this.modelSpaceScale
       })
     },
+    setPaperZoomLevel(level) {
+      this.paperZoomLevel = level
+    },
 
     serializeCurrentPage(pageIndex) {
       const serializedState = this.serializeState()
@@ -1833,6 +1846,8 @@ export const useSvgStore = defineStore('svgStore', {
       this.lines = []
       this.texts = []
       this.connectionPoints = []
+      this.paperZoomLevel = 1
+      this.modelSpaceTranslate = { x: 0, y: 0 }
     },
     deserializeState(serializedState) {
       let data
@@ -1841,7 +1856,6 @@ export const useSvgStore = defineStore('svgStore', {
         const { clientWidth, clientHeight } = this.svg
         this.initializeViewBox()
       }
-
       this.blocks = data?.blocks || []
       this.rectangles = data?.rectangles || []
       this.lines = data?.lines || []
@@ -1901,7 +1915,9 @@ export const useSvgStore = defineStore('svgStore', {
         color: '#f0f0f0', // Default color if not provided
         elements: elements,
         content: svg,
-        connectionPoints: []
+        connectionPoints: [],
+        configIndex: 0,
+        selectedConfiguration: 0,
       }
 
       this.tempBlock = tempBlock
@@ -1919,15 +1935,17 @@ export const useSvgStore = defineStore('svgStore', {
       const texts = data?.texts || []
 
       // Update the UUID of each block
-      const updatedBlocks = blocks.map((block) => ({
+      updatedBlocks = blocks.map((block) => ({
         ...block,
         id: uuid.v1(), // Generate a new UUID for the block
+        elements: block.elements.map((element) => ({
+          ...element,
+          id: uuid.v1() // Generate a new UUID for each element (if applicable)
+        })), // Generate a new UUID for each element (if applicable)
         connectionPoints: block.connectionPoints.map((cp) => ({
           ...cp,
-          id: uuid.v1() // Generate a new UUID for each connection point
-        })),
-        x: block.x + coords.x,
-        y: block.y + coords.y
+          id: uuid.v1() // Generate a new UUID for each connection point (if applicable)
+        }))
       }))
 
       // Update the UUID of each rectangle
@@ -1958,50 +1976,90 @@ export const useSvgStore = defineStore('svgStore', {
       this.lines.push(...updatedLines)
       this.texts.push(...updatedTexts)
     },
+    setBlockConfig(block, config) {
+      block.selectedConfiguration = config
+    },
 
     importBlock(data, event) {
-
       this.selectBlock(null)
-      const block = data
-      const drawing = JSON.parse(block.drawing)
-      const elements = []
 
-      for (const { prop, type } of this.elementTypes) {
-        // Check if block.elements exists and has the property
-        if (drawing && Array.isArray(drawing[prop])) {
-          const items = drawing[prop]
-          elements.push(
-            ...items.map((item) => ({
-              ...item,
-              type,
-            }))
-          )
+      const block = data
+      // Parse block.drawing if it's a JSON string
+      let drawings = block.drawing
+      if (typeof drawings === 'string') {
+        try {
+          drawings = JSON.parse(drawings)
+        } catch (err) {
+          console.error('Invalid JSON in block.drawing:', err)
+          return
         }
       }
 
-      const coords = this.getSVGCoordinates(event)
+      if (!Array.isArray(drawings)) {
+        console.error('block.drawing should be an array')
+        return
+      }
 
-      const { svg, connectionPoints, offset, boundingBox } = this.generateSVGContent(elements, drawing?.connectionPoints)
-      let svgCenter = this.getSvgCenter()
-      let width = Math.abs(boundingBox.minX - boundingBox.maxX)
-      let height = Math.abs(boundingBox.minY - boundingBox.maxY)
+      const coords = this.getSVGCoordinates(event)
+      const svgCenter = this.getSvgCenter()
+
+      // Prepare configurations array
+      const configurations = drawings.map((drawing, index) => {
+        const elements = []
+        const drawingObject = JSON.parse(drawing)
+        for (const { prop, type } of this.elementTypes) {
+          if (drawingObject && Array.isArray(drawingObject[prop])) {
+            const items = drawingObject[prop]
+            elements.push(
+              ...items.map((item) => ({
+                ...item,
+                type,
+              }))
+            )
+          }
+        }
+
+        const { svg, connectionPoints, offset, boundingBox, components } = this.generateSVGContent(
+          elements, drawingObject?.connectionPoints
+        )
+
+        //configuration object
+        return {
+          elements,
+          svg,
+          connectionPoints: connectionPoints || [],
+          offset,
+          boundingBox,
+          components,
+        }
+      })
+
+      // Use the first configuration for initial positioning
+      const defaultConfig = configurations[0]
+      const width = Math.abs(defaultConfig.boundingBox.minX - defaultConfig.boundingBox.maxX)
+      const height = Math.abs(defaultConfig.boundingBox.minY - defaultConfig.boundingBox.maxY)
+
       const newBlock = {
         object: 'block',
-        scale: block?.scale || 1,
+        scale: block.scale || 1,
         id: uuid.v1(),
-        x: coords?.x || svgCenter?.x || 40, // Adjust the position as needed
-        y: coords?.y || svgCenter?.y || 40, // Adjust the position as needed
-        width: width || 80, // Adjust width and height as needed
+        x: coords?.x || svgCenter?.x || 40,
+        y: coords?.y || svgCenter?.y || 40,
+        width: width || 80,
         height: height || 80,
         originalWidth: width,
         originalHeight: height,
-        color: block?.color || '#f0f0f0', // Default color if not provided
-        elements: elements,
-        content: svg,
-        connectionPoints: connectionPoints || []
+        color: block.color || '#f0f0f0',
+        elements: null,
+        selectable: true,
+        active: true,
+        selectedConfiguration: 0, // Default to the first configuration
+        configurations, // Store all configurations here
       }
 
-      this.templateDropOffset = offset
+      // Set the template drop offset based on the default configuration
+      this.templateDropOffset = defaultConfig.offset
+
       this.blocks.push(newBlock)
       this.startBlockDrop(newBlock)
     },
@@ -2056,6 +2114,12 @@ export const useSvgStore = defineStore('svgStore', {
       const width = this.convertToPixels(widthAttr || '0')
       const height = this.convertToPixels(heightAttr || '0')
       let svgCenter = this.getSvgCenter()
+      let configurations = [{
+        svg: svgContent,
+        connectionPoints: [],
+        offset: { x: 0, y: 0 },
+        components: [],
+      }]
       const newBlock = {
         object: 'block',
         scale: 1,
@@ -2068,12 +2132,20 @@ export const useSvgStore = defineStore('svgStore', {
         originalHeight: height,
         color: '#f0f0f0',
         elements: null,
-        content: svgContent,
-        connectionPoints: [],
+        selectable: true,
+        active: true,
+        selectedConfiguration: 0, // Default to the first configuration
+        configurations
       }
 
       this.blocks.push(newBlock)
       this.startBlockDrop(newBlock)
+    },
+    updateComponentSelectability(component, selectable) {
+      component.selectable = selectable
+    },
+    updateComponentState(component, state) {
+      component.active = state
     },
     startBlockDrop(newBlock) {
       //start block dragging
@@ -2145,10 +2217,10 @@ export const useSvgStore = defineStore('svgStore', {
       const rectangles = elements.filter((el) => el.type === 'rectangle')
       const texts = elements.filter((el) => el.type === 'text')
       const paths = elements.filter((el) => el.type === 'path')
-      const blocks = elements.filter((el) => el.type === 'block')
+      const components = elements.filter((el) => el.type === 'block')
 
       // Calculate the bounding box for the elements
-      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(lines, blocks, rectangles, paths, texts)
+      const { minX, minY, maxX, maxY } = this.calculateBoundingBox(lines, components, rectangles, paths, texts)
 
       // Calculate normalized dimensions and viewBox
       const width = maxX - minX
@@ -2175,32 +2247,48 @@ export const useSvgStore = defineStore('svgStore', {
         })
         .join('')
 
+      // let normalizedConnectionPoints = []
+      // const normalizedBlocks = nonSelectableComponents
+      //   .map((block) => {
+      //     // Normalize block position
+      //     const normalizedX = block.x - minX
+      //     const normalizedY = block.y - minY
 
-      // Include block contents directly into the SVG
-      const normalizedBlocks = blocks
-        .map((block) => {
-          // Normalize block position
-          const normalizedX = block.x - minX
-          const normalizedY = block.y - minY
+      //     // Parse the block's content into a DOM
+      //     const parser = new DOMParser()
+      //     const svgDoc = parser.parseFromString(block.configurations[block.selectedConfiguration].svg, 'image/svg+xml')
+      //     const svgElement = svgDoc.documentElement
 
-          // Parse the block's content into a DOM
-          const parser = new DOMParser()
-          const svgDoc = parser.parseFromString(block.content, 'image/svg+xml')
-          const svgElement = svgDoc.documentElement
+      //     // Set x and y attributes to position the nested SVG
+      //     svgElement.setAttribute('x', normalizedX)
+      //     svgElement.setAttribute('y', normalizedY)
 
-          // Set x and y attributes to position the nested SVG
-          svgElement.setAttribute('x', normalizedX)
-          svgElement.setAttribute('y', normalizedY)
+      //     // Serialize back to string
+      //     const serializer = new XMLSerializer()
+      //     const svgString = serializer.serializeToString(svgElement)
 
-          // Serialize back to string
-          const serializer = new XMLSerializer()
-          const svgString = serializer.serializeToString(svgElement)
-          return svgString
-        })
-        .join('')
+      //     // Normalize the coordinates of connection points
+      //     let connectionPoints = block.configurations[block.selectedConfiguration].connectionPoints
+      //     if (connectionPoints) {
+      //       normalizedConnectionPoints = connectionPoints.map((cp) => ({
+      //         ...cp,
+      //         x: cp.x - minX,
+      //         y: cp.y - minY
+      //       }))
+      //     }
+
+      //     return svgString
+      //   })
+      //   .join('')
+
+      const normalizedComponents = components
+        .map((component) => ({
+          ...component,
+          x: component.x - minX,
+          y: component.y - minY,
+        }))
 
       let normalizedConnectionPoints = []
-      // Normalize the coordinates of connection points
       if (connectionPoints) {
         normalizedConnectionPoints = connectionPoints.map((cp) => ({
           ...cp,
@@ -2213,8 +2301,9 @@ export const useSvgStore = defineStore('svgStore', {
       const svgHeader = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${viewBox}">`
       const svgFooter = '</svg>'
       return {
-        svg: svgHeader + normalizedElements + normalizedBlocks + svgFooter,
+        svg: svgHeader + normalizedElements + svgFooter,
         connectionPoints: normalizedConnectionPoints,
+        components: normalizedComponents,
         offset: { x: minX, y: minY },
         boundingBox: { minX, minY, maxX, maxY }
       }

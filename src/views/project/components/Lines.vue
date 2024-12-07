@@ -130,31 +130,31 @@ const labelInitialPosition = ref({ x: 0, y: 0 });
 const hoverLineRef = ref(null);
 
 // Methods to handle wire drawing (existing code remains unchanged)
+// lines.vue
 const startWire = (cp, block, event) => {
+  // Get the circle element corresponding to the connection point
+  const coords = store.getSVGCoordinates(event);
+  const snappedCoords = store.snapToGrid(coords.x, coords.y);
+
+  const point = {
+    x: snappedCoords.x,
+    y: snappedCoords.y,
+    blockId: block.id,
+    connectionPointId: cp.id
+  };
+
   if (store.currentLine.length) {
     if (wireStart.value && !wireEnd.value) {
       // Finish the wire
       wireEnd.value = { block, cp };
-      const endPoint = {
-        x: wireEnd.value.block.x + wireEnd.value.cp.x,
-        y: wireEnd.value.block.y + wireEnd.value.cp.y,
-        blockId: wireEnd.value.block.id,
-        connectionPointId: wireEnd.value.cp.id
-      };
-      addPointToLine(endPoint, event.ctrlKey);
+      addPointToLine(point, event.ctrlKey);
       finishWire();
     }
   } else {
     // Start a new wire
     store.isDrawing = true;
     wireStart.value = { block, cp };
-    const startPoint = {
-      x: wireStart.value.block.x + wireStart.value.cp.x,
-      y: wireStart.value.block.y + wireStart.value.cp.y,
-      blockId: wireStart.value.block.id,
-      connectionPointId: wireStart.value.cp.id
-    };
-    addPointToLine(startPoint, event.ctrlKey);
+    addPointToLine(point, event.ctrlKey);
   }
 };
 
@@ -358,10 +358,11 @@ const handleLabelMouseMove = (event) => {
 
   event.preventDefault();
 
-  // Use SVG coordinates
   const coords = store.getSVGCoordinates(event);
-  const dx = coords.x - labelDragStart.value.x / store.modelZoomLevel;
-  const dy = coords.y - labelDragStart.value.y / store.modelZoomLevel;
+
+  // Correctly apply zoom level to the difference
+  const dx = (coords.x - labelDragStart.value.x) / store.paperZoomLevel;
+  const dy = (coords.y - labelDragStart.value.y) / store.paperZoomLevel;
 
   const newX = labelInitialPosition.value.x + dx;
   const newY = labelInitialPosition.value.y + dy;

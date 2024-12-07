@@ -10,7 +10,7 @@ const snackbarStore = useSnackbarStore();
 const props = defineProps(['show']);
 const emit = defineEmits(['closeImportSvgDialog']);
 
-const svgFile = ref<File[]>([]); // Updated to an array of File
+const svgFile = ref<File | null>(null); // Expecting a single File or null
 
 const svgFileError = ref<string | null>(null);
 const errors = ref<{ apiError: string | null }>({ apiError: null });
@@ -23,15 +23,15 @@ const onSubmit = async (event: Event) => {
     console.log('svgFile.value:', svgFile.value); // Log the value
 
     // Validate the SVG file
-    if (!svgFile.value || svgFile.value.length === 0) {
+    if (!svgFile.value) {
       svgFileError.value = 'SVG file is required';
       throw new Error('SVG file is required');
     } else {
       svgFileError.value = null;
     }
 
-    // Get the first file from the array
-    const file = svgFile.value[0];
+    // Get the file directly
+    const file = svgFile.value;
 
     // Read the SVG file
     const svgContent = await new Promise<string>((resolve, reject) => {
@@ -89,7 +89,7 @@ const onSubmit = async (event: Event) => {
   </v-dialog>
 </template>
 
-<style lang="scss">
+<style scoped>
 .projectForm {
   .v-text-field .v-field--active input {
     font-weight: 500;

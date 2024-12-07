@@ -3,9 +3,9 @@
     <line
       v-for="(line, index) in horizontalLines"
       :key="'h-' + index"
-      :x1="props.viewBox.x"
+      :x1="props.viewBox.x - padding"
       :y1="line"
-      :x2="props.viewBox.x + props.viewBox.width"
+      :x2="props.viewBox.x + props.viewBox.width + padding"
       :y2="line"
       stroke="lightgray"
       stroke-width="0.5"
@@ -14,9 +14,9 @@
       v-for="(line, index) in verticalLines"
       :key="'v-' + index"
       :x1="line"
-      :y1="props.viewBox.y"
+      :y1="props.viewBox.y - padding"
       :x2="line"
-      :y2="props.viewBox.y + props.viewBox.height"
+      :y2="props.viewBox.y + props.viewBox.height + padding"
       stroke="lightgray"
       stroke-width="0.5"
     />
@@ -36,10 +36,11 @@ const props = defineProps({
 
 const store = useSvgStore();
 const gridSize = store.gridSize;
+const padding = 100;
 
 const horizontalLines = computed(() => {
   const lines = [];
-  const yCount = Math.ceil(props.viewBox.height / gridSize) + 1;
+  const yCount = Math.ceil((props.viewBox.height + padding) / gridSize) + 1;
   for (let y = 0; y < yCount; y++) {
     const yPos = props.viewBox.y + y * gridSize - (props.viewBox.y % gridSize);
     lines.push(yPos);
@@ -49,8 +50,8 @@ const horizontalLines = computed(() => {
 
 const verticalLines = computed(() => {
   const lines = [];
-  const xCount = Math.ceil(props.viewBox.width / gridSize) + 1;
-  for (let x = 0; x < xCount; x++) {
+  const xCount = Math.ceil(props.viewBox.width + padding / gridSize) + 1;
+  for (let x = -padding; x < xCount; x++) {
     const xPos = props.viewBox.x + x * gridSize - (props.viewBox.x % gridSize);
     lines.push(xPos);
   }

@@ -375,12 +375,13 @@ const saveDrawingAsBlock = async () => {
       <IconSquarePlus2 size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
+      v-if="store.mode == 'project' && store.activeSpace == 'model'"
       @click="setLine('run')"
       class="text-secondary ml-2"
       icon
       outlined
       rounded="sm"
-      :variant="store.isDrawing && store.currentLineId == 'solid-conductor' ? 'tonal' : 'flat'"
+      :variant="store.isDrawing && store.currentLineId == 'run' ? 'tonal' : 'flat'"
     >
       <IconRoute2 style="color: black" size="20" stroke-width="1.5" />
     </v-btn>
