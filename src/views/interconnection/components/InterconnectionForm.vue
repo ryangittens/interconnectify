@@ -2,8 +2,8 @@
   <v-card @keyup.enter="goToNextGroup" tabindex="0" elevation="0" class="innerCard maxWidth">
     <v-card-text>
       <!-- Wrap the content in a flex container with full height -->
-      <perfect-scrollbar class="perfectScroll">
-        <v-container fluid class="d-flex align-center justify-center" style="height: 100%">
+      <perfect-scrollbar class="perfectScroll d-flex flex-column align-center justify-space-around">
+        <v-container fluid class="d-flex flex-column align-center justify-space-around">
           <v-row class="my-auto question" v-for="(question, index) in currentGroupQuestions" :key="index" justify="center">
             <!-- Question Label -->
             <v-col cols="12">
@@ -52,6 +52,7 @@ const snackbarStore = useSnackbarStore();
 // Import your interconnection logic and data
 import { getInterconnections } from '@/utils/interconnection';
 import SummarySection from './SummarySection.vue';
+import SelectQuestion from './SelectQuestion.vue';
 
 const inverterOptions = Inverters;
 
@@ -66,67 +67,88 @@ const serviceStyleOptions = [
     label: 'Meter-Main Combo',
     value: 'Meter-Main Combo',
     imageUrl:
-      'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/meter_main_combo.png?t=2024-10-15T05%3A50%3A19.656Z'
+      'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/meter_main_combo.png'
   },
   {
     label: 'Separate MDP',
     value: 'Separate MDP',
     imageUrl:
-      'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/separate_meter.png?t=2024-10-15T05%3A51%3A15.662Z'
+      'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/separate_meter.png'
   },
   {
     label: 'Separate Disconnect',
     value: 'Separate Disconnect',
     imageUrl:
-      'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/separate_disconnect.png?t=2024-10-15T05%3A50%3A56.222Z'
+      'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/separate_disconnect.png'
   },
   {
     label: 'Meter-Main Disconnect',
     value: 'Meter-Main Disconnect',
     imageUrl:
-      'https://yjacdiyfzruzjjafekzd.supabase.co/storage/v1/object/public/electrical_illustrations/meter_main_disconnect.png?t=2024-10-15T05%3A50%3A38.310Z'
+      'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/meter_main_disconnect.png'
   }
 ];
 
 // Define your question groups
 const questionGroups = [
+  // {
+  //   key: 'inverterMake',
+  //   questions: [
+  //     {
+  //       type: 'image',
+  //       label: 'Select your inverter make:',
+  //       key: 'inverterMake',
+  //       options: inverterMakes,
+  //       required: true
+  //     }
+  //   ],
+  //   next: 'inverterModel' // Proceed to inverterModel after make is selected
+  // },
+  // {
+  //   key: 'inverterModel',
+  //   questions: [
+  //     {
+  //       type: 'image',
+  //       label: 'Select your inverter model:',
+  //       key: 'inverterModel',
+  //       required: true
+  //       // We'll set the options dynamically based on selected make
+  //     }
+  //   ],
+  //   next: (answers) => {
+  //     let inverter = Inverters.find((inv) => inv.value === answers.inverterModel);
+  //     if (inverter && inverter.type === 'micro') {
+  //       return 'panelCount';
+  //     } else {
+  //       return 'serviceStyle';
+  //     }
+  //   }
+  // },
+  // {
+  //   key: 'inverterType',
+  //   questions: [
+  //     {
+  //       type: 'select',
+  //       label: 'Select your inverter type:',
+  //       key: 'inverterType',
+  //       options: [
+  //         { title: 'Microinverter', value: 'micro' },
+  //         { title: 'String Inverter', value: 'string' },
+  //         { title: 'Hybrid Inverter', value: 'hybrid' }
+  //       ],
+  //       required: true
+  //     }
+  //   ],
+  //   next: 'serviceStyle' // Specify the next group key
+  // },
   {
-    key: 'inverterMake',
+    key: 'inputData',
     questions: [
-      {
-        type: 'image',
-        label: 'Select your inverter make:',
-        key: 'inverterMake',
-        options: inverterMakes,
-        required: true
-      }
+      { type: 'text', label: 'Enter listed inverter continuous output current:', key: 'inverterCurrent' },
+      { type: 'text', label: 'Enter number of inverters:', key: 'numInverters' }
     ],
-    next: 'inverterModel' // Proceed to inverterModel after make is selected
-  },
-  {
-    key: 'inverterModel',
-    questions: [
-      {
-        type: 'image',
-        label: 'Select your inverter model:',
-        key: 'inverterModel',
-        required: true
-        // We'll set the options dynamically based on selected make
-      }
-    ],
-    next: (answers) => {
-      let inverter = Inverters.find((inv) => inv.value === answers.inverterModel);
-      if (inverter && inverter.type === 'micro') {
-        return 'panelCount';
-      } else {
-        return 'serviceStyle';
-      }
-    }
-  },
-  {
-    key: 'panelCount',
-    questions: [{ type: 'text', label: 'Enter the panel count:', key: 'panelCount' }],
-    next: 'inverterMake'
+    next: 'serviceStyle',
+    required: true
   },
   {
     key: 'serviceStyle',
@@ -144,8 +166,28 @@ const questionGroups = [
   {
     key: 'mainBreakerBusRatings',
     questions: [
-      { type: 'text', label: 'Enter the main breaker rating (Amps):', key: 'mainBreakerRating' },
-      { type: 'text', label: 'Enter the main bus rating (Amps):', key: 'mainBusRating' }
+      {
+        type: 'select',
+        label: 'Main breaker rating (Amps):',
+        key: 'mainBreakerRating',
+        options: [
+          { title: '200A', value: 200 },
+          { title: '150A', value: 150 },
+          { title: '100A', value: 100 }
+        ],
+        required: true
+      },
+      {
+        type: 'select',
+        label: 'Main bus rating (Amps):',
+        key: 'mainBusRating',
+        options: [
+          { title: '200A', value: 200 },
+          { title: '150A', value: 150 },
+          { title: '100A', value: 100 }
+        ],
+        required: true
+      }
     ],
     next: (answers) => {
       if (answers.serviceStyle === 'Meter-Main Combo' || answers.serviceStyle === 'Meter-Main Disconnect') {
@@ -163,8 +205,18 @@ const questionGroups = [
         label: 'Does it have a feed-through panel?',
         key: 'hasFeedthroughPanel',
         options: [
-          { label: 'Yes', value: true, imageUrl: 'https://picsum.photos/200/300?random=5' },
-          { label: 'No', value: false, imageUrl: 'https://picsum.photos/200/300?random=6' }
+          {
+            label: 'Yes',
+            value: true,
+            imageUrl:
+              'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/elec-loadtap-feedthrough-main.png'
+          },
+          {
+            label: 'No',
+            value: false,
+            imageUrl:
+              'https://omjassaddxmfutfrksbh.supabase.co/storage/v1/object/public/static-files/elec-illustrations/elec-illustrations/elec-meter-main-breaker.png'
+          }
         ]
       }
     ],
@@ -248,8 +300,25 @@ const questionGroups = [
   }
 ];
 
+const defaultAnswers = {
+  inverterCurrent: '',
+  numInverters: '',
+  serviceStyle: '',
+  mainBreakerRating: 200,
+  mainBusRating: 200,
+  hasFeedthroughPanel: false,
+  feedthroughMainRating: '',
+  feedthroughBusRating: '',
+  feedthroughConvertible: false,
+  breakerSpaceFeedthrough: false,
+  breakerSpaceMDP: false,
+  newMainBreakerRating: ''
+  // Add other keys and default values as needed
+};
+
+const answers = ref({ ...defaultAnswers });
+
 const currentGroupIndex = ref(0);
-const answers = ref({});
 const groupHistory = ref([]);
 
 const currentGroupQuestions = computed(() => {
@@ -350,6 +419,8 @@ const getQuestionComponent = (type) => {
       return ImageQuestion;
     case 'interconnection':
       return InterconnectionQuestion;
+    case 'select':
+      return SelectQuestion; // Added select type
     default:
       return null;
   }

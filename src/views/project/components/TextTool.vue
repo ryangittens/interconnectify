@@ -37,7 +37,7 @@ const handleTextClick = (text, event) => {
   if (store.activeTool) {
     store.handleSvgClick(event);
   } else {
-    selectText(text);
+    selectText(text, event);
   }
 };
 

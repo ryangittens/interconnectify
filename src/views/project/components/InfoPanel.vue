@@ -33,7 +33,7 @@
               :rounded="false"
               :label="field.label"
               :modelValue="selectedObject[field.key]"
-              @input="handleInput(field, $event.target.value)"
+              @update:modelValue="handleInput(field, $event)"
             ></v-checkbox>
           </template>
           <template v-else>

@@ -305,7 +305,7 @@ const modelPan = throttle((event) => {
   store.modelSpaceTranslate.x = modelSpaceTranslate.x;
   store.modelSpaceTranslate.y = modelSpaceTranslate.y;
 
-  updateModelViewBox();
+  //updateModelViewBox();
 }, 16);
 
 const initializeModelSpace = () => {

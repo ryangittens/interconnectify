@@ -36,15 +36,21 @@ const props = defineProps({
 
 const store = useSvgStore();
 const gridSize = store.gridSize;
-const padding = 100;
+const padding = 1000;
 
 const horizontalLines = computed(() => {
   const lines = [];
-  const yCount = Math.ceil((props.viewBox.height + padding) / gridSize) + 1;
-  for (let y = 0; y < yCount; y++) {
-    const yPos = props.viewBox.y + y * gridSize - (props.viewBox.y % gridSize);
+
+  const startY = props.viewBox.y - padding;
+  const endY = props.viewBox.y + props.viewBox.height + padding;
+
+  const firstLineY = Math.floor(startY / gridSize) * gridSize;
+  const lastLineY = Math.ceil(endY / gridSize) * gridSize;
+
+  for (let yPos = firstLineY; yPos <= lastLineY; yPos += gridSize) {
     lines.push(yPos);
   }
+
   return lines;
 });
 

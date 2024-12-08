@@ -13,7 +13,7 @@
         style="cursor: pointer"
         @mousedown.stop="handleLineMouseDown(line, $event)"
         @mouseup.stop="handleLineMouseUp($event)"
-        @click="handleLineClick(line)"
+        @click="handleLineClick(line, $event)"
       ></path>
 
       <!-- Render the label for the line -->
@@ -613,8 +613,8 @@ const handleLabelMouseUp = (event) => {
   window.removeEventListener('mouseup', handleLabelMouseUp);
 };
 
-const handleLabelClick = (line) => {
-  handleLineClick(line); // Retain the existing click behavior
+const handleLabelClick = (line, event) => {
+  handleLineClick(line, event); // Retain the existing click behavior
 };
 
 // Utility to snap label to the nearest point on the line

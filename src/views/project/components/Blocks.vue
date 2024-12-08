@@ -7,7 +7,7 @@
     :transform="`translate(${block.x}, ${block.y})`"
     :opacity="block?.active ? 1 : 0.3"
     @mousedown.stop="handleBlockMouseDown(block, $event)"
-    @click="handleBlockClick(block)"
+    @click="handleBlockClick(block, $event)"
   >
     <!-- Add this transparent rectangle to capture clicks -->
     <rect :x="0" :y="0" :width="block.width" :height="block.height" fill="transparent" style="cursor: pointer" />
@@ -23,28 +23,45 @@
       :stroke-width="isBlockSelected(block) ? 2 : 1"
     />
     <g v-else v-html="block.configurations[block.selectedConfiguration].svg"></g>
-    <!-- Selectable block elements -->
+    <!-- Selectable block elements, components -->
     <g
       v-for="component in block.configurations[block.selectedConfiguration].components"
       :key="component.id"
-      :id="`block-${component.id}`"
-      @click.stop="handleBlockClick(component)"
-      @dblclick.stop="handleCompunentDblClick(component)"
+      :id="`component-${component.id}`"
       :transform="`translate(${component.x}, ${component.y})`"
-      :opacity="component?.active ? 1 : 0.3"
-      ><g v-html="component.configurations[component.selectedConfiguration].svg"></g>
-      <circle
-        v-for="cp in component.configurations[component.selectedConfiguration].connectionPoints"
-        :id="`cp-${cp.id}`"
-        :key="cp.id"
-        :cx="cp.x"
-        :cy="cp.y"
-        r="3"
-        :fill="cp.color"
-        @click.stop="handleConnectionPointClick(cp, block, $event)"
-        :style="store.isDrawing ? 'cursor: crosshair' : 'cursor: default'"
-      />
+    >
+      <g @click.stop="handleBlockClick(component)" @dblclick.stop="handleComponentDblClick(component)" style="cursor: pointer">
+        <template v-if="component.active">
+          <g v-html="component.configurations[component.selectedConfiguration].svg"></g>
+          <!-- Component connection points -->
+          <circle
+            v-for="cp in component.configurations[component.selectedConfiguration].connectionPoints"
+            :key="cp.id"
+            :cx="cp.x"
+            :cy="cp.y"
+            r="3"
+            :fill="cp.color"
+            @click.stop="handleConnectionPointClick(cp, block, $event)"
+            :style="store.isDrawing ? 'cursor: crosshair' : 'cursor: default'"
+          />
+        </template>
+        <template v-else>
+          <!-- Calculate center position and translate placeholder -->
+          <g
+            :transform="`translate(${getComponentCenterX(component)}, ${getComponentCenterY(component)})`"
+            @dblclick.stop="handleComponentDblClick(component)"
+            @click.stop="handleBlockClick(component)"
+            style="cursor: pointer"
+          >
+            <circle cx="0" cy="0" r="10" fill="transparent" stroke="lightgray" />
+            <!-- Plus symbol -->
+            <line x1="-5" y1="0" x2="5" y2="0" stroke="lightgray" stroke-width="2" />
+            <line x1="0" y1="-5" x2="0" y2="5" stroke="lightgray" stroke-width="2" />
+          </g>
+        </template>
+      </g>
     </g>
+    <!-- Block connection points -->
     <circle
       v-for="cp in block.configurations[block.selectedConfiguration].connectionPoints"
       :id="`cp-${cp.id}`"
@@ -88,8 +105,24 @@ let connectedLineElements = []; // Store references to line elements
 
 let updatedLinePoints = new Map(); // Map to store updated points
 
-const handleCompunentDblClick = (component) => {
+const handleComponentDblClick = (component) => {
   store.updateComponentState(component, !component.active);
+};
+
+const toggleComponentActive = (component) => {
+  store.updateComponentState(component, !component.active);
+};
+
+const getComponentCenterX = (component) => {
+  // Assuming component SVG is centered at (0,0)
+  // If not, adjust calculations based on your component's dimensions
+  return component.width / 2 || 0;
+};
+
+const getComponentCenterY = (component) => {
+  // Assuming component SVG is centered at (0,0)
+  // If not, adjust calculations based on your component's dimensions
+  return component.height / 2 || 0;
 };
 
 const handleBlockMouseDown = (block, event) => {
@@ -262,8 +295,8 @@ const handleBlockMouseUp = (event) => {
   }
 };
 
-const handleBlockClick = (block) => {
-  selectBlock(block);
+const handleBlockClick = (block, event) => {
+  selectBlock(block, event);
 };
 
 const isBlockSelected = (block) => store.selectedBlock && store.selectedBlock.id === block.id;

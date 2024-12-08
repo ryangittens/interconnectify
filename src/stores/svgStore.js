@@ -114,7 +114,7 @@ export const useSvgStore = defineStore('svgStore', {
     paths: [],
     droppedTemplate: false,
     templateDropOffset: { x: 0, y: 0 },
-    selectedObject: null,
+    selectedObject: [],
     currentMoveRectCommand: null,
     mouseDownCP: null,
     isCPDragging: false,
@@ -995,9 +995,9 @@ export const useSvgStore = defineStore('svgStore', {
       }
       this.isCreatingRectangle = false
     },
-    selectConnectionPoint(cp) {
+    selectConnectionPoint(cp, event) {
       if (!this.activeTool) {
-        this.selectObject(cp) //must be first
+        this.selectObject(cp, event) //must be first
         this.selectedConnectionPoint = cp
       }
     },
@@ -1016,7 +1016,8 @@ export const useSvgStore = defineStore('svgStore', {
         y: start.y,
         width: 0,
         height: 0,
-        color: 'rgba(240, 240, 240, 0.5)',
+        //color: 'rgba(240, 240, 240, 0.5)',
+        color: 'transparent',
         stroke: 'black',
         strokeWidth: 1
       }
@@ -1085,9 +1086,9 @@ export const useSvgStore = defineStore('svgStore', {
       this.currentRectangle = null
       this.endDrawing()
     },
-    selectRectangle(rect) {
+    selectRectangle(rect, event) {
       if (!this.activeTool) {
-        this.selectObject(rect) //must be first
+        this.selectObject(rect, event) //must be first
         this.selectedRectangle = rect
       }
     },
@@ -1213,9 +1214,9 @@ export const useSvgStore = defineStore('svgStore', {
         this.selectedText = null
       }
     },
-    selectText(text) {
+    selectText(text, event) {
       if (!this.activeTool) {
-        this.selectObject(text) //must be first
+        this.selectObject(text, event) //must be first
         this.selectedText = text
       }
     },
@@ -1689,15 +1690,21 @@ export const useSvgStore = defineStore('svgStore', {
         y: Math.round(y / this.gridSize) * this.gridSize
       }
     },
-    selectBlock(block) {
+    selectBlock(block, event) {
       if (!this.activeTool) {
-        this.selectObject(block) //must be first
+        this.selectObject(block, event) //must be first
         this.selectedBlock = block
       }
     },
-    selectObject(obj) {
-      this.deselectAll()
-      this.selectedObject = obj
+    selectObject(obj, event) {
+      if (event && (event.ctrlKey || event.metaKey)) {
+        this.selectedObject.push(obj)
+
+      } else {
+        this.deselectAll()
+        this.selectedObject.push(obj)
+      }
+
     },
     deleteBlock(block) {
       this.blocks = this.blocks.filter((b) => b.id !== block.id)
@@ -1789,9 +1796,9 @@ export const useSvgStore = defineStore('svgStore', {
     setLineCategory(cat) {
       this.lineCategory = cat
     },
-    selectLine(line) {
+    selectLine(line, event) {
       if (!this.activeTool) {
-        this.selectObject(line) //must be first
+        this.selectObject(line, event) //must be first
         this.selectedLine = line
       }
     },
@@ -2427,7 +2434,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.showGrid = !this.showGrid
     },
     getSelectedObject() {
-      return this.selectedObject
+      return this.selectedObject[this.selectedObject.length - 1]
       // if (this.selectedBlock) {
       //   return this.selectedBlock;
       // }
@@ -2445,7 +2452,7 @@ export const useSvgStore = defineStore('svgStore', {
       // }
     },
     deselectAll() {
-      this.selectedObject = null
+      this.selectedObject = []
       this.selectedText = null
       this.selectedBlock = null
       this.selectedLine = null

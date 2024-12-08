@@ -1,5 +1,5 @@
 <template>
-  <template v-for="option in question.options" :key="option.value" style="cursor: pointer">
+  <template v-for="option in question.options" :key="option.label" style="cursor: pointer">
     <v-col>
       <v-card
         :class="['image-option', { selected: isSelected(option.value) }]"

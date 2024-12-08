@@ -50,7 +50,7 @@ let currentRectangle = null;
 
 const handleRectangleClick = (rect, event) => {
   if (!store.activeTool) {
-    store.selectRectangle(rect);
+    store.selectRectangle(rect, event);
   }
 };
 
