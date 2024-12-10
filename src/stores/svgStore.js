@@ -60,6 +60,8 @@ export const useSvgStore = defineStore('svgStore', {
     selectedBlock: null,
     selectedLine: null, // Add this
     isDrawing: false,
+    isClouding: false,
+    isCreatingCloud: false,
     lineType: 'solid',
     lineColor: '#000000',
     lineCategory: null,
@@ -133,6 +135,8 @@ export const useSvgStore = defineStore('svgStore', {
     initialCPPosition: { x: 0, y: 0 },
     initialTextPosition: { x: 0, y: 0 },
     linesRef: null,
+    cloudsRef: null,
+    clouds: [],
     pageSize: { width: 1224, height: 792 },
     showConductorSchedulePanel: false,
     pageOptions: [
@@ -864,6 +868,16 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.isDrawing) {
         this.linesRef.handleSvgClickLineDrawing(event)
       }
+      if (this.isClouding) {
+        if (this.isCreatingCloud) {
+          this.cloudsRef.finishCloudDrawing(event)
+        } else {
+          this.isCreatingCloud = true
+          this.cloudsRef.startCloudDrawing(event)
+        }
+
+      }
+
       if (this.activeTool == 'rectangle' && !this.isCreatingRectangle) {
         this.startRectangle(event)
       }
@@ -878,7 +892,12 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.activeTool === 'connectionPoint' && this.selectedBlock) {
         const coords = this.getSVGCoordinates(event)
         let text = this.createText(coords)
-        historyStore.executeCommand(new AddTextCommand(text, this))
+        historyStore.executeCommand(new AddConnectionPointCommand(text, this))
+      }
+      if (this.activeTool === 'cloud') {
+        //const coords = this.getSVGCoordinates(event)
+        //let text = this.createText(coords)
+        //historyStore.executeCommand(new AddTextCommand(text, this))
       }
     },
     clearAxes() {
@@ -1184,6 +1203,14 @@ export const useSvgStore = defineStore('svgStore', {
       if (this.selectedConnectionPoint && this.selectedConnectionPoint.id === cp.id) {
         this.selectedConnectionPoint = null
       }
+    },
+    //----------------- CLOUD FUNCTIONS -----------------//
+    startCloudTool() {
+      this.isClouding = true
+      this.activeTool = 'cloud'
+    },
+    setCloudsRef(refs) {
+      this.cloudsRef = refs
     },
     //----------------- TEXT FUNCTIONS -----------------//
 

@@ -22,7 +22,8 @@ import {
   IconPointFilled,
   IconFileTypeSvg,
   IconFileTypePdf,
-  IconFileArrowLeft
+  IconFileArrowLeft,
+  IconCloudPlus
 } from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
@@ -57,6 +58,11 @@ const setRectangleTool = () => {
 const startTextTool = () => {
   store.endDrawing();
   store.startTextTool();
+};
+
+const setCloudTool = () => {
+  store.endDrawing();
+  store.startCloudTool();
 };
 
 const startConnectionPointsTool = (type) => {
@@ -381,6 +387,9 @@ const saveDrawingAsBlock = async () => {
       :variant="isActive('rectangle') ? 'tonal' : 'flat'"
     >
       <IconSquarePlus2 size="20" stroke-width="1.5" />
+    </v-btn>
+    <v-btn @click="setCloudTool" class="text-secondary ml-2" icon outlined rounded="sm" :variant="isActive('cloud') ? 'tonal' : 'flat'">
+      <IconCloudPlus size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
       v-if="store.mode == 'project' && store.activeSpace == 'model'"

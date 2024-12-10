@@ -1,19 +1,8 @@
 <template>
-  <g ref="linesContainer">
-    <!-- Drawing Mode Toggle -->
-    <v-btn-toggle v-model="drawingMode" mandatory class="mb-2">
-      <v-btn value="line">Line Mode</v-btn>
-      <v-btn value="cloud">Cloud Mode</v-btn>
-    </v-btn-toggle>
-
-    <!-- Existing lines -->
-    <g v-for="line in store.lines" :key="line.id">
-      <!-- Line rendering logic -->
-    </g>
-
+  <g ref="cloudsContainer">
     <!-- Clouds -->
     <g v-for="cloud in store.clouds" :key="cloud.id">
-      <path :d="generateCloudPath(cloud.points)" stroke="blue" fill="none" stroke-width="2" stroke-dasharray="5,5"></path>
+      <path :d="generateCloudPath(cloud.points)" stroke="blue" fill="none" stroke-width="2" stroke-linejoin="round"></path>
     </g>
 
     <!-- Hover Cloud Path -->
@@ -23,37 +12,25 @@
       stroke="blue"
       fill="none"
       stroke-width="2"
-      stroke-dasharray="5,5"
+      stroke-linejoin="round"
     ></path>
   </g>
 </template>
 
 <script setup>
-import { ref, onBeforeUnmount, computed } from 'vue';
+import { ref, onBeforeUnmount } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { uuid } from 'vue-uuid';
 
 const store = useSvgStore();
 
-// Drawing mode: 'line' or 'cloud'
-const drawingMode = ref('line');
-
 // Cloud drawing state
 const isDrawingCloud = ref(false);
 const currentCloudPoints = ref([]);
 
-const startDrawing = (event) => {
-  if (drawingMode.value === 'cloud') {
-    startCloudDrawing(event);
-  } else {
-    startLineDrawing(event);
-  }
-};
-
 const startCloudDrawing = (event) => {
   const coords = store.getSVGCoordinates(event);
-  const snappedCoords = store.snapToGrid(coords.x, coords.y);
-  currentCloudPoints.value = [{ x: snappedCoords.x, y: snappedCoords.y }];
+  currentCloudPoints.value = [{ x: coords.x, y: coords.y }];
   isDrawingCloud.value = true;
   window.addEventListener('mousemove', handleCloudMouseMove);
   window.addEventListener('mouseup', finishCloudDrawing);
@@ -62,8 +39,7 @@ const startCloudDrawing = (event) => {
 const handleCloudMouseMove = (event) => {
   if (!isDrawingCloud.value) return;
   const coords = store.getSVGCoordinates(event);
-  const snappedCoords = store.snapToGrid(coords.x, coords.y);
-  currentCloudPoints.value.push({ x: snappedCoords.x, y: snappedCoords.y });
+  currentCloudPoints.value.push({ x: coords.x, y: coords.y });
 };
 
 const finishCloudDrawing = () => {
@@ -81,40 +57,112 @@ const finishCloudDrawing = () => {
 };
 
 const generateCloudPath = (points) => {
-  let path = '';
-  const scallopRadius = 10; // Adjust for desired scallop size
-  if (points.length > 1) {
-    path += `M ${points[0].x} ${points[0].y} `;
+  if (points.length < 2) return '';
+
+  const scallopRadius = 10; // Fixed scallop radius
+  const maxSkip = 15; // Maximum number of points to skip between scallops
+  const minSkip = 5; // Minimum number of points to skip between scallops
+
+  // Estimate the total length of the cloud path
+  const estimateCloudLength = (points) => {
+    let length = 0;
     for (let i = 1; i < points.length; i++) {
-      const prevPoint = points[i - 1];
-      const currPoint = points[i];
-      const midPoint = {
-        x: (prevPoint.x + currPoint.x) / 2,
-        y: (prevPoint.y + currPoint.y) / 2
-      };
-      path += `Q ${prevPoint.x} ${prevPoint.y} ${midPoint.x} ${midPoint.y} `;
+      const dx = points[i].x - points[i - 1].x;
+      const dy = points[i].y - points[i - 1].y;
+      length += Math.hypot(dx, dy);
     }
-    // Close the cloud path
-    path += 'Z';
+    return length;
+  };
+
+  const totalLength = estimateCloudLength(points);
+
+  // Adjust scallop parameters based on total length
+  const scallopLength = 100; // Desired length of each scallop
+  const desiredScallops = Math.max(5, Math.floor(totalLength / scallopLength));
+
+  // Calculate skip value with a maximum limit
+  const calculatedSkip = Math.max(minSkip, Math.floor(points.length / desiredScallops));
+  const skip = Math.min(calculatedSkip, maxSkip);
+
+  // Reduce the number of points by skipping some
+  const reducedPoints = [];
+  for (let i = 0; i < points.length; i += skip) {
+    reducedPoints.push(points[i]);
   }
+  // Ensure the last point is included
+  if ((points.length - 1) % skip !== 0 || reducedPoints[reducedPoints.length - 1] !== points[points.length - 1]) {
+    reducedPoints.push(points[points.length - 1]);
+  }
+
+  let path = `M ${reducedPoints[0].x} ${reducedPoints[0].y} `;
+
+  // Loop through all segments, including the closing segment
+  for (let i = 0; i < reducedPoints.length - 1; i++) {
+    const start = reducedPoints[i];
+    const end = reducedPoints[i + 1];
+
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+    const dist = Math.hypot(dx, dy);
+
+    if (dist === 0) {
+      continue; // Skip identical points
+    }
+
+    const midX = (start.x + end.x) / 2;
+    const midY = (start.y + end.y) / 2;
+
+    // Calculate normal vectors
+    const nx = -dy / dist;
+    const ny = dx / dist;
+
+    const cpX = midX + scallopRadius * nx;
+    const cpY = midY + scallopRadius * ny;
+
+    path += `Q ${cpX} ${cpY} ${end.x} ${end.y} `;
+  }
+
+  // Handle the closing segment
+  const closingStart = reducedPoints[reducedPoints.length - 1];
+  const closingEnd = reducedPoints[0];
+  const closingDx = closingEnd.x - closingStart.x;
+  const closingDy = closingEnd.y - closingStart.y;
+  const closingDist = Math.hypot(closingDx, closingDy);
+
+  if (closingDist > 0) {
+    const numClosingScallops = Math.max(1, Math.floor(closingDist / (scallopRadius * 2)));
+    for (let i = 0; i < numClosingScallops; i++) {
+      const t = i / numClosingScallops;
+      const nextT = (i + 1) / numClosingScallops;
+
+      const startX = closingStart.x + t * closingDx;
+      const startY = closingStart.y + t * closingDy;
+      const endX = closingStart.x + nextT * closingDx;
+      const endY = closingStart.y + nextT * closingDy;
+
+      const midX = (startX + endX) / 2;
+      const midY = (startY + endY) / 2;
+
+      const nx = -closingDy / closingDist;
+      const ny = closingDx / closingDist;
+
+      const cpX = midX + scallopRadius * nx;
+      const cpY = midY + scallopRadius * ny;
+
+      path += `Q ${cpX} ${cpY} ${endX} ${endY} `;
+    }
+  }
+
+  path += 'Z';
   return path;
 };
 
-// Existing line drawing functions
-const startLineDrawing = (event) => {
-  // Line drawing logic
-};
+defineExpose({
+  handleCloudMouseMove,
+  startCloudDrawing,
+  finishCloudDrawing
+});
 
-// Handle SVG canvas events
-const handleSvgMouseDown = (event) => {
-  if (drawingMode.value === 'cloud') {
-    startCloudDrawing(event);
-  } else {
-    // Existing line drawing logic
-  }
-};
-
-// Cleanup
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', handleCloudMouseMove);
   window.removeEventListener('mouseup', finishCloudDrawing);

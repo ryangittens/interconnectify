@@ -38,7 +38,7 @@
                 <!-- Split Appliances into Two Columns -->
                 <v-row class="mb-8">
                   <!-- First Half of Appliances -->
-                  <v-col cols="12" md="6" class="mt-2">
+                  <v-col cols="12" lg="6" class="mt-2">
                     <v-data-table :headers="headers" :items="firstHalf(category.appliances)" class="elevation-1" dense hide-default-footer>
                       <template v-slot:item.name="{ item }">
                         <div class="d-flex align-center">
@@ -91,7 +91,7 @@
                   </v-col>
 
                   <!-- Second Half of Appliances -->
-                  <v-col cols="12" md="6" class="mt-2">
+                  <v-col cols="12" lg="6" class="mt-2">
                     <v-data-table :headers="headers" :items="secondHalf(category.appliances)" class="elevation-1" dense hide-default-footer>
                       <template v-slot:item.name="{ item }">
                         <div class="d-flex align-center">
@@ -672,6 +672,6 @@ export default {
 <style scoped>
 .perfectScroll {
   width: 100%;
-  height: calc(100vh - 350px);
+  height: calc(100vh - 326px);
 }
 </style>

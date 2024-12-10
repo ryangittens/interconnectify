@@ -18,7 +18,7 @@
 
         <PaperTitleBlock />
         <ConductorScheduleSvg :x="55" :y="65" />
-        <Clouds />
+        <Clouds ref="cloudsRef" />
       </g>
       <!-- Model Space Group -->
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
@@ -32,6 +32,7 @@
       </g>
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
+    {{ store.texts }}
   </div>
 </template>
 
@@ -133,6 +134,7 @@ const axesContainer = ref(null);
 
 // Reference to the Lines component
 const linesRef = ref(null);
+const cloudsRef = ref(null);
 
 // Local variables for line drawing
 const isPanning = ref(false);
@@ -343,6 +345,7 @@ const initSVG = () => {
   initializeModelSpace();
 
   store.setLinesRef(linesRef.value);
+  store.setCloudsRef(cloudsRef.value);
 };
 
 const resizeSVG = () => {
