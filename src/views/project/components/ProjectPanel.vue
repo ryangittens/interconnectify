@@ -179,7 +179,11 @@ const saveDrawing = async () => {
     const project_svg = svgToDataUrl(store.svg);
 
     // Update the project in the database
-    const { data, error } = await supabase.from('projects').update({ drawing: allPages, project_svg }).eq('id', project.id);
+    const { data, error } = await supabase
+      .schema('interconnectify')
+      .from('projects')
+      .update({ drawing: allPages, project_svg })
+      .eq('id', project.id);
 
     if (error) {
       throw error;
@@ -212,7 +216,11 @@ const saveDrawingAsBlock = async () => {
     const block_svg = svgToDataUrl(store.svg);
 
     // Update the project in the database
-    const { data, error } = await supabase.from('blocks').update({ drawing: allPages, block_svg }).eq('id', project.id);
+    const { data, error } = await supabase
+      .schema('interconnectify')
+      .from('blocks')
+      .update({ drawing: allPages, block_svg })
+      .eq('id', project.id);
 
     if (error) {
       throw error;
@@ -231,7 +239,7 @@ const saveDrawingAsBlock = async () => {
 // const saveDrawingAsBlock = async () => {
 //   try {
 //     const drawing = serializeState();
-//     const { data, error: updateError } = await supabase.from('blocks').update({ drawing }).eq('id', project.id);
+//     const { data, error: updateError } = await supabase.schema('interconnectify').from('blocks').update({ drawing }).eq('id', project.id);
 
 //     if (updateError) {
 //       throw updateError;
@@ -244,7 +252,7 @@ const saveDrawingAsBlock = async () => {
 //   }
 //   try {
 //     const block_svg = svgToDataUrl(store.svg);
-//     const { data, error: updateError } = await supabase.from('blocks').update({ block_svg }).eq('id', project.id);
+//     const { data, error: updateError } = await supabase.schema('interconnectify').from('blocks').update({ block_svg }).eq('id', project.id);
 
 //     if (updateError) {
 //       throw updateError;

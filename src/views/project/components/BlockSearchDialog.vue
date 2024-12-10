@@ -152,6 +152,7 @@ const fetchBlocks = async () => {
   try {
     loading.value = true;
     let { data, error, count } = await supabase
+      .schema('interconnectify')
       .from('blocks')
       .select('*', { count: 'exact' })
       .ilike('block_name', `%${searchQuery.value}%`)
@@ -186,6 +187,7 @@ const fetchTemplates = async () => {
   try {
     loading.value = true;
     let { data, error, count } = await supabase
+      .schema('interconnectify')
       .from('templates')
       .select('*', { count: 'exact' })
       .ilike('project_name', `%${searchQuery.value}%`)

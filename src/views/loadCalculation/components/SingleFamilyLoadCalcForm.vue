@@ -1,7 +1,7 @@
 <template>
   <v-card elevation="0" class="innerCard maxWidth">
     <v-card-text>
-      <div class="d-flex align-center justify-space-between mb-4 flex-row">
+      <div class="d-flex align-center justify-space-between mb-n1 flex-row">
         <h4 class="text-h4">Dwelling Unit Service Load Calculation</h4>
 
         <v-btn-toggle class="mr-3" v-model="calculationMethod" density="compact">
@@ -9,6 +9,8 @@
           <v-btn value="Optional"> Optional </v-btn>
         </v-btn-toggle>
       </div>
+
+      <p>Enter living floor area to get started.</p>
       <v-form v-model="valid">
         <perfect-scrollbar class="perfectScroll">
           <v-row class="ma-0">
@@ -449,7 +451,7 @@
   <v-card elevation="0" class="innerCard maxWidth">
     <div class="mt-2">
       <!-- Final Load Calculation -->
-      <v-card-title>Final Calculation</v-card-title>
+      <v-card-title class="ml-2">Final Calculation</v-card-title>
       <v-card-text style="min-height: 84px">
         <div v-show="propertyData.squareFootage">
           <v-row class="d-flex justify-space-between align-center">
@@ -497,17 +499,8 @@
 
 <script>
 import * as pdfMake from 'pdfmake/build/pdfmake';
+import pdfFonts from '@/utils/fonts';
 
-// PDF Fonts
-const pdfFonts = {
-  // download default Roboto font from cdnjs.com
-  Roboto: {
-    normal: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Regular.ttf',
-    bold: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Medium.ttf',
-    italics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-Italic.ttf',
-    bolditalics: 'https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/fonts/Roboto/Roboto-MediumItalic.ttf'
-  }
-};
 import { useSnackbarStore } from '@/stores/snackbar';
 
 const snackbarStore = useSnackbarStore();

@@ -18,6 +18,7 @@
 
         <PaperTitleBlock />
         <ConductorScheduleSvg :x="55" :y="65" />
+        <Clouds />
       </g>
       <!-- Model Space Group -->
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
@@ -52,6 +53,7 @@ import RectangleTool from './RectangleTool.vue';
 import TextTool from './TextTool.vue';
 import ConnectionPointsTool from './ConnectionPointsTool.vue';
 import PaperTitleBlock from './PaperTitleBlock.vue'; // New component
+import Clouds from './Clouds.vue';
 
 import {
   StopDrawingCommand,

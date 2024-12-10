@@ -41,7 +41,7 @@ const deleteBlock = async (blockId) => {
   if (!confirmed) return;
 
   try {
-    const { error: deleteError } = await supabase.from('blocks').delete().eq('id', blockId);
+    const { error: deleteError } = await supabase.schema('interconnectify').from('blocks').delete().eq('id', blockId);
 
     if (deleteError) {
       throw deleteError;
@@ -81,6 +81,7 @@ const fetchBlocks = async () => {
       error: fetchError,
       count
     } = await supabase
+      .schema('interconnectify')
       .from('blocks')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)

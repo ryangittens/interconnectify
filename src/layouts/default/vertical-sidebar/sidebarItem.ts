@@ -1,4 +1,13 @@
-import { CubeIcon, DashboardIcon, PlusIcon, TemplateIcon, PlugConnectedIcon, ListDetailsIcon, HomeBoltIcon } from 'vue-tabler-icons';
+import {
+  CubeIcon,
+  DashboardIcon,
+  PlusIcon,
+  TemplateIcon,
+  PlugConnectedIcon,
+  ListDetailsIcon,
+  HomeBoltIcon,
+  Battery2Icon
+} from 'vue-tabler-icons';
 
 export interface menu {
   header?: string;
@@ -42,6 +51,11 @@ const sidebarItem: menu[] = [
     title: 'Load Calculation',
     icon: HomeBoltIcon,
     to: '/tools/loadCalculation'
+  },
+  {
+    title: 'Battery Estimator',
+    icon: Battery2Icon,
+    to: '/tools/batteryEstimator'
   }
 
   // {

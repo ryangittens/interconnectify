@@ -24,7 +24,7 @@ const mode = computed(() => (table.value == 'blocks' ? 'block' : 'project'));
 
 const fetchProject = async () => {
   try {
-    const { data, error: fetchError } = await supabase.from(table.value).select('*').eq('id', projectId).single();
+    const { data, error: fetchError } = await supabase.schema('interconnectify').from(table.value).select('*').eq('id', projectId).single();
 
     if (fetchError) {
       throw fetchError;
@@ -42,7 +42,12 @@ const fetchProject = async () => {
 const handleProjectUpdate = async (updatedNotes) => {
   project.value.notes = updatedNotes;
   try {
-    const { data, error: persistError } = await supabase.from(table.value).update({ notes: updatedNotes }).eq('id', projectId).single();
+    const { data, error: persistError } = await supabase
+      .schema('interconnectify')
+      .from(table.value)
+      .update({ notes: updatedNotes })
+      .eq('id', projectId)
+      .single();
 
     if (persistError) {
       throw persistError;

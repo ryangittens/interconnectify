@@ -34,6 +34,7 @@ const fetchProjects = async () => {
       error: fetchError,
       count
     } = await supabase
+      .schema('interconnectify')
       .from('projects')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)

@@ -35,6 +35,11 @@ const MainRoutes = {
       name: 'Interconnection',
       path: '/tools/interconnection',
       component: () => import('@/views/interconnection/InterconnectionTool.vue')
+    },
+    {
+      name: 'Battery Estimator',
+      path: '/tools/batteryEstimator',
+      component: () => import('@/views/batteryEstimator/BatteryEstimator.vue')
     }
   ]
 };

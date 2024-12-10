@@ -47,7 +47,7 @@ const onSubmit = handleSubmit(async (values) => {
       newBlock.project_description = newBlock.project_description;
     }
 
-    const { data, error } = await supabase.from('blocks').insert(newBlock).select('*'); // Ensure to select the inserted record
+    const { data, error } = await supabase.schema('interconnectify').from('blocks').insert(newBlock).select('*'); // Ensure to select the inserted record
 
     if (error) {
       throw error;

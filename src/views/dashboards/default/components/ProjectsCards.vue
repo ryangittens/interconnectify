@@ -46,7 +46,7 @@ const deleteProject = async (projectId) => {
   if (!confirmed) return;
 
   try {
-    const { error: deleteError } = await supabase.from('projects').delete().eq('id', projectId);
+    const { error: deleteError } = await supabase.schema('interconnectify').from('projects').delete().eq('id', projectId);
 
     if (deleteError) {
       throw deleteError;
@@ -79,6 +79,7 @@ const fetchProjects = async () => {
       error: fetchError,
       count
     } = await supabase
+      .schema('interconnectify')
       .from('projects')
       .select('*', { count: 'exact' })
       .eq('user_id', user.id)
@@ -110,7 +111,7 @@ const saveProjectAsTemplate = async (project: {}) => {
       project_description: project.project_description
     };
 
-    const { data, error } = await supabase.from('templates').insert(newTemplate).select('*'); // Ensure to select the inserted record
+    const { data, error } = await supabase.schema('interconnectify').from('templates').insert(newTemplate).select('*'); // Ensure to select the inserted record
 
     if (error) {
       throw error;

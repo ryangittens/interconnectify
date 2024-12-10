@@ -10,7 +10,8 @@ const show1 = ref(false);
 
 const schema = yup.object({
   email: yup.string().email('E-mail must be valid').required('E-mail is required'),
-  password: yup.string().required('Password is required').max(10, 'Password must be less than 10 characters')
+  //password: yup.string().required('Password is required').max(10, 'Password must be less than 10 characters')
+  password: yup.string().required('Password is required')
 });
 
 const { handleSubmit, errors, isSubmitting } = useForm({
