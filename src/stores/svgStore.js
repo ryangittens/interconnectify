@@ -50,8 +50,9 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'blocks', type: 'block' },
     ],
     activeSpace: 'model', //model or paper
-    pageStates: [],
+    pageStates: [{ page: { name: 'Page 1' }, drawing: null }],
     currentPageIndex: 0,
+    currentPage: { name: 'Page 1' },
     isProjectLoaded: false,
     modelSpaceTranslate: { x: 0, y: 0 },
     modelSpaceScale: 1,
@@ -412,7 +413,15 @@ export const useSvgStore = defineStore('svgStore', {
     ]
   }),
   getters: {
-
+    pages(state) {
+      let pages = state.pageStates.map((pageState, index) => {
+        return {
+          name: pageState?.page?.name,
+          index: index,
+        }
+      })
+      return pages
+    },
     wireRuns(state) {
       return state.lines.filter(line => line.category == 'run')
     },
@@ -795,11 +804,26 @@ export const useSvgStore = defineStore('svgStore', {
     },
     addNewPage() {
       // Add a new empty page state
-      this.pageStates.push(null)
-
+      if (this.mode === 'project') {
+        const newPage = {
+          page: { name: `Page ${this.pageStates.length + 1}` },
+          drawing: null
+        }
+        this.pageStates.push(newPage)
+      } else if (this.mode === 'block') {
+        const newPage = {
+          page: { name: `Page ${this.pageStates.length + 1}` },
+          drawing: this.pageStates[this.currentPageIndex].drawing
+        }
+        this.pageStates.push(newPage)
+      }
       // Set current page index to the new page
       this.currentPageIndex = this.pageStates.length - 1
-
+    },
+    renamePage(index, newName) {
+      if (this.pageStates[index]) {
+        this.pageStates[index].page.name = newName
+      }
     },
     loadPages(states) {
       this.pageStates = states
@@ -819,7 +843,7 @@ export const useSvgStore = defineStore('svgStore', {
         this.serializeCurrentPage()
       }
       // Deserialize and load the new page's state
-      const serializedState = this.pageStates[index]
+      const serializedState = this.pageStates[index].drawing
       if (serializedState) {
         this.deserializeState(serializedState)
       } else {
@@ -1855,17 +1879,22 @@ export const useSvgStore = defineStore('svgStore', {
         savedViewBox: this.viewBox,
         paperZoomLevel: this.paperZoomLevel,
         modelSpaceTranslate: this.modelSpaceTranslate,
-        modelSpaceScale: this.modelSpaceScale
+        modelSpaceScale: this.modelSpaceScale,
+        page: this.currentPage
       })
     },
     setPaperZoomLevel(level) {
       this.paperZoomLevel = level
     },
-
     serializeCurrentPage(pageIndex) {
       const serializedState = this.serializeState()
       const index = (pageIndex !== undefined && pageIndex !== null) ? pageIndex : this.currentPageIndex
-      this.pageStates[index] = serializedState
+      if (!this.pageStates[index]) {
+        this.pageStates[index] = { page: { name: "Page 1" }, drawing: null }
+      } else {
+        this.pageStates[index].drawing = serializedState
+      }
+
     },
     svgToDataUrl(svgElement) {
       const serializer = new XMLSerializer()
@@ -1899,7 +1928,7 @@ export const useSvgStore = defineStore('svgStore', {
       this.savedViewBox = data?.savedViewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight }
       this.modelSpaceTranslate = data?.modelSpaceTranslate || { x: 0, y: 0 }
       this.modelSpaceScale = data?.modelSpaceScale || 1
-
+      this.currentPage = data?.page || { name: "Page" }
     },
     startImportTemplate(template, event) {
       this.selectBlock(null)
@@ -2019,17 +2048,10 @@ export const useSvgStore = defineStore('svgStore', {
 
       const block = data
       // Parse block.drawing if it's a JSON string
-      let drawings = block.drawing
-      if (typeof drawings === 'string') {
-        try {
-          drawings = JSON.parse(drawings)
-        } catch (err) {
-          console.error('Invalid JSON in block.drawing:', err)
-          return
-        }
-      }
+      let pages = block.drawing
 
-      if (!Array.isArray(drawings)) {
+
+      if (!Array.isArray(pages)) {
         console.error('block.drawing should be an array')
         return
       }
@@ -2038,9 +2060,9 @@ export const useSvgStore = defineStore('svgStore', {
       const svgCenter = this.getSvgCenter()
 
       // Prepare configurations array
-      const configurations = drawings.map((drawing, index) => {
+      const configurations = pages.map((page, index) => {
         const elements = []
-        const drawingObject = JSON.parse(drawing)
+        const drawingObject = JSON.parse(page.drawing)
         for (const { prop, type } of this.elementTypes) {
           if (drawingObject && Array.isArray(drawingObject[prop])) {
             const items = drawingObject[prop]
@@ -2059,6 +2081,7 @@ export const useSvgStore = defineStore('svgStore', {
 
         //configuration object
         return {
+          name: page.page.name,
           elements,
           svg,
           connectionPoints: connectionPoints || [],

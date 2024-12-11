@@ -32,7 +32,6 @@
       </g>
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
-    {{ store.texts }}
   </div>
 </template>
 

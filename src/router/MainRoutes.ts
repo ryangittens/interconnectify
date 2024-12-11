@@ -40,6 +40,11 @@ const MainRoutes = {
       name: 'Battery Estimator',
       path: '/tools/batteryEstimator',
       component: () => import('@/views/batteryEstimator/BatteryEstimator.vue')
+    },
+    {
+      name: 'SDL Projects',
+      path: '/sdlProjects',
+      component: () => import('@/views/dashboards/sdlProjects/SdlProjects.vue')
     }
   ]
 };

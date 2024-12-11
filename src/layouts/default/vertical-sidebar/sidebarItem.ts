@@ -6,7 +6,8 @@ import {
   PlugConnectedIcon,
   ListDetailsIcon,
   HomeBoltIcon,
-  Battery2Icon
+  Battery2Icon,
+  SunriseIcon
 } from 'vue-tabler-icons';
 
 export interface menu {
@@ -56,6 +57,11 @@ const sidebarItem: menu[] = [
     title: 'Battery Estimator',
     icon: Battery2Icon,
     to: '/tools/batteryEstimator'
+  },
+  {
+    title: 'SDL Projects',
+    icon: SunriseIcon,
+    to: '/sdlProjects'
   }
 
   // {

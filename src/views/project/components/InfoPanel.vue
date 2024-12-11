@@ -149,7 +149,9 @@ const drawerFields = computed(() => {
         key: 'selectedConfiguration',
         inputType: 'select',
         type: 'number',
-        options: selectedObject.value.configurations.map((_, index) => index),
+        options: selectedObject.value.configurations.map((config, index) => {
+          return { title: config.name, value: index };
+        }),
         onUpdate: (element, key, newValue) => {
           historyStore.executeCommand(new SetBlockConfigCommand(element, newValue, store));
         }
