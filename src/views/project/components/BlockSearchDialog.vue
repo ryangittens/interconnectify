@@ -1,23 +1,21 @@
 <template>
-  <v-dialog :model-value="show" @update:model-value="$emit('closeBlockDialog')" width="800">
-    <v-card elevation="0" class="innerCard maxWidth" title="Blocks">
-      <v-layout>
-        <v-navigation-drawer permanent>
-          <v-divider></v-divider>
-          <perfect-scrollbar>
-            <v-list nav>
-              <v-list-item v-for="filter in filters" :key="filter" @click="applyFilter(filter)">
-                <v-list-item-title>{{ filter }}</v-list-item-title>
-              </v-list-item>
-              <v-list-item @click="getTemplates">
-                <v-list-item-title>Templates</v-list-item-title>
-              </v-list-item>
-            </v-list>
-          </perfect-scrollbar>
-        </v-navigation-drawer>
-        <v-main style="height: 450px">
-          <v-card elevation="0" class="innerCard maxWidth">
-            <v-card-text class="pt-0">
+  <v-dialog :model-value="show" @update:model-value="$emit('closeBlockDialog')" max-width="1200" height="600">
+    <v-card elevation="0">
+      <v-layout class="innerCard maxWidth d-flex flex-row" style="width: 100%">
+        <v-layout class="d-flex flex-column flex-grow-0 flex-shrink-0">
+          <v-card-title>Blocks</v-card-title>
+          <v-list style="width: max-content">
+            <v-list-item v-for="filter in filters" :key="filter" @click="applyFilter(filter)">
+              <v-list-item-title>{{ filter }}</v-list-item-title>
+            </v-list-item>
+            <v-list-item @click="getTemplates">
+              <v-list-item-title>Templates</v-list-item-title>
+            </v-list-item>
+          </v-list>
+        </v-layout>
+        <v-layout class="flex-grow-1 flex-shrink-1">
+          <v-layout elevation="0" class="maxWidth">
+            <v-card-text>
               <div class="d-flex align-center justify-space-between">
                 <v-text-field
                   v-model="searchQuery"
@@ -32,8 +30,8 @@
                   </template>
                 </v-text-field>
               </div>
-              <div v-if="showTemplates" class="d-flex mt-4">
-                <perfect-scrollbar style="height: inherit">
+              <perfect-scrollbar style="height: 100%; padding-bottom: 40px">
+                <div v-if="showTemplates" class="d-flex mt-4">
                   <v-row class="ma-0">
                     <template v-for="(template, i) in templates" :key="i">
                       <v-col>
@@ -43,7 +41,7 @@
                           max-width="344"
                           min-width="244"
                         >
-                          <!-- <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img> -->
+                          <v-img class="align-end" color="lightprimary" height="200px" cover :src="template.project_svg"></v-img>
                           <v-card-actions>
                             <div class="cursorPointer">
                               <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
@@ -55,10 +53,8 @@
                       </v-col>
                     </template>
                   </v-row>
-                </perfect-scrollbar>
-              </div>
-              <div v-else class="d-flex mt-4">
-                <perfect-scrollbar style="height: inherit">
+                </div>
+                <div v-else class="d-flex mt-4">
                   <v-row class="ma-0">
                     <template v-for="(block, i) in filteredBlocks" :key="i">
                       <v-col>
@@ -68,7 +64,7 @@
                           max-width="344"
                           min-width="244"
                         >
-                          <!-- <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img> -->
+                          <v-img class="align-end" color="lightprimary" height="200px" cover :src="block.block_svg"></v-img>
                           <v-card-actions>
                             <div class="cursorPointer">
                               <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
@@ -80,37 +76,35 @@
                       </v-col>
                     </template>
                   </v-row>
-                </perfect-scrollbar>
-              </div>
-              <div class="text-center mt-2">
-                <v-btn color="primary" variant="text">
-                  <template v-slot:append>
-                    <v-btn @click="prevPage" :disabled="currentPage === 1" color="primary" variant="text">
-                      Previous
-                      <template v-slot:prepend>
-                        <ChevronLeftIcon stroke-width="1.5" width="20" />
-                      </template>
-                    </v-btn>
-                  </template>
-                </v-btn>
-                <span>{{ currentPage }} / {{ totalPages }}</span>
-                <v-btn color="primary" variant="text">
-                  <template v-slot:append>
-                    <v-btn @click="nextPage" :disabled="currentPage === totalPages" color="primary" variant="text">
-                      Next
-                      <template v-slot:append>
-                        <ChevronRightIcon stroke-width="1.5" width="20" />
-                      </template>
-                    </v-btn>
-                  </template>
-                </v-btn>
-              </div>
-            </v-card-text> </v-card
-        ></v-main>
+                </div>
+              </perfect-scrollbar>
+            </v-card-text>
+          </v-layout></v-layout
+        >
       </v-layout>
-      <!-- <template v-slot:actions>
-        <v-btn class="ms-auto" text @click="$emit('closeBlockDialog')">Ok</v-btn>
-      </template> -->
+      <v-layout class="d-flex flex-row justify-center align-center mt-2" style="height: 100px">
+        <v-btn color="primary" variant="text">
+          <template v-slot:append>
+            <v-btn @click="prevPage" :disabled="currentPage === 1" color="primary" variant="text">
+              Previous
+              <template v-slot:prepend>
+                <ChevronLeftIcon stroke-width="1.5" width="20" />
+              </template>
+            </v-btn>
+          </template>
+        </v-btn>
+        <span>{{ currentPage }} / {{ totalPages }}</span>
+        <v-btn color="primary" variant="text">
+          <template v-slot:append>
+            <v-btn @click="nextPage" :disabled="currentPage === totalPages" color="primary" variant="text">
+              Next
+              <template v-slot:append>
+                <ChevronRightIcon stroke-width="1.5" width="20" />
+              </template>
+            </v-btn>
+          </template>
+        </v-btn>
+      </v-layout>
     </v-card>
   </v-dialog>
 </template>
