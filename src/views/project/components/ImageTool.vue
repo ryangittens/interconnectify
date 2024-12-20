@@ -8,6 +8,7 @@
       :width="image.width"
       :height="image.height"
       :href="image.src"
+      :opacity="image.opacity"
       :preserveAspectRatio="image.preserveAspectRatio"
       :ref="(el) => imageRefs.set(image.id, el)"
       @mousedown.stop="handleImageMouseDown(image, $event)"

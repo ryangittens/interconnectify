@@ -20,7 +20,9 @@
           textAlign: text.align,
           width: text.width + 'px',
           height: text.height + 'px',
-          whiteSpace: 'pre-wrap'
+          whiteSpace: 'pre-wrap',
+          cursor: 'grab',
+          lineHeight: (text.lineHeight || text.fontSize) + 'px'
         }"
         @mousedown.stop="handleTextMouseDown(text, $event)"
         @click.stop="handleTextClick(text, $event)"
@@ -50,7 +52,9 @@
           textAlign: text.align,
           width: text.width + 'px',
           height: text.height + 'px',
-          whiteSpace: 'pre-wrap'
+          whiteSpace: 'pre-wrap',
+          cursor: 'grab',
+          lineHeight: (text.lineHeight || text.fontSize) + 'px'
         }"
         @mousedown.stop="handleTextMouseDown(text, $event)"
         @click.stop="handleTextClick(text, $event)"

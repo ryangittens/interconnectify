@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { uuid } from 'vue-uuid'
 import * as pdfMake from 'pdfmake/build/pdfmake'
 import { nextTick } from 'vue'
-import { UpdateLineCommand } from '@/commands'
+import { DeleteImageCommand, UpdateLineCommand } from '@/commands'
 import { updateLinePoints } from '@/utils/lineUtils'
 import { useSnackbarStore } from './snackbar'
 import { debounce } from 'lodash'
@@ -48,6 +48,8 @@ export const useSvgStore = defineStore('svgStore', {
       { prop: 'lines', type: 'line' },
       { prop: 'paths', type: 'path' },
       { prop: 'blocks', type: 'block' },
+      { prop: 'images', type: 'image' },
+      { prop: 'connectionPoints', type: 'connectionPoint' },
     ],
     globalDataSource: {
       project_name: 'Project Name',
@@ -75,7 +77,7 @@ export const useSvgStore = defineStore('svgStore', {
       drawing_notes: 'Drawing Notes',
 
     },
-    activeSpace: 'model', //model or paper
+    activeSpace: 'paper', //model or paper
     pageStates: [{ page: { name: 'Page 1' }, drawing: null }],
     currentPageIndex: 0,
     currentPage: { name: 'Page 1' },
@@ -807,6 +809,42 @@ export const useSvgStore = defineStore('svgStore', {
       }
     },
     //----------------- SVG FUNCTIONS -----------------//
+    handleKeyDown(event) {
+      if (event.key === 'Escape' && this.isDrawing) {
+        this.endDrawing()
+      }
+
+      switch (event.key) {
+        case 'z':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            historyStore.undo()
+          }
+          break
+        case 'y':
+          if (event.ctrlKey || event.metaKey) {
+            event.preventDefault()
+            historyStore.redo()
+          }
+          break
+        case 'Delete':
+          this.deleteObject()
+          break
+        case 'Escape':
+          if (event.key === 'Escape') {
+            this.endDrawing()
+            break
+          }
+      }
+    },
+
+    enableKeybindings() {
+      window.addEventListener('keydown', this.handleKeyDown)
+    },
+
+    disableKeybindings() {
+      window.removeEventListener('keydown', this.handleKeyDown)
+    },
     initializePaperSpace() {
       const paperWidth = this.pageSize.width || this.initialViewBox.width
       const paperHeight = this.pageSize.height || this.initialViewBox.height
@@ -1361,6 +1399,12 @@ export const useSvgStore = defineStore('svgStore', {
     updateImageSrc(image, newSrc) {
       image.src = newSrc
     },
+    deleteImage(image) {
+      this.images = this.images.filter((i) => i.id !== image.id)
+      if (this.selectedImage && this.selectedImage.id === image.id) {
+        this.selectedImage = null
+      }
+    },
 
     //----------------- TEXT FUNCTIONS -----------------//
 
@@ -1387,7 +1431,8 @@ export const useSvgStore = defineStore('svgStore', {
         color: 'black',
         align: 'start', // 'start', 'middle', 'end'
         width: 200, // Default width for text wrapping
-        height: 50
+        height: 50,
+        lineHeight: '',
       }
       return newText
     },
@@ -1673,20 +1718,30 @@ export const useSvgStore = defineStore('svgStore', {
       return false
     },
     deleteObject() {
+
       if (this.selectedBlock) {
         historyStore.executeCommand(new DeleteBlockCommand(this.selectedBlock, this))
+        this.deselectAll()
       }
       if (this.selectedLine) {
         historyStore.executeCommand(new DeleteLineCommand(this.selectedLine, this))
+        this.deselectAll()
       }
       if (this.selectedText) {
         historyStore.executeCommand(new DeleteTextCommand(this.selectedText, this))
+        this.deselectAll()
+      }
+      if (this.selectedImage) {
+        historyStore.executeCommand(new DeleteImageCommand(this.selectedImage, this))
+        this.deselectAll()
       }
       if (this.selectedRectangle) {
         historyStore.executeCommand(new DeleteRectangleCommand(this.selectedRectangle, this))
+        this.deselectAll()
       }
       if (this.selectedConnectionPoint) {
         historyStore.executeCommand(new DeleteConnectionPointCommand(this.selectedConnectionPoint, this))
+        this.deselectAll()
       }
     },
     setLinesRef(refs) {
@@ -2036,20 +2091,24 @@ export const useSvgStore = defineStore('svgStore', {
     },
     serializeState(data) {
       if (data) {
-        return JSON.stringify(data) // Return the serialized data         
+        return JSON.stringify(data)
       }
-      return JSON.stringify({
-        texts: this.texts,
-        blocks: this.blocks,
-        lines: this.lines,
-        rectangles: this.rectangles,
-        connectionPoints: this.connectionPoints,
-        savedViewBox: this.viewBox,
-        paperZoomLevel: this.paperZoomLevel,
-        modelSpaceTranslate: this.modelSpaceTranslate,
-        modelSpaceScale: this.modelSpaceScale,
-        page: this.currentPage
-      })
+
+      // Gather elements dynamically from elementTypes
+      const output = this.elementTypes.reduce((acc, { prop }) => {
+        acc[prop] = this[prop] || []
+        return acc
+      }, {})
+
+      // Add remaining fields
+      output.connectionPoints = this.connectionPoints
+      output.savedViewBox = this.viewBox
+      output.paperZoomLevel = this.paperZoomLevel
+      output.modelSpaceTranslate = this.modelSpaceTranslate
+      output.modelSpaceScale = this.modelSpaceScale
+      output.page = this.currentPage
+
+      return JSON.stringify(output)
     },
     setPaperZoomLevel(level) {
       this.paperZoomLevel = level
@@ -2083,13 +2142,16 @@ export const useSvgStore = defineStore('svgStore', {
     },
     resetState() {
       const { clientWidth, clientHeight } = this.svg
-      this.blocks = []
-      this.rectangles = []
-      this.lines = []
-      this.texts = []
-      this.connectionPoints = []
+
+      // Reset elements dynamically from elementTypes
+      this.elementTypes.forEach(({ prop }) => {
+        this[prop] = []
+      })
+
+      // Reset remaining fields
       this.paperZoomLevel = 1
       this.modelSpaceTranslate = { x: 0, y: 0 }
+      this.modelSpaceScale = 1
     },
     deserializeState(serializedState) {
       let data
@@ -2098,12 +2160,14 @@ export const useSvgStore = defineStore('svgStore', {
         const { clientWidth, clientHeight } = this.svg
         this.initializeViewBox()
       }
-      this.blocks = data?.blocks || []
-      this.rectangles = data?.rectangles || []
-      this.lines = data?.lines || []
-      this.texts = data?.texts || []
+
+      // Restore elements dynamically from elementTypes
+      this.elementTypes.forEach(({ prop }) => {
+        this[prop] = data?.[prop] || []
+      })
+
+      // Restore remaining fields
       this.paperZoomLevel = data?.paperZoomLevel || this.paperZoomLevel // Restore the zoom level
-      this.connectionPoints = data?.connectionPoints || []
       this.savedViewBox = data?.savedViewBox || { x: 0, y: 0, width: clientWidth, height: clientHeight }
       this.modelSpaceTranslate = data?.modelSpaceTranslate || { x: 0, y: 0 }
       this.modelSpaceScale = data?.modelSpaceScale || 1
@@ -2170,53 +2234,26 @@ export const useSvgStore = defineStore('svgStore', {
       // Parse the template data
       const data = JSON.parse(this.pendingTemplateData)
 
-      // Extract elements from the data
-      const blocks = data?.blocks || []
-      const rectangles = data?.rectangles || []
-      const lines = data?.lines || []
-      const texts = data?.texts || []
-
-      // Update the UUID of each block
-      updatedBlocks = blocks.map((block) => ({
-        ...block,
-        id: uuid.v1(), // Generate a new UUID for the block
-        elements: block.elements.map((element) => ({
+      // Extract elements from the data using elementTypes
+      const updatedElements = this.elementTypes.reduce((acc, { prop }) => {
+        const elements = data?.[prop] || []
+        acc[prop] = elements.map((element) => ({
           ...element,
-          id: uuid.v1() // Generate a new UUID for each element (if applicable)
-        })), // Generate a new UUID for each element (if applicable)
-        connectionPoints: block.connectionPoints.map((cp) => ({
-          ...cp,
-          id: uuid.v1() // Generate a new UUID for each connection point (if applicable)
+          id: uuid.v1(), // Generate a new UUID for each element
+          ...(element.elements ? {
+            elements: element.elements.map((el) => ({
+              ...el,
+              id: uuid.v1() // Generate a new UUID for each nested element
+            }))
+          } : {})
         }))
-      }))
-
-      // Update the UUID of each rectangle
-      const updatedRectangles = rectangles.map((rect) => ({
-        ...rect,
-        id: uuid.v1() // Generate a new UUID for the rectangle
-      }))
-
-      // Update the UUID of each line
-      const updatedLines = lines.map((line) => ({
-        ...line,
-        id: uuid.v1(), // Generate a new UUID for the line
-        points: line.points.map((point) => ({
-          ...point,
-          id: uuid.v1() // Generate a new UUID for each point (if applicable)
-        }))
-      }))
-
-      // Update the UUID of each text
-      const updatedTexts = texts.map((text) => ({
-        ...text,
-        id: uuid.v1() // Generate a new UUID for the text
-      }))
+        return acc
+      }, {})
 
       // Push the updated elements to the state
-      this.blocks.push(...updatedBlocks)
-      this.rectangles.push(...updatedRectangles)
-      this.lines.push(...updatedLines)
-      this.texts.push(...updatedTexts)
+      this.elementTypes.forEach(({ prop }) => {
+        this[prop].push(...updatedElements[prop])
+      })
     },
     setBlockConfig(block, config) {
       block.selectedConfiguration = config
@@ -2605,12 +2642,13 @@ export const useSvgStore = defineStore('svgStore', {
       const rectangles = elements.filter((el) => el.type === 'rectangle')
       const texts = elements.filter((el) => el.type === 'text' && el.editable !== true)
       const paths = elements.filter((el) => el.type === 'path')
+      const images = elements.filter((el) => el.type === 'image')
 
       const runs = elements.filter((el) => el.type === 'line' && el.category === 'run')
       const editableTexts = elements.filter((el) => el.type === 'text' && el.editable === true)
       const components = elements.filter((el) => el.type === 'block')
 
-      let svgElements = [lines, rectangles, texts, paths].flat()
+      let svgElements = [lines, rectangles, texts, paths, images].flat()
 
 
       // Calculate the bounding box for the elements
@@ -2637,6 +2675,8 @@ export const useSvgStore = defineStore('svgStore', {
             }
           } else if (element.type === 'path') {
             return `<path d="${normalizePath(element.d, minX, minY)}" stroke="${element.stroke}" stroke-width="${element.strokeWidth}" fill="${element.fill}" />`
+          } else if (element.type === 'image') {
+            return `<image x="${element.x - minX}" y="${element.y - minY}" width="${element.width}" height="${element.height}" xlink:href="${element.src}" />`
           }
         })
         .join('')

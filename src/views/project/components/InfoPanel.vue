@@ -26,6 +26,8 @@
               :clearable="field.clearable || false"
               :disabled="field.disabled || false"
               class="w-100"
+              @focus="store.disableKeybindings"
+              @blur="store.enableKeybindings"
             ></v-select>
           </template>
           <template v-else-if="field.inputType === 'checkbox'">
@@ -34,6 +36,8 @@
               :label="field.label"
               :modelValue="selectedObject[field.key]"
               @update:modelValue="handleInput(field, $event)"
+              @focus="store.disableKeybindings"
+              @blur="store.enableKeybindings"
             ></v-checkbox>
           </template>
           <template v-else-if="field.inputType === 'textarea'">
@@ -43,6 +47,8 @@
               :label="field.label"
               :modelValue="getNestedValue(selectedObject, field.key)"
               @input="handleInput(field, $event.target.value)"
+              @focus="store.disableKeybindings"
+              @blur="store.enableKeybindings"
             ></v-textarea>
           </template>
           <template v-else>
@@ -53,6 +59,10 @@
               :type="field.type"
               @input="handleInput(field, $event.target.value)"
               :step="field?.step"
+              :max="field?.max"
+              :min="field?.min"
+              @focus="store.disableKeybindings"
+              @blur="store.enableKeybindings"
             ></v-text-field>
           </template>
         </template>
@@ -131,6 +141,14 @@ const drawerFields = computed(() => {
       { label: 'Connection Type', key: 'connectionType', type: 'text' }
     ];
   }
+  if (selectedObject.value?.object === 'image') {
+    return [
+      { label: 'Src', key: 'src', type: 'text' },
+      { label: 'Width', key: 'width', type: 'number' },
+      { label: 'Height', key: 'height', type: 'number' },
+      { label: 'Opacity', key: 'opacity', type: 'number', step: 0.1, max: 1, min: 0 }
+    ];
+  }
   if (selectedObject.value?.object === 'text') {
     return [
       { label: 'Content', key: 'content', type: 'text' },
@@ -144,6 +162,7 @@ const drawerFields = computed(() => {
         mode: 'block'
       },
       { label: 'Font Size', key: 'fontSize', type: 'number', step: 1 },
+      { label: 'Line Height', key: 'lineHeight', type: 'number', step: 1 },
       {
         label: 'Data Ref',
         key: 'dataRef',

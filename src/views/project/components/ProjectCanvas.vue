@@ -366,8 +366,11 @@ const resizeSVG = () => {
 let resizeObserver;
 onMounted(() => {
   customizer.CLOSE_SIDEBAR();
-
-  store.setActiveSpace('model');
+  if (props.mode == 'project') {
+    store.setActiveSpace('paper');
+  } else {
+    store.setActiveSpace('model');
+  }
 
   // Initialize the ResizeObserver
   resizeObserver = new ResizeObserver(() => {
@@ -381,8 +384,7 @@ onMounted(() => {
   }
 
   initSVG();
-
-  window.addEventListener('keydown', handleKeyDown);
+  store.enableKeybindings();
   window.addEventListener('resize', resizeSVG);
   svg.value.addEventListener('mousemove', handleMouseMove);
   svg.value.addEventListener('mousedown', startInteraction);
@@ -397,7 +399,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   customizer.OPEN_SIDEBAR();
   store.resetState();
-  window.removeEventListener('keydown', handleKeyDown);
+  store.disableKeybindings();
   window.removeEventListener('resize', resizeSVG);
   svg.value.removeEventListener('mousemove', handleMouseMove);
   svg.value.removeEventListener('mousedown', startInteraction);
@@ -633,37 +635,6 @@ const updateRectangle = (event) => {
 
 const cancelRectangle = () => {
   store.cancelCreatingRectangle();
-};
-
-// Function to handle hover line is moved to Lines.vue
-
-const handleKeyDown = (event) => {
-  if (event.key === 'Escape' && store.isDrawing) {
-    endDrawing();
-  }
-
-  switch (event.key) {
-    case 'z':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        historyStore.undo();
-      }
-      break;
-    case 'y':
-      if (event.ctrlKey || event.metaKey) {
-        event.preventDefault();
-        historyStore.redo();
-      }
-      break;
-    case 'Delete':
-      deleteObject();
-      break;
-    case 'Escape':
-      if (event.key === 'Escape') {
-        endDrawing();
-        break;
-      }
-  }
 };
 
 // Function to handle drawing logic locally
