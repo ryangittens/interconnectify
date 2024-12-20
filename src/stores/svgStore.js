@@ -936,7 +936,7 @@ export const useSvgStore = defineStore('svgStore', {
       const svgPoint = point.matrixTransform(ctm.inverse())
       return { x: svgPoint.x, y: svgPoint.y }
     },
-    handleSvgClick(event) {
+    async handleSvgClick(event) {
       if (
         !this.activeTool &&
         !event.target.closest('[data-selectable]')
@@ -980,7 +980,7 @@ export const useSvgStore = defineStore('svgStore', {
       }
       if (this.activeTool === 'image') {
         const coords = this.getSVGCoordinates(event)
-        let image = this.createImage(coords)
+        let image = await this.createImage(coords)
         this.addImage(image)
       }
       if (this.activeTool === 'cloud') {
@@ -1374,30 +1374,55 @@ export const useSvgStore = defineStore('svgStore', {
         this.selectedImage = null
       }
     },
-    createImage(start, src = '') {
-      if (this.activeTool !== 'image') return
+    async createImage(start, src = '') {
+      if (this.activeTool !== 'image') return null
+
       const snappedStart = this.snapToGrid(start.x, start.y)
       if (!src) {
-        src = '/100x100.png'
+        src = '/100x100.png' // Default image path
       }
-      const newImage = {
-        object: 'image',
-        id: uuid.v1(),
-        x: snappedStart.x,
-        y: snappedStart.y,
-        src,
-        width: 100,
-        height: 100,
-        opacity: 1
+
+      try {
+        const dataUrl = await toDataURL(src)
+
+        const newImage = {
+          object: 'image',
+          id: uuid.v1(),
+          x: snappedStart.x,
+          y: snappedStart.y,
+          src: dataUrl, // Embed as data URL
+          width: 100,
+          height: 100,
+          opacity: 1
+        }
+
+        return newImage
+      } catch (error) {
+        console.error('Failed to create image:', error)
+        // Optionally, return a placeholder image or null
+        return null
       }
-      return newImage
     },
     addImage(newImage) {
       this.images.push(newImage)
       this.endDrawing()
     },
-    updateImageSrc(image, newSrc) {
-      image.src = newSrc
+    async updateImageSrc(image, newSrc) {
+      if (!image || !newSrc) {
+        console.warn('Invalid image object or source.')
+        return
+      }
+
+      try {
+        const dataUrl = await toDataURL(newSrc)
+        image.src = dataUrl
+
+        // If you're using a reactive framework like Vue, ensure reactivity
+        this.images = [...this.images]
+      } catch (error) {
+        console.error('Failed to update image source:', error)
+        // Optionally, set a default image or handle the error
+      }
     },
     deleteImage(image) {
       this.images = this.images.filter((i) => i.id !== image.id)
@@ -2950,12 +2975,13 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Serialize the modified SVG
       return new XMLSerializer().serializeToString(clonedSvgElement)
-    }, getSVGPortion(viewport) {
+    }, async getSVGPortion(viewport) {
       if (!this.svg) return ''
 
       // Clone the SVG element
       const clonedSvgElement = this.svg.cloneNode(true)
 
+      // Remove the background element if present
       const backgroundElement = clonedSvgElement.querySelector('.grid-container')
       if (backgroundElement) {
         backgroundElement.parentNode.removeChild(backgroundElement)
@@ -2965,8 +2991,16 @@ export const useSvgStore = defineStore('svgStore', {
       const { x, y, width, height } = viewport
       clonedSvgElement.setAttribute('viewBox', `${x} ${y} ${width} ${height}`)
 
-      // Serialize the modified SVG
-      return new XMLSerializer().serializeToString(clonedSvgElement)
+      try {
+        // Embed images as data URLs
+        await embedImagesInSvg(clonedSvgElement)
+
+        // Serialize the modified SVG
+        return new XMLSerializer().serializeToString(clonedSvgElement)
+      } catch (error) {
+        console.error('Failed to embed images in SVG portion:', error)
+        return ''
+      }
     }, createDocument() {
       var doc = new PDFDocument({
         margin: 0,
@@ -3066,7 +3100,7 @@ export const useSvgStore = defineStore('svgStore', {
         await nextTick()
 
         // Get the updated SVG markup for the current page
-        const svgMarkup = this.getSVGPortion(viewport)
+        const svgMarkup = await this.getSVGPortion(viewport)
         if (!svgMarkup) {
           console.error('No SVG content to convert to PDF for page', i)
           continue
@@ -3491,4 +3525,75 @@ function normalizePath(d, offsetX, offsetY) {
 
   // Join the normalized commands back into a single path data string
   return normalizedCommands.join(' ')
+}
+
+/**
+ * Converts an image URL to a base64 data URL with specified format and quality.
+ *
+ * @param {string} url - The URL of the image to convert.
+ * @param {string} format - The desired image format (e.g., 'image/png', 'image/jpeg').
+ * @param {number} quality - The quality level for formats that support it (0 to 1).
+ * @returns {Promise<string>} - A promise that resolves to the base64 data URL.
+ */
+async function toDataURL(url, format = 'image/png', quality = 1.0) {
+  try {
+    const response = await fetch(url, { mode: 'cors' })
+    if (!response.ok) throw new Error(`Failed to fetch image: ${response.statusText}`)
+    const blob = await response.blob()
+
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.crossOrigin = 'Anonymous' // Handle CORS
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas')
+          canvas.width = img.width
+          canvas.height = img.height
+          const ctx = canvas.getContext('2d')
+          ctx.drawImage(img, 0, 0)
+
+          // Convert canvas to data URL with specified format and quality
+          const dataURL = canvas.toDataURL(format, quality)
+          resolve(dataURL)
+        } catch (err) {
+          reject(err)
+        }
+      }
+
+      img.onerror = () => reject(new Error('Failed to load image for conversion.'))
+      img.src = URL.createObjectURL(blob)
+    })
+  } catch (error) {
+    console.error('Error in toDataURL:', error)
+    throw error
+  }
+}
+
+/**
+ * Embeds all external images in the SVG as base64 data URLs.
+ *
+ * @param {SVGElement} svgElement - The SVG element to process.
+ */
+async function embedImagesInSvg(svgElement) {
+  const images = svgElement.querySelectorAll('image')
+  const embedPromises = Array.from(images).map(async (imgEl) => {
+    let href = imgEl.getAttribute('xlink:href') || imgEl.getAttribute('href')
+    if (href && !href.startsWith('data:')) {
+      try {
+        const dataUrl = await toDataURL(href)
+        // Prefer 'href' over 'xlink:href' if present
+        if (imgEl.hasAttribute('href')) {
+          imgEl.setAttribute('href', dataUrl)
+        } else {
+          imgEl.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', dataUrl)
+        }
+      } catch (error) {
+        console.error(`Failed to embed image: ${href}`, error)
+        // Optionally, remove the image or set a placeholder
+        imgEl.parentNode.removeChild(imgEl)
+      }
+    }
+  })
+  await Promise.all(embedPromises)
 }

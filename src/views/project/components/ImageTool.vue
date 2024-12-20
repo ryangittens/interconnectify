@@ -33,9 +33,9 @@ let initialImagePosition = { x: 0, y: 0 };
 let currentImageElement = null;
 let currentImage = null;
 
-const handleImageClick = (image, event) => {
+const handleImageClick = async (image, event) => {
   if (store.activeTool) {
-    store.handleSvgClick(event);
+    await store.handleSvgClick(event);
   } else {
     selectImage(image, event);
   }
