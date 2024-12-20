@@ -1,5 +1,6 @@
 <template>
   <g>
+    <!-- Existing store connection points -->
     <circle
       v-for="cp in store.connectionPoints"
       :key="cp.id"
@@ -12,6 +13,22 @@
       @mouseup="handleCPMouseUp($event)"
       @click="handleCPClick(cp, $event)"
     />
+
+    <!-- Block connection points -->
+    <circle
+      v-for="cp in blockConnectionPoints"
+      :key="`block-cp-${cp.id}`"
+      :ref="(el) => cpRefs.set(`block-cp-${cp.id}`, el)"
+      :cx="cp.x"
+      :cy="cp.y"
+      r="3"
+      :fill="cp.color"
+      @mousedown.stop="handleCPMouseDown(cp, $event)"
+      @mouseup="handleCPMouseUp($event)"
+      @click="handleCPClick(cp, $event)"
+    />
+
+    <!-- Existing code for adding connection points -->
     <circle v-if="store.isAddingConnectionPoint" :cx="store.currentPoint.x" :cy="store.currentPoint.y" r="3" :fill="cpColor" />
   </g>
 </template>
@@ -40,6 +57,14 @@ const { selectConnectionPoint, endInteraction } = store;
 // Non-reactive variables
 const cpRefs = new Map();
 
+// Accept block connection points as a prop
+const props = defineProps({
+  blockConnectionPoints: {
+    type: Array,
+    default: () => []
+  }
+});
+
 let isDraggingCP = false;
 let dragStartCoords = { x: 0, y: 0 };
 let initialCPPosition = { x: 0, y: 0 };
@@ -52,6 +77,23 @@ let tempCPCircle = null;
 
 const cpColor = computed(() => {
   return store.connectionPointColors[store.currentConnectionPointType];
+});
+
+const blockConnectionPoints = computed(() => {
+  return store.blocks.flatMap((block) => {
+    const blockX = block.x;
+    const blockY = block.y;
+    const configuration = block.configurations[block.selectedConfiguration];
+
+    return configuration.connectionPoints.map((cp) => {
+      return {
+        ...cp,
+        x: blockX + cp.x,
+        y: blockY + cp.y,
+        blockId: block.id
+      };
+    });
+  });
 });
 
 const handleCPClick = (cp, event) => {

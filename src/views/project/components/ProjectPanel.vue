@@ -23,7 +23,8 @@ import {
   IconFileTypeSvg,
   IconFileTypePdf,
   IconFileArrowLeft,
-  IconCloudPlus
+  IconCloudPlus,
+  IconPhotoPlus
 } from '@tabler/icons-vue';
 import { useSvgStore } from '@/stores/svgStore';
 import { ref } from 'vue';
@@ -53,6 +54,11 @@ function setLine(lineId) {
 const setRectangleTool = () => {
   store.endDrawing();
   store.startRectangleTool();
+};
+
+const setImageTool = () => {
+  store.endDrawing();
+  store.startImageTool();
 };
 
 const startTextTool = () => {
@@ -304,7 +310,6 @@ const saveDrawingAsBlock = async () => {
       icon
       outlined
       rounded="sm"
-      :disabled="historyStore.saved"
       :variant="historyStore.saved ? 'plain' : 'flat'"
     >
       <DeviceFloppyIcon size="20" stroke-width="1.5" />
@@ -317,7 +322,6 @@ const saveDrawingAsBlock = async () => {
       icon
       outlined
       rounded="sm"
-      :disabled="historyStore.saved"
       :variant="historyStore.saved ? 'plain' : 'flat'"
     >
       <DeviceFloppyIcon size="20" stroke-width="1.5" />
@@ -378,6 +382,9 @@ const saveDrawingAsBlock = async () => {
     <v-btn @click="startTextTool" class="text-secondary ml-2" icon outlined rounded="sm" :variant="isActive('text') ? 'tonal' : 'flat'">
       <IconLetterCase size="20" stroke-width="1.5" />
     </v-btn>
+    <v-btn @click="setImageTool" class="text-secondary ml-2" icon outlined rounded="sm" :variant="isActive('image') ? 'tonal' : 'flat'">
+      <IconPhotoPlus size="20" stroke-width="1.5" />
+    </v-btn>
     <v-btn
       @click="setRectangleTool"
       class="text-secondary ml-2"
@@ -392,7 +399,6 @@ const saveDrawingAsBlock = async () => {
       <IconCloudPlus size="20" stroke-width="1.5" />
     </v-btn>
     <v-btn
-      v-if="store.mode == 'project' && store.activeSpace == 'model'"
       @click="setLine('run')"
       class="text-secondary ml-2"
       icon

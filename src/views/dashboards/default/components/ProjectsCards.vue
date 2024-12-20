@@ -108,7 +108,7 @@ const saveProjectAsTemplate = async (project: {}) => {
       user_id: user.id,
       drawing: project.drawing,
       project_svg: project.project_svg,
-      project_description: project.project_description
+      notes: project.notes
     };
 
     const { data, error } = await supabase.schema('interconnectify').from('templates').insert(newTemplate).select('*'); // Ensure to select the inserted record

@@ -1,5 +1,5 @@
 <template>
-  <g ref="cloudsContainer">
+  <g ref="cloudsContainer" :data-selectable="true">
     <!-- Clouds -->
     <g v-for="cloud in store.clouds" :key="cloud.id">
       <path :d="generateCloudPath(cloud.points)" stroke="blue" fill="none" stroke-width="2" stroke-linejoin="round"></path>

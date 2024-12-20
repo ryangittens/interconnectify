@@ -71,8 +71,51 @@ export function updateLinePoints(line, lineStartedAtBlock, isHorizontalMove) {
     return cleanUpPoints(newPoints)
 }
 
-function cleanUpPoints(points) {
+// function cleanUpPoints(points) {
 
+//     if (points.length <= 2) return points
+
+//     const newPoints = [points[0]]
+
+//     for (let i = 1; i < points.length - 1; i++) {
+//         const prevPoint = newPoints[newPoints.length - 1]
+//         const currentPoint = points[i]
+//         const nextPoint = points[i + 1]
+
+//         // Check if the current point is necessary
+//         // CHECK IF POINT IS ALONG STRAIGHT LINE
+//         const isHorizontal = prevPoint.y === currentPoint.y && currentPoint.y === nextPoint.y
+//         const isVertical = prevPoint.x === currentPoint.x && currentPoint.x === nextPoint.x
+
+//         // Prevent points connected to blocks from being removed
+//         // IF IS HORIZONAL OR VERTICAL, DONT ADD
+//         // IF CONNECTED TO BLOCK, ADD
+
+//         if (currentPoint.blockId || (!isHorizontal && !isVertical)) {
+//             // Avoid adding duplicate points
+//             if (currentPoint.x !== prevPoint.x || currentPoint.y !== prevPoint.y) {
+//                 newPoints.push(currentPoint)
+//             }
+//         }
+//     }
+
+//     // Ensure the last point is always added and avoid duplicates
+//     const lastPoint = points[points.length - 1]
+//     const lastNewPoint = newPoints[newPoints.length - 1]
+//     if (lastPoint.x == lastNewPoint.x && lastPoint.y == lastNewPoint.y) {
+//         if (lastPoint?.blockId || lastPoint?.connectionPointId) {
+//             newPoints[newPoints.length - 1] = lastPoint
+//         }
+//     } else if (!(lastNewPoint.blockId || lastNewPoint.connectionPointId) && (lastPoint.blockId || lastPoint.connectionPointId)) {
+//         newPoints.push(lastPoint)
+//     } else if (newPoints.length == 1) {
+//         newPoints.push(lastPoint)
+//     }
+
+//     return newPoints
+// }
+
+function cleanUpPoints(points) {
     if (points.length <= 2) return points
 
     const newPoints = [points[0]]
@@ -82,34 +125,23 @@ function cleanUpPoints(points) {
         const currentPoint = points[i]
         const nextPoint = points[i + 1]
 
-        // Check if the current point is necessary
-        // CHECK IF POINT IS ALONG STRAIGHT LINE
         const isHorizontal = prevPoint.y === currentPoint.y && currentPoint.y === nextPoint.y
         const isVertical = prevPoint.x === currentPoint.x && currentPoint.x === nextPoint.x
 
-        // Prevent points connected to blocks from being removed
-        // IF IS HORIZONAL OR VERTICAL, DONT ADD
-        // IF CONNECTED TO BLOCK, ADD
-
         if (currentPoint.blockId || (!isHorizontal && !isVertical)) {
-            // Avoid adding duplicate points
             if (currentPoint.x !== prevPoint.x || currentPoint.y !== prevPoint.y) {
                 newPoints.push(currentPoint)
             }
         }
     }
 
-    // Ensure the last point is always added and avoid duplicates
     const lastPoint = points[points.length - 1]
     const lastNewPoint = newPoints[newPoints.length - 1]
-    if (lastPoint.x == lastNewPoint.x && lastPoint.y == lastNewPoint.y) {
-        if (lastPoint?.blockId || lastPoint?.connectionPointId) {
-            newPoints[newPoints.length - 1] = lastPoint
-        }
-    } else if (!(lastNewPoint.blockId || lastNewPoint.connectionPointId) && (lastPoint.blockId || lastPoint.connectionPointId)) {
+
+    if (lastPoint.x !== lastNewPoint.x || lastPoint.y !== lastNewPoint.y) {
         newPoints.push(lastPoint)
-    } else if (newPoints.length == 1) {
-        newPoints.push(lastPoint)
+    } else if (lastPoint?.blockId || lastPoint?.connectionPointId) {
+        newPoints[newPoints.length - 1] = lastPoint
     }
 
     return newPoints

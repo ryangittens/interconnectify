@@ -36,11 +36,20 @@
               @update:modelValue="handleInput(field, $event)"
             ></v-checkbox>
           </template>
+          <template v-else-if="field.inputType === 'textarea'">
+            <!-- New textarea input -->
+            <v-textarea
+              :rounded="false"
+              :label="field.label"
+              :modelValue="getNestedValue(selectedObject, field.key)"
+              @input="handleInput(field, $event.target.value)"
+            ></v-textarea>
+          </template>
           <template v-else>
             <v-text-field
               :rounded="false"
               :label="field.label"
-              :modelValue="selectedObject[field.key]"
+              :modelValue="getNestedValue(selectedObject, field.key)"
               :type="field.type"
               @input="handleInput(field, $event.target.value)"
               :step="field?.step"
@@ -98,6 +107,23 @@ const handleBlur = () => {
   // Optional: Implement any onBlur logic if necessary
 };
 
+const updateTextData = (element, key, newValue) => {
+  store.updateTextData(newValue, element);
+};
+
+function getNestedValue(obj, path) {
+  return path.split('.').reduce((o, key) => (o ? o[key] : null), obj);
+}
+
+function setNestedValue(obj, path, value) {
+  const keys = path.split('.');
+  const lastKey = keys.pop();
+  const target = keys.reduce((o, key) => (o ? o[key] : null), obj);
+  if (target) {
+    target[lastKey] = value;
+  }
+}
+
 const drawerFields = computed(() => {
   if (selectedObject.value?.object === 'connectionPoint') {
     return [
@@ -108,7 +134,22 @@ const drawerFields = computed(() => {
   if (selectedObject.value?.object === 'text') {
     return [
       { label: 'Content', key: 'content', type: 'text' },
-      { label: 'Font Size', key: 'fontSize', type: 'number', step: 1 }
+      { label: 'Key', key: 'key', type: 'text' },
+      { label: 'Prepend', key: 'prepend', type: 'text' },
+      { label: 'Append', key: 'append', type: 'text' },
+      {
+        label: 'Editable',
+        key: 'editable',
+        inputType: 'checkbox',
+        mode: 'block'
+      },
+      { label: 'Font Size', key: 'fontSize', type: 'number', step: 1 },
+      {
+        label: 'Data Ref',
+        key: 'dataRef',
+        inputType: 'textarea', // Changed inputType to 'textarea'
+        onUpdate: updateTextData
+      }
     ];
   }
   if (selectedObject.value?.object === 'line') {
@@ -125,6 +166,7 @@ const drawerFields = computed(() => {
         type: 'text',
         onUpdate: updateLine
       },
+
       {
         label: 'Size',
         key: 'size',
@@ -136,7 +178,7 @@ const drawerFields = computed(() => {
     ];
   }
   if (selectedObject.value?.object === 'block') {
-    return [
+    const fields = [
       {
         label: 'Scale',
         key: 'scale',
@@ -148,8 +190,8 @@ const drawerFields = computed(() => {
         label: 'Config',
         key: 'selectedConfiguration',
         inputType: 'select',
-        type: 'number',
         options: selectedObject.value.configurations.map((config, index) => {
+          console.log({ title: config.name, value: index });
           return { title: config.name, value: index };
         }),
         onUpdate: (element, key, newValue) => {
@@ -174,6 +216,28 @@ const drawerFields = computed(() => {
         }
       }
     ];
+
+    console.log(selectedObject.value);
+
+    // Get the current configuration of the selected block
+    const configuration = selectedObject.value.configurations[selectedObject.value.selectedConfiguration];
+
+    // Check if editableTexts exist in the configuration
+    if (configuration.editableTexts && configuration.editableTexts.length > 0) {
+      // Iterate over each editableText and add it to the fields array
+      configuration.editableTexts.forEach((text, textIndex) => {
+        console.log(selectedObject.value.configurations[selectedObject.value.selectedConfiguration].editableTexts[textIndex].content);
+        fields.push({
+          label: text.key || 'Text',
+          key: `configurations.${selectedObject.value.selectedConfiguration}.editableTexts.${textIndex}.content`,
+          type: 'text',
+          onUpdate: (element, key, newValue) => {
+            setNestedValue(element, key, newValue);
+          }
+        });
+      });
+    }
+    return fields;
   }
   // Add other conditions for different object types if necessary
   return [];

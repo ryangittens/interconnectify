@@ -8,6 +8,7 @@
     :opacity="block?.active ? 1 : 0.3"
     @mousedown.stop="handleBlockMouseDown(block, $event)"
     @click="handleBlockClick(block, $event)"
+    :data-selectable="true"
   >
     <!-- Add this transparent rectangle to capture clicks -->
     <rect :x="0" :y="0" :width="block.width" :height="block.height" fill="transparent" style="cursor: pointer" />
@@ -62,7 +63,7 @@
       </g>
     </g>
     <!-- Block connection points -->
-    <circle
+    <!-- <circle
       v-for="cp in block.configurations[block.selectedConfiguration].connectionPoints"
       :id="`cp-${cp.id}`"
       :key="cp.id"
@@ -72,7 +73,7 @@
       :fill="cp.color"
       @click.stop="handleConnectionPointClick(cp, block, $event)"
       :style="store.isDrawing ? 'cursor: crosshair' : 'cursor: default'"
-    />
+    /> -->
   </g>
 </template>
 
@@ -273,7 +274,7 @@ const handleBlockMouseUp = (event) => {
         // Adjust line points for right-angle connections if needed
         const lineStartedAtBlock = line.points[0].blockId === currentBlock.id;
         const isHorizontalMove = Math.abs(dx) > Math.abs(dy);
-        store.updateLinePoints(line, lineStartedAtBlock, isHorizontalMove);
+        updateLinePoints(line, lineStartedAtBlock, isHorizontalMove);
       }
     });
 

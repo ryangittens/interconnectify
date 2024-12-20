@@ -1,4 +1,5 @@
 <template>
+  <CreateSDLProjectModal :show="projectDialog" :designs="designs" @close-project-dialog="closeProjectDialog" />
   <v-container fluid>
     <!-- Main Content Row with Map and Chart -->
     <!-- <v-row>
@@ -52,9 +53,11 @@
           </v-toolbar>
           <v-data-table :headers="headers" :items="filteredItems" :search="search" v-model:items-per-page="itemsPerPage" :loading="loading">
             <template v-slot:item.project_name="{ item }">
-              <router-link :to="'/Proposal/' + item.proposal_id">
-                {{ item.project_name }}
-              </router-link>
+              <div @click="selectProposal(item.proposal_id)" class="cursorPointer">
+                <h6 class="text-subtitle-1 text-medium-emphasis font-weight-bold cursorPointer">
+                  {{ item.project_name }}
+                </h6>
+              </div>
             </template>
 
             <template v-slot:item.project_scale="{ item }">
@@ -77,6 +80,8 @@ import { useRouter, useRoute } from 'vue-router';
 import ProjectMap from '@/components/analytics/ProjectMap.vue';
 import TopJurisdictionsOrStates from '@/components/analytics/TopJurisdictionsOrStates.vue';
 import { supabase } from '@/utils/supabaseClient';
+
+import CreateSDLProjectModal from './components/CreateSDLProjectModal.vue';
 
 // Access router and route
 const router = useRouter();
@@ -277,4 +282,47 @@ watch(
   },
   { immediate: true }
 );
+
+const projectDialog = ref(false);
+const show = ref({});
+const selectedProposalId = ref(null);
+const designs = ref([]);
+
+async function fetchProjects(proposalId) {
+  try {
+    // Fetch project data
+    const { data: projectData, error: projectError } = await supabase
+      .from('projects')
+      .select('project_id, design_name, panel_wattage, created_at, users ( user_name )')
+      .eq('proposal_id', proposalId);
+
+    if (projectError) throw projectError;
+    designs.value = projectData;
+  } catch (error) {
+    console.error('Error fetching data:', error.message);
+  }
+}
+
+function openProjectDialog() {
+  projectDialog.value = true;
+}
+
+function closeProjectDialog() {
+  projectDialog.value = false;
+  selectedProposalId.value = null;
+}
+
+async function selectProposal(proposalId) {
+  selectedProposalId.value = proposalId;
+  if (proposalId) {
+    await fetchProjects(proposalId);
+    openProjectDialog();
+  }
+}
 </script>
+
+<style lang="scss">
+.cursorPointer {
+  cursor: pointer;
+}
+</style>

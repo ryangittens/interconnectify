@@ -19,6 +19,8 @@
         <PaperTitleBlock />
         <ConductorScheduleSvg :x="55" :y="65" />
         <Clouds ref="cloudsRef" />
+        <ImageTool />
+        <TextTool />
       </g>
       <!-- Model Space Group -->
       <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
@@ -28,7 +30,6 @@
         <Blocks @startWire="handleStartWire" />
         <Lines ref="linesRef" />
         <ConnectionPointsTool />
-        <TextTool />
       </g>
     </svg>
     <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
@@ -54,6 +55,7 @@ import TextTool from './TextTool.vue';
 import ConnectionPointsTool from './ConnectionPointsTool.vue';
 import PaperTitleBlock from './PaperTitleBlock.vue'; // New component
 import Clouds from './Clouds.vue';
+import ImageTool from './ImageTool.vue';
 
 import {
   StopDrawingCommand,

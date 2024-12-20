@@ -106,6 +106,10 @@ const toggleBlockPanel = (blockId) => {
   show.value[blockId] = !show.value[blockId];
 };
 
+const goToProject = (projectId) => {
+  router.push({ name: 'ProjectDesignView', params: { id: projectId, table: 'blocks' } });
+};
+
 const totalPages = computed(() => Math.ceil(totalBlocks.value / pageSize.value));
 
 onMounted(fetchBlocks);
@@ -156,7 +160,7 @@ watch([currentPage, searchQuery], fetchBlocks);
                       </h6>
                     </div>
                     <v-spacer></v-spacer>
-
+                    <v-btn size="small" icon="mdi-square-edit-outline" @click="goToProject(block.id)"></v-btn>
                     <v-btn
                       size="small"
                       :icon="show[block.id] ? 'mdi-chevron-up' : 'mdi-chevron-down'"

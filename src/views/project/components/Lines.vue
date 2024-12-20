@@ -1,7 +1,7 @@
 <template>
-  <g ref="linesContainer">
-    <!-- Wrap each line and its label within a parent <g> -->
-    <g v-for="line in store.lines" :key="line.id">
+  <g ref="linesContainer" :data-selectable="true">
+    <!-- Render all runs -->
+    <g v-for="line in allRuns" :key="line.id">
       <!-- Render the line path -->
       <path
         :ref="(el) => lineRefs.set(line.id, el)"
@@ -10,6 +10,7 @@
         stroke-width="2"
         :stroke-dasharray="line.type === 'dashed' ? '5, 5' : 'none'"
         fill="none"
+        :opacity="line?.active ? 1 : 0.3"
         style="cursor: pointer"
         @mousedown.stop="handleLineMouseDown(line, $event)"
         @mouseup.stop="handleLineMouseUp($event)"
@@ -23,6 +24,7 @@
         @mousedown.stop="handleLabelMouseDown(line, $event)"
         @mouseup.stop="handleLabelMouseUp($event)"
         @click="handleLabelClick(line)"
+        :opacity="line?.active ? 1 : 0.3"
       >
         <circle
           :cx="getLabelPosition(line).x"
@@ -45,7 +47,7 @@
       </g>
     </g>
 
-    <!-- Hover Line for Preview, managed locally -->
+    <!-- Hover Line for Preview -->
     <path ref="hoverLineRef" v-if="store.isDrawing" class="hover-line"></path>
   </g>
 </template>
@@ -61,6 +63,36 @@ import { AddLinePointCommand } from '@/commands/AddLinePointCommand';
 
 const historyStore = useHistoryStore();
 const store = useSvgStore();
+
+// Compute runs from blocks
+const blockRuns = computed(() => {
+  return store.blocks.flatMap((block) => {
+    const blockX = block.x;
+    const blockY = block.y;
+    const configuration = block.configurations[block.selectedConfiguration];
+    if (!configuration.runs) return [];
+    return configuration.runs.map((run) => {
+      // Adjust the run's points based on the block's position
+      const adjustedPoints = run.points.map((point) => ({
+        ...point,
+        x: blockX + point.x,
+        y: blockY + point.y,
+        blockId: block.id // Include block ID for reference
+      }));
+
+      return {
+        ...run,
+        points: adjustedPoints,
+        blockId: block.id
+      };
+    });
+  });
+});
+
+// Merge block runs with store runs
+const allRuns = computed(() => {
+  return [...store.lines, ...blockRuns.value];
+});
 
 const activeSpace = computed(() => store.activeSpace);
 
@@ -167,6 +199,7 @@ const finishWire = () => {
     if (store.currentLine.length > 1) {
       const newWire = {
         object: 'line',
+        active: true,
         id: uuid.v1(),
         alias: store.generateAlias(store.wireRuns.length),
         type: store.lineType,
@@ -319,6 +352,7 @@ const endLineDrawing = () => {
   if (store.currentLine.length > 1) {
     const newLine = {
       object: 'line',
+      active: true,
       id: uuid.v1(),
       alias: store.generateAlias(store.wireRuns.length),
       type: store.lineType,

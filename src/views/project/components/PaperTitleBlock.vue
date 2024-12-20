@@ -535,7 +535,7 @@
         stroke: none;
       "
     >
-      PROJECT ID:
+      PROJECT ID: {{ store?.globalDataSource?.project_id }}
     </text>
     <text
       x="345.72873"
@@ -553,7 +553,7 @@
         stroke: none;
       "
     >
-      CONTRACTOR:
+      CONTRACTOR: {{ store?.globalDataSource?.contractor_license }}
     </text>
     <text
       x="572.72192"
@@ -571,7 +571,7 @@
         stroke: none;
       "
     >
-      ENGINEER:
+      ENGINEER: {{ store?.globalDataSource?.engineer_license }}
     </text>
     <text
       x="993.6651"

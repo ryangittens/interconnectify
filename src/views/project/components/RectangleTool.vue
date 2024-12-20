@@ -1,5 +1,5 @@
 <template>
-  <g v-if="rectangle">
+  <g v-if="rectangle" :data-selectable="true">
     <rect
       :x="rectangle.x"
       :y="rectangle.y"
@@ -10,7 +10,7 @@
       :stroke-width="rectangle.strokeWidth"
     />
   </g>
-  <g>
+  <g :data-selectable="true">
     <rect
       v-for="rect in store.rectangles"
       :key="rect.id"
