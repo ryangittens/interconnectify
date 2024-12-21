@@ -337,8 +337,8 @@ const handleMouseMove = (event) => {
 
   let coords = store.getTransformedSVGCoordinates(event);
 
-  const deltaX = (coords.x - dragStartCoords.x) / store.modelSpaceScale;
-  const deltaY = (coords.y - dragStartCoords.y) / store.modelSpaceScale;
+  const deltaX = (coords.x - dragStartCoords.x) / store.paperZoomLevel;
+  const deltaY = (coords.y - dragStartCoords.y) / store.paperZoomLevel;
 
   const newX = initialTextPosition.x + deltaX;
   const newY = initialTextPosition.y + deltaY;

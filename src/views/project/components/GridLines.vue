@@ -1,5 +1,5 @@
 <template>
-  <g v-if="store.showGrid && store.activeSpace == 'model'" class="grid-container">
+  <g v-if="store.showGrid" class="grid-container">
     <line
       v-for="(line, index) in horizontalLines"
       :key="'h-' + index"

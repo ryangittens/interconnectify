@@ -89,7 +89,13 @@ const drawer = computed(() => {
 const selectedObject = computed(() => store.getSelectedObject());
 
 const scaleBlock = (element, key, newValue) => {
-  historyStore.executeCommand(new ScaleBlockCommand(element, newValue, store));
+  let scale = { scale: newValue };
+  historyStore.executeCommand(new ScaleBlockCommand(element, scale, store));
+};
+
+const updateBlockWidth = (element, key, newValue) => {
+  let scale = { width: newValue };
+  historyStore.executeCommand(new ScaleBlockCommand(element, scale, store));
 };
 
 const updateLine = (element, key, newValue) => {
@@ -205,6 +211,7 @@ const drawerFields = computed(() => {
         step: 0.01,
         onUpdate: scaleBlock
       },
+      { label: 'Width', key: 'width', type: 'number', step: 1, onUpdate: updateBlockWidth },
       {
         label: 'Config',
         key: 'selectedConfiguration',

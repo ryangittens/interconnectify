@@ -5,7 +5,7 @@
 
     <v-layout class="mb-0 mt-1 d-flex flex-row justify-space-between align-center">
       <v-btn class="mr-6" @click="toggleNotesDialog">Notes</v-btn>
-      <ViewSelector class="mx-6" @update:view="updateView" />
+      <!-- <ViewSelector v-if="mode == 'project'" class="mx-6" @update:view="updateView" /> -->
       <PageSelector class="ml-6" />
     </v-layout>
 
@@ -32,10 +32,8 @@ import { useSvgStore } from '@/stores/svgStore';
 const store = useSvgStore();
 
 const props = defineProps({
-  project: {
-    type: Object || null,
-    required: true
-  }
+  project: Object || null,
+  mode: String || null
 });
 
 const emit = defineEmits(['update:project', 'update:view']);

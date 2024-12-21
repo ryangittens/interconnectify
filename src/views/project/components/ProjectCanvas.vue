@@ -13,26 +13,25 @@
       @dblclick="handleDoubleClick"
     >
       <!-- Paper Space Group -->
-      <g v-if="props.mode == 'project'" ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
+      <g ref="paperSpaceGroup" :class="{ 'disabled-interactions': activeSpace !== 'paper' }">
         <!-- Paper Space Elements -->
 
         <PaperTitleBlock />
-        <ConductorScheduleSvg :x="55" :y="65" />
-        <Clouds ref="cloudsRef" />
-        <ImageTool />
-        <TextTool />
-      </g>
-      <!-- Model Space Group -->
-      <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }">
-        <g ref="axesContainer"></g>
         <GridLines :viewBox="modelViewBox" />
+        <g ref="axesContainer"></g>
         <RectangleTool />
         <Blocks @startWire="handleStartWire" />
         <Lines ref="linesRef" />
         <ConnectionPointsTool />
+        <ConductorScheduleSvg :x="55" :y="65" />
+        <ImageTool />
+        <TextTool />
+        <Clouds ref="cloudsRef" />
       </g>
+      <!-- Model Space Group -->
+      <g ref="modelSpaceGroup" :transform="modelSpaceTransform" :class="{ 'disabled-interactions': activeSpace !== 'model' }"></g>
     </svg>
-    <BottomSection :project="props.project" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
+    <BottomSection :project="project" :mode="mode" @update:project="emitUpdateProject" @update:view="updateModelViewBox" />
   </div>
 </template>
 
@@ -367,10 +366,15 @@ let resizeObserver;
 onMounted(() => {
   customizer.CLOSE_SIDEBAR();
   if (props.mode == 'project') {
-    store.setActiveSpace('paper');
+    store.toggleGrid(false);
   } else {
-    store.setActiveSpace('model');
+    store.toggleGrid(true);
   }
+  // if (props.mode == 'project') {
+  //   store.setActiveSpace('paper');
+  // } else {
+  //   store.setActiveSpace('model');
+  // }
 
   // Initialize the ResizeObserver
   resizeObserver = new ResizeObserver(() => {

@@ -8,10 +8,10 @@ export class ScaleBlockCommand {
   }
 
   execute() {
-    this.store.scaleBlock(this.block, { scale: this.newScale })
+    this.store.scaleBlock(this.block, this.newScale)
   }
 
   undo() {
-    this.store.scaleBlock(this.block, { scale: this.oldScale })
+    this.store.scaleBlock(this.block, this.oldScale)
   }
 }

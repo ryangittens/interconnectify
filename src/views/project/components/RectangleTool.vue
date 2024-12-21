@@ -32,6 +32,9 @@
 <script setup>
 import { ref, watchEffect } from 'vue';
 import { useSvgStore } from '@/stores/svgStore';
+import { MoveRectangleCommand } from '@/commands';
+import { useHistoryStore } from '@/stores/history';
+const historyStore = useHistoryStore();
 
 const store = useSvgStore();
 
@@ -106,8 +109,9 @@ const handleRectangleMouseUp = (event) => {
   const snappedCoords = snapToGrid(newX, newY);
 
   // Update the rectangle's position in the reactive store
-  currentRectangle.x = snappedCoords.x;
-  currentRectangle.y = snappedCoords.y;
+  historyStore.executeCommand(new MoveRectangleCommand(currentRectangle, snappedCoords.x, snappedCoords.y, store));
+  //currentRectangle.x = snappedCoords.x;
+  //currentRectangle.y = snappedCoords.y;
 
   currentRectangleElement.classList.remove('dragging');
   currentRectangleElement = null;

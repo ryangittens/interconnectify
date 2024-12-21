@@ -474,6 +474,14 @@ const handleMouseMove = (event) => {
   const startPointConnectedToBlock = startPoint.blockId ? true : false;
   const endPointConnectedToBlock = endPoint.blockId ? true : false;
 
+  // const startPointConnectedToBlock =
+  //   (startPoint.x === originalFirstPoint.x && startPoint.y === originalFirstPoint.y) ||
+  //   (startPoint.x === originalLastPoint.x && startPoint.y === originalLastPoint.y);
+
+  // const endPointConnectedToBlock =
+  //   (endPoint.x === originalFirstPoint.x && endPoint.y === originalFirstPoint.y) ||
+  //   (endPoint.x === originalLastPoint.x && endPoint.y === originalLastPoint.y);
+
   // Determine if the segment is horizontal or vertical
   const isHorizontal = startPoint.y === endPoint.y;
   const isVertical = startPoint.x === endPoint.x;
@@ -560,7 +568,9 @@ const handleMouseMove = (event) => {
   }
 
   // Reset the first and last points to the original block connection points
-  resetEndPointsToOriginal(tempLinePoints, originalFirstPoint, originalLastPoint);
+  if (startPointConnectedToBlock || endPointConnectedToBlock) {
+    resetEndPointsToOriginal(tempLinePoints, originalFirstPoint, originalLastPoint);
+  }
 
   // Update the SVG path directly using lineRefs
   const newD = tempLinePoints.map((point, idx) => `${idx === 0 ? 'M' : 'L'} ${point.x} ${point.y}`).join(' ');

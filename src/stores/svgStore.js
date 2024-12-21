@@ -1202,8 +1202,14 @@ export const useSvgStore = defineStore('svgStore', {
         rect.y = coords.y
       }
     },
+    moveRect(rect, newX, newY) {
+      if (rect) {
+        // Update the block position
+        rect.x = newX
+        rect.y = newY
+      }
+    },
     endRectDrag() {
-
       historyStore.executeCommand(new MoveRectangleCommand(this.movingRect, this.movingRect.x - this.initialRectPosition.x, this.movingRect.y - this.initialRectPosition.y, this))
 
 
@@ -1213,19 +1219,6 @@ export const useSvgStore = defineStore('svgStore', {
       this.dragging = false
       this.isRectDragging = false
       this.movingRect = null
-    },
-    updateRect(rect) {
-      const rectIndex = this.rectangles.findIndex((r) => r.id === rect.id)
-      if (rectIndex !== -1) {
-        this.rectangles[rectIndex] = rect
-      }
-    },
-    moveRect(rect, dx, dy) {
-      if (rect) {
-        // Update the block position
-        rect.x += dx
-        rect.y += dy
-      }
     },
     updateCurrentRectangle(end) {
       if (this.activeTool !== 'rectangle' || !this.isCreatingRectangle) return
@@ -2286,7 +2279,8 @@ export const useSvgStore = defineStore('svgStore', {
 
     importBlock(data, event) {
       this.selectBlock(null)
-
+      console.log(data)
+      console.log("viewbox", this.viewBox)
       const block = data
       // Parse block.drawing if it's a JSON string
       let pages = block.drawing
@@ -2426,6 +2420,63 @@ export const useSvgStore = defineStore('svgStore', {
 
       // Original viewBox coordinates should be preserved, only updating if needed
       // for special cases where scaling affects coordinate system
+      // After scaling, the stroke widths also scale up.
+      // If we want them to appear as a consistent 2px on screen,
+      // we must divide by the scale factor:
+      // const elementsWithStroke = svgElement.querySelectorAll('[stroke]')
+      // // **Step 1: Calculate Average Stroke Width**
+      // let totalStrokeWidth = 0
+      // let strokeCount = 0
+
+      // elementsWithStroke.forEach(el => {
+      //   const sw = el.getAttribute('stroke-width')
+      //   if (sw) {
+      //     const match = sw.match(/^([\d.]+)([a-z%]*)$/)
+      //     if (match) {
+      //       const val = parseFloat(match[1])
+      //       if (!isNaN(val)) {
+      //         totalStrokeWidth += val
+      //         strokeCount += 1
+      //       }
+      //     }
+      //   }
+      // })
+
+      // const averageStrokeWidth = strokeCount > 0 ? totalStrokeWidth / strokeCount : 2 // Default to 2 if no strokes
+
+      // // **Step 2: Determine Scale Factor**
+      // const desiredAverageStrokeWidth = 2 // target average stroke width in px
+      // const scaleFactor = averageStrokeWidth !== 0 ? desiredAverageStrokeWidth / averageStrokeWidth : 1
+      // console.log("avg stroke width", averageStrokeWidth)
+      // // **Step 3: Apply Scale Factor to Each Stroke Width**
+      // elementsWithStroke.forEach(el => {
+      //   const sw = el.getAttribute('stroke-width')
+      //   if (sw) {
+      //     const match = sw.match(/^([\d.]+)([a-z%]*)$/)
+      //     if (match) {
+      //       const val = parseFloat(match[1])
+      //       const unit = match[2] || ''
+      //       if (!isNaN(val)) {
+      //         const newVal = (val * scaleFactor).toFixed(2)
+      //         el.setAttribute('stroke-width', `${newVal}${unit}`)
+      //       }
+      //     } else {
+      //       // If unable to parse, set to desired average
+      //       el.setAttribute('stroke-width', `${desiredAverageStrokeWidth}px`)
+      //     }
+      //   } else {
+      //     // If no stroke-width is set, set it to desired average
+      //     el.setAttribute('stroke-width', `${desiredAverageStrokeWidth}px`)
+      //   }
+      // })
+
+      // Optionally, apply non-scaling stroke to maintain stroke width during SVG scaling
+      // Uncomment the following lines if you want strokes to remain 2px regardless of overall SVG scaling
+      /*
+      elementsWithStroke.forEach(el => {
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
+      });
+      */
 
       // Convert back to string
       const serializer = new XMLSerializer()
@@ -2437,9 +2488,11 @@ export const useSvgStore = defineStore('svgStore', {
     importSvgAsBlock(svgContent, event) {
       const coords = this.getSVGCoordinates(event)
 
+      console.log(svgContent)
+
       // Scale SVG to default width
-      //const scaledSvgContent = this.scaleSvgToDefaultWidth(svgContent)
-      const scaledSvgContent = svgContent
+      const scaledSvgContent = this.scaleSvgToDefaultWidth(svgContent)
+      //const scaledSvgContent = svgContent
       // Parse scaled SVG
       const parser = new DOMParser()
       const svgDoc = parser.parseFromString(scaledSvgContent, 'image/svg+xml')
@@ -2898,8 +2951,11 @@ export const useSvgStore = defineStore('svgStore', {
       // Example: this.svg.setAttribute('viewBox', `${this.viewBox.x} ${this.viewBox.y} ${this.viewBox.width} ${this.viewBox.height}`);
     },
 
-    toggleGrid() {
-      this.showGrid = !this.showGrid
+    toggleGrid(val) {
+      if (val !== undefined) {
+        this.showGrid = val
+      } else
+        this.showGrid = !this.showGrid
     },
     getSelectedObject() {
       return this.selectedObject[this.selectedObject.length - 1]

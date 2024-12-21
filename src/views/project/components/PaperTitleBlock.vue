@@ -515,7 +515,7 @@
     </svg>
   </g>
   <Logo :x="860" :y="39" />
-  <g>
+  <g pointer-events="none" style="user-select: none">
     <!-- <rect :x="x" :y="y" :width="width" :height="height" fill="white" stroke="black" />
     <text :x="x + 10" :y="y + 20" fill="black">Title: {{ title }}</text> -->
     <!-- Other text elements -->
